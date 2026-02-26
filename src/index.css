@@ -1,2 +1,11 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Red+Hat+Display:ital,wght@0,300..900;1,300..900&family=Work+Sans:ital,wght@0,100..900;1,100..900&display=swap');
+
 @import "tailwindcss";
 
+@theme {
+  --color-primary: #490e0e;
+  --color-secondary: #201212;
+  --color-text : #ffffff;
+  --color-text-secondary: #64748B;
+  --font-sans: 'Work Sans', sans-serif;
+} 

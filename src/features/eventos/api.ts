@@ -31,3 +31,11 @@ export async function createEventoCosecha(payload: EventoCosechaPayload) {
   const response = await apiClient.post("/eventos/cosecha", payload);
   return response.data;
 }
+
+export async function createEvento(
+  tipo: string,
+  payload: Record<string, unknown>
+) {
+  const response = await apiClient.post(`/eventos/${tipo}`, payload);
+  return response.data;
+}

@@ -27,6 +27,14 @@ export async function fetchTrazabilidad(trazabilidadId: string) {
   return response.data;
 }
 
+export async function fetchTrazabilidades(bodegaId?: string | number) {
+  const query = bodegaId ? `?bodegaId=${encodeURIComponent(bodegaId)}` : "";
+  const response = await apiClient.get<Trazabilidad[]>(
+    `/trazabilidades${query}`
+  );
+  return response.data;
+}
+
 export async function createTrazabilidad(payload: CreateTrazabilidadPayload) {
   const response = await apiClient.post<Trazabilidad>("/trazabilidades", payload);
   return response.data;

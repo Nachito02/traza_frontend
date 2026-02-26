@@ -18,6 +18,7 @@ import SetupCuarteles from "./pages/Setup/SetupCuarteles";
 import SetupProtocolos from "./pages/Setup/SetupProtocolos";
 import MilestonesPlan from "./pages/Trazabilidad/MilestonesPlan";
 import FincaDetail from "./pages/Fincas/FincaDetail";
+import Fincas from "./pages/Fincas/Fincas";
 
 export default function App() {
   const bootstrap = useAuthStore((state) => state.bootstrap);
@@ -73,6 +74,7 @@ export default function App() {
       <Route element={<AppLayout />}>
         <Route path="/contexto" element={<ContextSelector />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/fincas" element={<Fincas />} />
         <Route path="/fincas/:id" element={<FincaDetail />} />
         <Route path="/setup" element={<SetupHome />} />
         <Route path="/setup/finca" element={<SetupFinca />} />

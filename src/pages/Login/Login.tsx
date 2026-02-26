@@ -2,7 +2,7 @@ import { Formik, type FormikHelpers } from "formik";
 import { Grape, Lock, Mail } from "lucide-react";
 import * as Yup from "yup";
 import { useAuthStore } from "../../store/authStore";
-import { redirect, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 const LoginSchema = Yup.object({
   email: Yup.string().email("Email inválido").required("El email es requerido"),
@@ -41,14 +41,14 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#3D1B1F] via-[#722F37] to-[#8B4049] p-4">
+    <div className="min-h-screen flex items-center justify-center  bg-primary p-4">
       <div className="w-full max-w-md">
-        {/* Logo y título */}
+
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-[#C9A961] rounded-full mb-4">
             <Grape className="w-8 h-8 text-[#3D1B1F]" />
           </div>
-          <h1 className="text-white text-3xl mb-2">Traza</h1>
+          <h1 className="text-white font-bold text-3xl mb-2">Traza</h1>
           <p className="text-[#F5E6D3] text-sm">
             Trazabilidad Vitivinícola con Blockchain
           </p>
@@ -174,7 +174,7 @@ const Login = () => {
                   disabled={isSubmitting}
                   className={[
                     "w-full text-white py-3 rounded-lg transition-all duration-200",
-                    "bg-gradient-to-r from-[#722F37] to-[#8B4049]",
+                    "bg-primary",
                     isSubmitting
                       ? "opacity-70 cursor-not-allowed"
                       : "hover:shadow-lg transform hover:scale-[1.02]",

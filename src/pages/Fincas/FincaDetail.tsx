@@ -6,6 +6,8 @@ import { fetchProtocolos } from "../../features/protocolos/api";
 import {
   createTrazabilidad,
   type CreateTrazabilidadPayload,
+  fetchTrazabilidades,
+  type Trazabilidad,
 } from "../../features/trazabilidades/api";
 import { useAuthStore } from "../../store/authStore";
 import type { Cuartel } from "../../features/cuarteles/api";
@@ -28,6 +30,12 @@ const FincaDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [trazabilidades, setTrazabilidades] = useState<Trazabilidad[]>([]);
+  const [trazabilidadesLoading, setTrazabilidadesLoading] = useState(false);
+  const [trazabilidadesError, setTrazabilidadesError] = useState<string | null>(
+    null
+  );
+  const [showCreateForm, setShowCreateForm] = useState(true);
   const [form, setForm] = useState<CreateTrazabilidadPayload>({
     protocoloId: "",
     bodegaId: "",
@@ -78,6 +86,34 @@ const FincaDetail = () => {
     };
   }, [id]);
 
+  useEffect(() => {
+    if (!id || !activeBodegaId) return;
+    let mounted = true;
+    setTrazabilidadesLoading(true);
+    setTrazabilidadesError(null);
+    fetchTrazabilidades(activeBodegaId)
+      .then((data) => {
+        if (!mounted) return;
+        const filtered = (data ?? []).filter(
+          (item) => String(item.finca_id) === String(id)
+        );
+        setTrazabilidades(filtered);
+        setShowCreateForm(filtered.length === 0);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setTrazabilidadesError("No se pudieron cargar las trazabilidades.");
+      })
+      .finally(() => {
+        if (!mounted) return;
+        setTrazabilidadesLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [activeBodegaId, id]);
+
   const onChange = (key: keyof CreateTrazabilidadPayload, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
@@ -91,6 +127,33 @@ const FincaDetail = () => {
       form.campaniaId
     );
   }, [form]);
+
+  const getCuartelLabel = (cuartelId: string) => {
+    const target = String(cuartelId);
+    return (
+      cuarteles.find(
+        (cuartel) => String(cuartel.cuartel_id ?? cuartel.id) === target
+      )?.codigo_cuartel ?? target
+    );
+  };
+
+  const getCampaniaLabel = (campaniaId: string) => {
+    const target = String(campaniaId);
+    return (
+      campanias.find(
+        (campania) =>
+          String(campania.campania_id ?? campania.id) === target
+      )?.nombre ?? target
+    );
+  };
+
+  const getProtocoloLabel = (protocoloId: string) => {
+    const target = String(protocoloId);
+    const protocolo = protocolos.find(
+      (item) => String(item.protocolo_id ?? item.id) === target
+    );
+    return protocolo?.nombre ?? protocolo?.codigo ?? target;
+  };
 
   const handleCreate = async () => {
     if (!canCreate) {
@@ -139,119 +202,195 @@ const FincaDetail = () => {
           <h2 className="text-lg font-semibold text-[#3D1B1F]">
             Crear trazabilidad
           </h2>
-          {loading ? (
-            <div className="mt-4 text-sm text-[#7A4A50]">
-              Cargando datos…
-            </div>
-          ) : error ? (
-            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error}
-            </div>
-          ) : (
-            <form className="mt-6 space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="block text-sm text-[#722F37] mb-2">
-                    Cuartel
-                  </label>
-                  <select
-                    className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
-                    value={form.cuartelId}
-                    onChange={(e) => onChange("cuartelId", e.target.value)}
+          <div className="mt-4">
+            <h3 className="text-sm font-semibold text-[#3D1B1F]">
+              Trazabilidades existentes
+            </h3>
+            {trazabilidadesLoading ? (
+              <div className="mt-2 text-sm text-[#7A4A50]">
+                Cargando trazabilidades…
+              </div>
+            ) : trazabilidadesError ? (
+              <div className="mt-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {trazabilidadesError}
+              </div>
+            ) : trazabilidades.length === 0 ? (
+              <div className="mt-2 text-sm text-[#6B3A3F]">
+                No hay trazabilidades creadas para esta finca.
+              </div>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {trazabilidades.map((item) => (
+                  <div
+                    key={item.trazabilidad_id}
+                    className="flex flex-col gap-3 rounded-xl border border-[#C9A961]/30 bg-white px-4 py-3 md:flex-row md:items-center md:justify-between"
                   >
-                    <option value="">Seleccionar cuartel</option>
-                    {cuarteles.map((cuartel) => (
-                      <option
-                        key={cuartel.cuartel_id ?? cuartel.id}
-                        value={cuartel.cuartel_id ?? cuartel.id}
-                      >
-                        {cuartel.codigo_cuartel}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm text-[#722F37] mb-2">
-                    Campaña
-                  </label>
-                  <select
-                    className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
-                    value={form.campaniaId}
-                    onChange={(e) => onChange("campaniaId", e.target.value)}
-                  >
-                    <option value="">Seleccionar campaña</option>
-                    {campanias.map((campania) => {
-                      const label = campania.nombre;
-                      const idValue = campania.campania_id ?? campania.id ?? "";
-                      return (
-                        <option key={idValue} value={idValue}>
-                          {label}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
+                    <div>
+                      <div className="text-sm font-semibold text-[#3D1B1F]">
+                        {getCuartelLabel(item.cuartel_id)}
+                      </div>
+                      <div className="text-xs text-[#6B3A3F]">
+                        Campaña {getCampaniaLabel(item.campania_id)} · Protocolo{" "}
+                        {getProtocoloLabel(item.protocolo_id)}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        navigate(
+                          `/trazabilidades/${item.trazabilidad_id}/plan`
+                        )
+                      }
+                      className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE]"
+                    >
+                      Abrir trazabilidad
+                    </button>
+                  </div>
+                ))}
               </div>
-
-              <div>
-                <label className="block text-sm text-[#722F37] mb-2">
-                  Protocolo
-                </label>
-                <select
-                  className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
-                  value={form.protocoloId}
-                  onChange={(e) => onChange("protocoloId", e.target.value)}
-                >
-                  <option value="">Seleccionar protocolo</option>
-                  {protocolos.map((protocolo) => {
-                    const idValue =
-                      protocolo.protocolo_id ?? protocolo.id ?? "";
-                    const label =
-                      protocolo.nombre ?? protocolo.codigo ?? "Protocolo";
-                    return (
-                      <option key={idValue} value={idValue}>
-                        {label}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="block text-sm text-[#722F37] mb-2">
-                    Nombre del producto (opcional)
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
-                    value={form.nombre_producto ?? ""}
-                    onChange={(e) => onChange("nombre_producto", e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-[#722F37] mb-2">
-                    Imagen del producto (URL opcional)
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
-                    value={form.imagen_producto ?? ""}
-                    onChange={(e) => onChange("imagen_producto", e.target.value)}
-                  />
-                </div>
-              </div>
-
+            )}
+          </div>
+          <div className="mt-6">
+            {trazabilidades.length > 0 && (
               <button
                 type="button"
-                disabled={!canCreate || saving}
-                onClick={() => void handleCreate()}
-                className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={() => setShowCreateForm((prev) => !prev)}
+                className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE]"
               >
-                {saving ? "Creando..." : "Crear trazabilidad"}
+                {showCreateForm
+                  ? "Ocultar formulario"
+                  : "Crear nueva trazabilidad"}
               </button>
-            </form>
-          )}
+            )}
+            {showCreateForm && (
+              <>
+                {loading ? (
+                  <div className="mt-4 text-sm text-[#7A4A50]">
+                    Cargando datos…
+                  </div>
+                ) : error ? (
+                  <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {error}
+                  </div>
+                ) : (
+                  <form className="mt-6 space-y-4">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="block text-sm text-[#722F37] mb-2">
+                          Cuartel
+                        </label>
+                        <select
+                          className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                          value={form.cuartelId}
+                          onChange={(e) =>
+                            onChange("cuartelId", e.target.value)
+                          }
+                        >
+                          <option value="">Seleccionar cuartel</option>
+                          {cuarteles.map((cuartel) => (
+                            <option
+                              key={cuartel.cuartel_id ?? cuartel.id}
+                              value={cuartel.cuartel_id ?? cuartel.id}
+                            >
+                              {cuartel.codigo_cuartel}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm text-[#722F37] mb-2">
+                          Campaña
+                        </label>
+                        <select
+                          className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                          value={form.campaniaId}
+                          onChange={(e) =>
+                            onChange("campaniaId", e.target.value)
+                          }
+                        >
+                          <option value="">Seleccionar campaña</option>
+                          {campanias.map((campania) => {
+                            const label = campania.nombre;
+                            const idValue =
+                              campania.campania_id ?? campania.id ?? "";
+                            return (
+                              <option key={idValue} value={idValue}>
+                                {label}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm text-[#722F37] mb-2">
+                        Protocolo
+                      </label>
+                      <select
+                        className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                        value={form.protocoloId}
+                        onChange={(e) =>
+                          onChange("protocoloId", e.target.value)
+                        }
+                      >
+                        <option value="">Seleccionar protocolo</option>
+                        {protocolos.map((protocolo) => {
+                          const idValue =
+                            protocolo.protocolo_id ?? protocolo.id ?? "";
+                          const label =
+                            protocolo.nombre ?? protocolo.codigo ?? "Protocolo";
+                          return (
+                            <option key={idValue} value={idValue}>
+                              {label}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="block text-sm text-[#722F37] mb-2">
+                          Nombre del producto (opcional)
+                        </label>
+                        <input
+                          type="text"
+                          className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                          value={form.nombre_producto ?? ""}
+                          onChange={(e) =>
+                            onChange("nombre_producto", e.target.value)
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-[#722F37] mb-2">
+                          Imagen del producto (URL opcional)
+                        </label>
+                        <input
+                          type="text"
+                          className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                          value={form.imagen_producto ?? ""}
+                          onChange={(e) =>
+                            onChange("imagen_producto", e.target.value)
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={!canCreate || saving}
+                      onClick={() => void handleCreate()}
+                      className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {saving ? "Creando..." : "Crear trazabilidad"}
+                    </button>
+                  </form>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
