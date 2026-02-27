@@ -85,18 +85,18 @@ const Fincas = () => {
           </p>
         </div>
 
-        <section className="mb-8 rounded-2xl border border-[#C9A961]/30 bg-white/90 p-6 shadow-lg">
+        <section className="mb-8 rounded-2xl  bg-primary/30 p-6 shadow-lg">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold text-[#3D1B1F]">Fincas</h2>
-              <p className="text-xs text-[#6B3A3F]">
+              <h2 className="text-lg font-semibold text-text">Fincas</h2>
+              <p className="text-xs text-text">
                 Primero definí la finca para poder cargar campañas, cuarteles y
                 protocolos.
               </p>
             </div>
             <Link
               to="/setup/finca"
-              className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE]"
+              className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
             >
               Crear finca
             </Link>
@@ -112,7 +112,7 @@ const Fincas = () => {
             ) : fincasError ? (
               <div className="text-xs text-red-700">{fincasError}</div>
             ) : fincas.length === 0 ? (
-              <div className="text-xs text-[#7A4A50]">
+              <div className="text-xs text-text-secondary">
                 No hay fincas cargadas.
               </div>
             ) : (

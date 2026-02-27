@@ -1,7 +1,11 @@
-import { LogOut } from "lucide-react";
+import { LogOut, Menu } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 
-const Topbar = () => {
+type TopbarProps = {
+  onOpenMenu?: () => void;
+};
+
+const Topbar = ({ onOpenMenu }: TopbarProps) => {
   const user = useAuthStore((state) => state.user);
   const bodegas = useAuthStore((state) => state.bodegas);
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
@@ -14,7 +18,17 @@ const Topbar = () => {
   return (
     <header className="w-full  bg-secondary  px-6">
       <div className="mx-auto flex w-full  items-center justify-between  py-4">
-        <div className="text-lg font-semibold color-text">Traza</div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onOpenMenu}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-white/20 text-text md:hidden"
+            aria-label="Abrir menú"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <div className="text-lg font-semibold text-text">Traza</div>
+        </div>
 
         <div className="flex items-center gap-3">
           <div className="hidden items-center gap-4 text-xs text-[#6B3A3F] md:flex">
