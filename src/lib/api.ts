@@ -28,7 +28,14 @@ export function getApiErrorMessage(error: unknown) {
     }
 
     if (typeof rawData === "string" && rawData.trim()) {
-      return rawData;
+      const value = rawData.trim();
+      if (value.startsWith("<!DOCTYPE html") || value.startsWith("<html")) {
+        return value
+          .replace(/<[^>]+>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+      return value;
     }
 
     if (typeof rawData === "number" || typeof rawData === "boolean") {

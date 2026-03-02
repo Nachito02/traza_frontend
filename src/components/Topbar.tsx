@@ -1,4 +1,6 @@
+import { useEffect, useMemo, useState } from "react";
 import { LogOut, Menu } from "lucide-react";
+import { fetchCampanias, type Campania } from "../features/campanias/api";
 import { useAuthStore } from "../store/authStore";
 
 type TopbarProps = {
@@ -11,9 +13,39 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const logout = useAuthStore((state) => state.logout);
   const isLoading = useAuthStore((state) => state.isLoading);
+  const [campanias, setCampanias] = useState<Campania[]>([]);
   const activeBodega = bodegas.find(
     (bodega) => bodega.bodega_id === activeBodegaId,
   );
+  const activeCampania = useMemo(() => {
+    if (campanias.length === 0) return null;
+    const abiertas = campanias.filter((item) => item.estado === "abierta");
+    if (abiertas.length > 0) {
+      return [...abiertas].sort(
+        (a, b) => b.fecha_inicio.localeCompare(a.fecha_inicio),
+      )[0];
+    }
+    return [...campanias].sort(
+      (a, b) => b.fecha_inicio.localeCompare(a.fecha_inicio),
+    )[0];
+  }, [campanias]);
+
+  useEffect(() => {
+    let mounted = true;
+    fetchCampanias()
+      .then((data) => {
+        if (!mounted) return;
+        setCampanias(data ?? []);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setCampanias([]);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <header className="w-full  bg-secondary  px-6">
@@ -40,7 +72,9 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
             </div>
             <div>
               <span className=" text-text">Campaña:</span>{" "}
-              <span className="font-medium  text-text">2025-2026</span>
+              <span className="font-medium  text-text">
+                {activeCampania?.nombre ?? "Sin campaña activa"}
+              </span>
             </div>
             <div>
               <span className=" text-text">Usuario:</span>{" "}

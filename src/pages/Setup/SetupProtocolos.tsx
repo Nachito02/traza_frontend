@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { fetchProtocolos, type Protocolo } from "../../features/protocolos/api";
+import {
+  fetchProtocolos,
+  getDefaultProtocoloId,
+  type Protocolo,
+} from "../../features/protocolos/api";
 
 const SetupProtocolos = () => {
   const navigate = useNavigate();
@@ -16,7 +20,12 @@ const SetupProtocolos = () => {
     fetchProtocolos()
       .then((data) => {
         if (!mounted) return;
-        setProtocolos(data ?? []);
+        const loaded = data ?? [];
+        setProtocolos(loaded);
+        const defaultId = getDefaultProtocoloId(loaded);
+        if (defaultId) {
+          setSelected(defaultId);
+        }
       })
       .catch(() => {
         if (!mounted) return;
@@ -84,6 +93,11 @@ const SetupProtocolos = () => {
                     <div className="font-semibold text-[#3D1B1F]">
                       {protocolo.nombre ?? protocolo.codigo ?? "Protocolo"}
                     </div>
+                    {selected === id && (
+                      <div className="mt-1 text-xs font-medium text-[#8A6B1F]">
+                        Protocolo seleccionado por defecto
+                      </div>
+                    )}
                     {protocolo.descripcion && (
                       <div className="mt-1 text-xs text-[#7A4A50]">
                         {protocolo.descripcion}

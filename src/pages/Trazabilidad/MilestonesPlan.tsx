@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   completeMilestone,
   fetchMilestones,
@@ -338,6 +338,8 @@ const EVENTO_CONFIG: Record<string, EventoConfig> = {
 
 const MilestonesPlan = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -350,6 +352,7 @@ const MilestonesPlan = () => {
   const [fileToUpload, setFileToUpload] = useState<File | null>(null);
 
   const [form, setForm] = useState<Record<string, string>>({});
+  const milestoneIdFromQuery = searchParams.get("milestoneId");
 
   useEffect(() => {
     if (!id) return;
@@ -430,6 +433,14 @@ const MilestonesPlan = () => {
     setForm(nextForm);
     setActive(milestone);
   };
+
+  useEffect(() => {
+    if (!milestoneIdFromQuery || milestones.length === 0 || active) return;
+    const target = milestones.find((m) => m.milestone_id === milestoneIdFromQuery);
+    if (!target) return;
+    if (target.estado === "completado") return;
+    openModal(target);
+  }, [active, milestoneIdFromQuery, milestones]);
 
   const closeModal = () => {
     setActive(null);
@@ -652,6 +663,21 @@ const MilestonesPlan = () => {
                                 >
                                     Registrar evento
                                 </button>
+                                {m.estado !== "completado" && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      navigate(
+                                        `/tareas?milestoneId=${encodeURIComponent(
+                                          m.milestone_id,
+                                        )}&productoId=${encodeURIComponent(id ?? "")}`,
+                                      )
+                                    }
+                                    className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE]"
+                                  >
+                                    Asignar tarea
+                                  </button>
+                                )}
                             </div>
                         </div>
 

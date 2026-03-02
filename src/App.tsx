@@ -18,8 +18,12 @@ import SetupCampania from "./pages/Setup/SetupCampania";
 import SetupCuarteles from "./pages/Setup/SetupCuarteles";
 import SetupProtocolos from "./pages/Setup/SetupProtocolos";
 import MilestonesPlan from "./pages/Trazabilidad/MilestonesPlan";
+import NuevaTrazabilidadProducto from "./pages/Trazabilidad/NuevaTrazabilidadProducto";
+import TrazabilidadesActivas from "./pages/Trazabilidad/TrazabilidadesActivas";
 import FincaDetail from "./pages/Fincas/FincaDetail";
 import Fincas from "./pages/Fincas/Fincas";
+import Usuarios from "./pages/Usuarios/Usuarios";
+import Tareas from "./pages/Tareas/Tareas";
 
 export default function App() {
   const bootstrap = useAuthStore((state) => state.bootstrap);
@@ -77,12 +81,19 @@ export default function App() {
         <Route path="/contexto" element={<ContextSelector />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/fincas" element={<Fincas />} />
+        <Route path="/tareas" element={<Tareas />} />
+        <Route path="/usuarios" element={<Usuarios />} />
         <Route path="/fincas/:id" element={<FincaDetail />} />
         <Route path="/setup" element={<SetupHome />} />
         <Route path="/setup/finca" element={<SetupFinca />} />
         <Route path="/setup/campania" element={<SetupCampania />} />
         <Route path="/setup/cuarteles" element={<SetupCuarteles />} />
         <Route path="/setup/protocolos" element={<SetupProtocolos />} />
+        <Route path="/productos" element={<TrazabilidadesActivas />} />
+        <Route path="/productos/nuevo" element={<NuevaTrazabilidadProducto />} />
+        <Route path="/productos/:id/plan" element={<MilestonesPlan />} />
+        <Route path="/trazabilidades" element={<Navigate to="/productos" replace />} />
+        <Route path="/trazabilidades/nueva" element={<Navigate to="/productos/nuevo" replace />} />
         <Route path="/trazabilidades/:id/plan" element={<MilestonesPlan />} />
       </Route>
       {/* <Route path="*" element={<NotFound />} /> */}

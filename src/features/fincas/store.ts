@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { fetchFincas, type Finca } from "./api";
+import { getApiErrorMessage } from "../../lib/api";
 
 type FincasState = {
   fincas: Finca[];
@@ -18,8 +19,8 @@ export const useFincasStore = create<FincasState>((set) => ({
     try {
       const data = await fetchFincas(bodegaId);
       set({ fincas: data ?? [] });
-    } catch {
-      set({ error: "No se pudieron cargar las fincas." });
+    } catch (error) {
+      set({ error: getApiErrorMessage(error) });
     } finally {
       set({ loading: false });
     }

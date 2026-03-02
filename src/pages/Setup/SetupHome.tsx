@@ -21,6 +21,11 @@ const steps = [
     description: "Define protocolo activo.",
     to: "/setup/protocolos",
   },
+  {
+    title: "Nuevo producto",
+    description: "Crear producto y asociar fincas/cuarteles.",
+    to: "/productos/nuevo",
+  },
 ];
 
 const SetupHome = () => {
@@ -30,7 +35,7 @@ const SetupHome = () => {
         <div className="mb-8">
           <h1 className="text-3xl text-[#3D1B1F]">Setup guiado</h1>
           <p className="mt-2 text-sm text-[#6B3A3F]">
-            Completa estos pasos para empezar a cargar trazabilidades.
+            Completa estos pasos para empezar a cargar productos.
           </p>
         </div>
 

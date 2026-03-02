@@ -1,9 +1,18 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createCampania } from "../../features/campanias/api";
+import {
+  createCampania,
+  fetchCampanias,
+  type Campania,
+} from "../../features/campanias/api";
+import { getApiErrorMessage } from "../../lib/api";
 
 const SetupCampania = () => {
   const navigate = useNavigate();
+  const [mode, setMode] = useState<"existing" | "new">("existing");
+  const [campanias, setCampanias] = useState<Campania[]>([]);
+  const [selectedCampaniaId, setSelectedCampaniaId] = useState("");
+  const [loadingCampanias, setLoadingCampanias] = useState(true);
   const [form, setForm] = useState({
     nombre: "",
     fecha_inicio: "",
@@ -17,10 +26,45 @@ const SetupCampania = () => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  useEffect(() => {
+    let mounted = true;
+    setLoadingCampanias(true);
+    fetchCampanias()
+      .then((data) => {
+        if (!mounted) return;
+        const loaded = data ?? [];
+        setCampanias(loaded);
+        const firstId = String(loaded[0]?.campania_id ?? loaded[0]?.id ?? "");
+        if (firstId) {
+          setSelectedCampaniaId(firstId);
+        }
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setCampanias([]);
+      })
+      .finally(() => {
+        if (!mounted) return;
+        setLoadingCampanias(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const validateDates = () => {
     if (!form.fecha_inicio || !form.fecha_fin) return true;
     return new Date(form.fecha_fin) > new Date(form.fecha_inicio);
   };
+
+  const canUseExisting = useMemo(
+    () =>
+      !loadingCampanias &&
+      campanias.length > 0 &&
+      Boolean(selectedCampaniaId),
+    [campanias.length, loadingCampanias, selectedCampaniaId],
+  );
 
   const handleSubmit = async () => {
     if (!form.nombre.trim()) {
@@ -46,11 +90,34 @@ const SetupCampania = () => {
         estado: "abierta",
       });
       navigate("/setup/cuarteles");
-    } catch {
-      setError("No se pudo crear la campaña.");
+    } catch (e) {
+      const message = getApiErrorMessage(e);
+      if (message.toLowerCase().includes("unique")) {
+        setError("Ya existe una campaña con ese nombre. Elegí otro nombre.");
+      } else {
+      setError(message);
+      }
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleContinueWithExisting = () => {
+    if (!selectedCampaniaId) {
+      setError("Seleccioná una campaña existente.");
+      return;
+    }
+    const selected = campanias.find(
+      (item) => String(item.campania_id ?? item.id) === selectedCampaniaId,
+    );
+    if (selected) {
+      sessionStorage.setItem("activeCampaniaId", selectedCampaniaId);
+      sessionStorage.setItem(
+        "activeCampaniaNombre",
+        selected.nombre ?? selectedCampaniaId,
+      );
+    }
+    navigate("/setup/cuarteles");
   };
 
   return (
@@ -61,58 +128,130 @@ const SetupCampania = () => {
           Paso 2 de 4 del setup guiado.
         </p>
 
-        <form className="mt-6 space-y-4">
-          <div>
-            <label className="block text-sm text-[#722F37] mb-2">
-              Nombre de la campaña
-            </label>
-            <input
-              type="text"
-              className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
-              placeholder="Campaña 2025"
-              value={form.nombre}
-              onChange={(e) => onChange("nombre", e.target.value)}
-            />
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="block text-sm text-[#722F37] mb-2">
-                Fecha inicio
-              </label>
-              <input
-                type="date"
-                className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
-                value={form.fecha_inicio}
-                onChange={(e) => onChange("fecha_inicio", e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-[#722F37] mb-2">
-                Fecha fin
-              </label>
-              <input
-                type="date"
-                className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
-                value={form.fecha_fin}
-                onChange={(e) => onChange("fecha_fin", e.target.value)}
-              />
-            </div>
-          </div>
-
-          {error && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error}
-            </div>
-          )}
+        <div className="mt-6 grid grid-cols-2 rounded-lg border border-[#C9A961]/30 bg-[#FFF9F0] p-1">
           <button
             type="button"
-            disabled={saving}
-            onClick={() => void handleSubmit()}
-            className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={() => {
+              setMode("existing");
+              setError(null);
+            }}
+            className={[
+              "rounded-md px-3 py-2 text-sm font-medium transition",
+              mode === "existing"
+                ? "bg-white text-[#3D1B1F] shadow"
+                : "text-[#722F37]",
+            ].join(" ")}
           >
-            {saving ? "Guardando..." : "Guardar campaña"}
+            Usar existente
           </button>
-        </form>
+          <button
+            type="button"
+            onClick={() => {
+              setMode("new");
+              setError(null);
+            }}
+            className={[
+              "rounded-md px-3 py-2 text-sm font-medium transition",
+              mode === "new" ? "bg-white text-[#3D1B1F] shadow" : "text-[#722F37]",
+            ].join(" ")}
+          >
+            Crear nueva
+          </button>
+        </div>
+
+        {mode === "existing" ? (
+          <div className="mt-6 space-y-4">
+            <div>
+              <label className="block text-sm text-[#722F37] mb-2">
+                Campaña existente
+              </label>
+              {loadingCampanias ? (
+                <div className="text-sm text-[#6B3A3F]">Cargando campañas…</div>
+              ) : campanias.length === 0 ? (
+                <div className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] px-3 py-2 text-sm text-[#6B3A3F]">
+                  No hay campañas cargadas. Creá una nueva para continuar.
+                </div>
+              ) : (
+                <select
+                  className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                  value={selectedCampaniaId}
+                  onChange={(e) => setSelectedCampaniaId(e.target.value)}
+                >
+                  {campanias.map((campania) => {
+                    const id = String(campania.campania_id ?? campania.id ?? "");
+                    return (
+                      <option key={id} value={id}>
+                        {campania.nombre}
+                      </option>
+                    );
+                  })}
+                </select>
+              )}
+            </div>
+            <button
+              type="button"
+              disabled={!canUseExisting}
+              onClick={handleContinueWithExisting}
+              className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Continuar con campaña seleccionada
+            </button>
+          </div>
+        ) : (
+          <form className="mt-6 space-y-4">
+            <div>
+              <label className="block text-sm text-[#722F37] mb-2">
+                Nombre de la campaña
+              </label>
+              <input
+                type="text"
+                className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                placeholder="Campaña 2025"
+                value={form.nombre}
+                onChange={(e) => onChange("nombre", e.target.value)}
+              />
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="block text-sm text-[#722F37] mb-2">
+                  Fecha inicio
+                </label>
+                <input
+                  type="date"
+                  className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                  value={form.fecha_inicio}
+                  onChange={(e) => onChange("fecha_inicio", e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-[#722F37] mb-2">
+                  Fecha fin
+                </label>
+                <input
+                  type="date"
+                  className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                  value={form.fecha_fin}
+                  onChange={(e) => onChange("fecha_fin", e.target.value)}
+                />
+              </div>
+            </div>
+
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => void handleSubmit()}
+              className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? "Guardando..." : "Guardar campaña"}
+            </button>
+          </form>
+        )}
+
+        {error && (
+          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </div>
+        )}
       </div>
     </div>
   );

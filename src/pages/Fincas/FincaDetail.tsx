@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { fetchCuartelesByFinca } from "../../features/cuarteles/api";
 import { fetchCampanias } from "../../features/campanias/api";
-import { fetchProtocolos } from "../../features/protocolos/api";
+import { fetchProtocolos, getDefaultProtocoloId } from "../../features/protocolos/api";
 import {
   createTrazabilidad,
   type CreateTrazabilidadPayload,
@@ -50,6 +50,23 @@ const FincaDetail = () => {
     if (!id) return;
     setForm((prev) => ({ ...prev, fincaId: id }));
   }, [id]);
+
+  useEffect(() => {
+    if (protocolos.length === 0) return;
+    setForm((prev) => {
+      const exists = protocolos.some(
+        (item) => String(item.protocolo_id ?? item.id) === String(prev.protocoloId),
+      );
+      if (exists && prev.protocoloId) {
+        return prev;
+      }
+      const defaultId = getDefaultProtocoloId(protocolos);
+      if (!defaultId) {
+        return prev;
+      }
+      return { ...prev, protocoloId: defaultId };
+    });
+  }, [protocolos]);
 
   useEffect(() => {
     if (!activeBodegaId) return;
@@ -102,7 +119,7 @@ const FincaDetail = () => {
       })
       .catch(() => {
         if (!mounted) return;
-        setTrazabilidadesError("No se pudieron cargar las trazabilidades.");
+        setTrazabilidadesError("No se pudieron cargar los productos.");
       })
       .finally(() => {
         if (!mounted) return;
@@ -168,9 +185,9 @@ const FincaDetail = () => {
         nombre_producto: form.nombre_producto?.trim() || null,
         imagen_producto: form.imagen_producto?.trim() || null,
       });
-      navigate(`/trazabilidades/${trazabilidad.trazabilidad_id}/plan`);
+      navigate(`/productos/${trazabilidad.trazabilidad_id}/plan`);
     } catch {
-      setError("No se pudo crear la trazabilidad.");
+      setError("No se pudo crear el producto.");
     } finally {
       setSaving(false);
     }
@@ -194,21 +211,21 @@ const FincaDetail = () => {
             {finca?.nombre ?? finca?.nombre_finca ?? finca?.name ?? "Finca"}
           </h1>
           <p className="mt-2 text-sm text-[#6B3A3F]">
-            Seleccioná cuartel, campaña y protocolo para crear una trazabilidad.
+            Seleccioná cuartel, campaña y protocolo para crear un producto.
           </p>
         </div>
 
         <div className="rounded-2xl bg-white/90 p-8 shadow-lg">
           <h2 className="text-lg font-semibold text-[#3D1B1F]">
-            Crear trazabilidad
+            Crear producto
           </h2>
           <div className="mt-4">
             <h3 className="text-sm font-semibold text-[#3D1B1F]">
-              Trazabilidades existentes
+              Productos existentes
             </h3>
             {trazabilidadesLoading ? (
               <div className="mt-2 text-sm text-[#7A4A50]">
-                Cargando trazabilidades…
+                Cargando productos…
               </div>
             ) : trazabilidadesError ? (
               <div className="mt-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -216,7 +233,7 @@ const FincaDetail = () => {
               </div>
             ) : trazabilidades.length === 0 ? (
               <div className="mt-2 text-sm text-[#6B3A3F]">
-                No hay trazabilidades creadas para esta finca.
+                No hay productos creados para esta finca.
               </div>
             ) : (
               <div className="mt-3 space-y-2">
@@ -227,7 +244,9 @@ const FincaDetail = () => {
                   >
                     <div>
                       <div className="text-sm font-semibold text-[#3D1B1F]">
-                        {getCuartelLabel(item.cuartel_id)}
+                        {item.cuartel_id
+                          ? getCuartelLabel(item.cuartel_id)
+                          : "Multi-origen"}
                       </div>
                       <div className="text-xs text-[#6B3A3F]">
                         Campaña {getCampaniaLabel(item.campania_id)} · Protocolo{" "}
@@ -237,13 +256,11 @@ const FincaDetail = () => {
                     <button
                       type="button"
                       onClick={() =>
-                        navigate(
-                          `/trazabilidades/${item.trazabilidad_id}/plan`
-                        )
+                        navigate(`/productos/${item.trazabilidad_id}/plan`)
                       }
                       className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE]"
                     >
-                      Abrir trazabilidad
+                      Abrir producto
                     </button>
                   </div>
                 ))}
@@ -259,7 +276,7 @@ const FincaDetail = () => {
               >
                 {showCreateForm
                   ? "Ocultar formulario"
-                  : "Crear nueva trazabilidad"}
+                  : "Crear nuevo producto"}
               </button>
             )}
             {showCreateForm && (
@@ -281,7 +298,7 @@ const FincaDetail = () => {
                         </label>
                         <select
                           className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
-                          value={form.cuartelId}
+                          value={form.cuartelId ?? ""}
                           onChange={(e) =>
                             onChange("cuartelId", e.target.value)
                           }
@@ -384,7 +401,7 @@ const FincaDetail = () => {
                       onClick={() => void handleCreate()}
                       className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {saving ? "Creando..." : "Crear trazabilidad"}
+                      {saving ? "Creando..." : "Crear producto"}
                     </button>
                   </form>
                 )}

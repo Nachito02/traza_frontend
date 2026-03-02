@@ -1,4 +1,4 @@
-import { LayoutDashboard, Map, GitPullRequest } from "lucide-react";
+import { LayoutDashboard, Map, GitPullRequest, Users, Boxes, ListTodo } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 type AsideProps = {
@@ -10,6 +10,9 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
   const links = [
     { to: "/dashboard", label: "Dashboard", icon: <LayoutDashboard /> },
     { to: "/fincas", label: "Fincas", icon: <Map /> },
+    { to: "/productos", label: "Productos", icon: <Boxes /> },
+    { to: "/tareas", label: "Tareas", icon: <ListTodo /> },
+    { to: "/usuarios", label: "Usuarios", icon: <Users /> },
     { to: "/setup", label: "Trazabilidad", icon: <GitPullRequest /> },
   ];
 

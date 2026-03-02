@@ -11,10 +11,22 @@ export type Finca = {
 };
 
 export async function fetchFincas(bodegaId: string | number) {
-  const response = await apiClient.get<Finca[]>(
-    `/bodegas/${bodegaId}/fincas`
-  );
-  return response.data;
+  const normalizedBodegaId = encodeURIComponent(String(bodegaId));
+  try {
+    const response = await apiClient.get<Finca[]>(
+      `/bodegas/${normalizedBodegaId}/fincas`,
+    );
+    return response.data ?? [];
+  } catch {
+    // Compatibilidad con backends que exponen fincas por query.
+    const response = await apiClient.get<Finca[] | { items?: Finca[] }>(
+      `/fincas?bodegaId=${normalizedBodegaId}`,
+    );
+    if (Array.isArray(response.data)) {
+      return response.data;
+    }
+    return response.data?.items ?? [];
+  }
 }
 
 export type CreateFincaPayload = {
