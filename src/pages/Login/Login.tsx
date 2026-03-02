@@ -2,7 +2,7 @@ import { Formik, type FormikHelpers } from "formik";
 import { Grape, Lock, Mail } from "lucide-react";
 import * as Yup from "yup";
 import { useAuthStore } from "../../store/authStore";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const LoginSchema = Yup.object({
   email: Yup.string().email("Email inválido").required("El email es requerido"),
@@ -29,8 +29,7 @@ const Login = () => {
       await login(values.email, values.password);
       setSubmitting(false);
 
-     navigate("/dashboard");
-
+      navigate("/dashboard");
     } catch (e) {
       const message =
         e instanceof Error ? e.message : "Usuario o contraseña incorrectos";
@@ -193,19 +192,17 @@ const Login = () => {
             <div className="flex-1 border-t border-[#C9A961]/30" />
           </div> */}
 
-          {/* Registro */}
-          {/* <div className="text-center">
+          <div className="text-center mt-6">
             <p className="text-gray-600 text-sm">
-              ¿No tienes una cuenta?{" "}
-              <button
-                type="button"
-                // onClick={}
+              ¿No tenés una cuenta?{" "}
+              <Link
+                to="/registro"
                 className="text-[#722F37] hover:text-[#8B4049] transition-colors font-medium"
               >
-                Regístrate aquí
-              </button>
+                Registrate acá
+              </Link>
             </p>
-          </div> */}
+          </div>
         </div>
 
         {/* Footer */}

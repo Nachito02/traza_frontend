@@ -30,11 +30,18 @@ type AuthState = {
   setActiveBodega: (bodegaId: string | number) => void;
   fetchBodegas: () => Promise<Bodega[]>;
   login: (email: string, password: string) => Promise<void>;
+  register: (payload: {
+    nombre: string;
+    email: string;
+    password: string;
+    bodegaId: string;
+  }) => Promise<void>;
   logout: () => Promise<void>;
   bootstrap: () => Promise<void>;
 };
 
 const LOGIN_PATH = "/auth/login";
+const REGISTER_PATH = "/auth/register";
 const ME_PATH = "/auth/me";
 const ME_BODEGAS_PATH = "/auth/me/bodegas";
 const LOGOUT_PATH = "/auth/logout";
@@ -44,7 +51,7 @@ async function fetchMe() {
   return response.data;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: false,
   isLoading: false,
@@ -94,6 +101,26 @@ export const useAuthStore = create<AuthState>((set) => ({
         .then((r) => r.data)
         .catch(() => []);
       set({ bodegas });
+    } catch (error) {
+      const message = getApiErrorMessage(error);
+      set({ user: null, isAuthenticated: false });
+      set({ error: message });
+      throw new Error(message);
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+  register: async ({ nombre, email, password, bodegaId }) => {
+    set({ isLoading: true, error: null });
+    try {
+      await apiClient.post(REGISTER_PATH, {
+        nombre,
+        email,
+        password,
+        bodegaId,
+      });
+
+      await get().login(email, password);
     } catch (error) {
       const message = getApiErrorMessage(error);
       set({ user: null, isAuthenticated: false });

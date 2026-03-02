@@ -7,6 +7,7 @@ import {
   useNavigate,
 } from "react-router-dom";
 import Login from "./pages/Login/Login";
+import Register from "./pages/Login/Register";
 import ContextSelector from "./pages/ContextSelector/ContextSelector";
 import Dashboard from "./pages/Dashboard/Dashboard";
 import { useAuthStore } from "./store/authStore";
@@ -71,6 +72,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/registro" element={<Register />} />
       <Route element={<AppLayout />}>
         <Route path="/contexto" element={<ContextSelector />} />
         <Route path="/dashboard" element={<Dashboard />} />

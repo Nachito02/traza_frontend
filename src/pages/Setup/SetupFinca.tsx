@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createFinca } from "../../features/fincas/api";
 import { useAuthStore } from "../../store/authStore";
@@ -6,8 +6,14 @@ import { useFincasStore } from "../../features/fincas/store";
 
 const SetupFinca = () => {
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
+  const bodegas = useAuthStore((state) => state.bodegas);
+  const fetchBodegas = useAuthStore((state) => state.fetchBodegas);
+  const setActiveBodega = useAuthStore((state) => state.setActiveBodega);
   const navigate = useNavigate();
   const loadFincas = useFincasStore((state) => state.loadFincas);
+  const [selectedBodegaId, setSelectedBodegaId] = useState<string>(
+    activeBodegaId ? String(activeBodegaId) : "",
+  );
   const [form, setForm] = useState({
     nombre_finca: "",
     rut: "",
@@ -22,8 +28,23 @@ const SetupFinca = () => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  useEffect(() => {
+    if (bodegas.length === 0) {
+      void fetchBodegas();
+    }
+  }, [bodegas.length, fetchBodegas]);
+
+  useEffect(() => {
+    if (activeBodegaId) {
+      setSelectedBodegaId(String(activeBodegaId));
+    }
+  }, [activeBodegaId]);
+
   const handleSubmit = async () => {
-    if (!activeBodegaId) return;
+    if (!selectedBodegaId) {
+      setError("Seleccioná una bodega.");
+      return;
+    }
     if (!form.nombre_finca.trim()) {
       setError("El nombre de la finca es obligatorio.");
       return;
@@ -32,14 +53,15 @@ const SetupFinca = () => {
     setError(null);
     try {
       await createFinca({
-        bodegaId: activeBodegaId,
+        bodegaId: selectedBodegaId,
         nombre_finca: form.nombre_finca.trim(),
         rut: form.rut.trim() || null,
         renspa: form.renspa.trim() || null,
         catastro: form.catastro.trim() || null,
         ubicacion_texto: form.ubicacion_texto.trim() || null,
       });
-      await loadFincas(activeBodegaId);
+      setActiveBodega(selectedBodegaId);
+      await loadFincas(selectedBodegaId);
       navigate("/setup/campania");
     } catch (e) {
       setError("No se pudo crear la finca.");
@@ -56,12 +78,33 @@ const SetupFinca = () => {
           Paso 1 de 4 del setup guiado.
         </p>
 
-        {!activeBodegaId ? (
+        {bodegas.length === 0 ? (
           <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            Seleccioná una bodega activa antes de crear una finca.
+            No hay bodegas disponibles para este usuario.
           </div>
         ) : (
           <form className="mt-6 space-y-4">
+            <div>
+              <label className="block text-sm text-[#722F37] mb-2">
+                Bodega
+              </label>
+              <select
+                className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                value={selectedBodegaId}
+                onChange={(e) => setSelectedBodegaId(e.target.value)}
+              >
+                <option value="">Seleccioná una bodega</option>
+                {bodegas.map((bodega) => (
+                  <option key={bodega.bodega_id} value={bodega.bodega_id}>
+                    {bodega.nombre} {bodega.cuit ? `(${bodega.cuit})` : ""} -{" "}
+                    {bodega.bodega_id.slice(0, 8)}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-[#7A4A50]">
+                Se guarda internamente el `bodega_id` de la opción elegida.
+              </p>
+            </div>
             <div>
               <label className="block text-sm text-[#722F37] mb-2">
                 Nombre de la finca
