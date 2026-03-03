@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { listElaboracionResource, type ElaboracionEntity } from "../../features/elaboracion/api";
 import { useAuthStore } from "../../store/authStore";
 import GenericCrudSection, { type SelectOption } from "./components/GenericCrudSection";
+import SectionSelector from "./components/SectionSelector";
 
 function toOptions(items: ElaboracionEntity[], idKeys: string[], labelKeys: string[]): SelectOption[] {
   return items
@@ -25,6 +26,9 @@ export default function RecepcionPage() {
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const [remitoOptions, setRemitoOptions] = useState<SelectOption[]>([]);
   const [recepcionOptions, setRecepcionOptions] = useState<SelectOption[]>([]);
+  const [activeSection, setActiveSection] = useState<"remito" | "recepcion" | "analisis">(
+    "remito",
+  );
 
   useEffect(() => {
     if (!activeBodegaId) return;
@@ -40,57 +44,73 @@ export default function RecepcionPage() {
   }, [activeBodegaId]);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <GenericCrudSection
-        title="Remito Uva"
-        description="Salida de finca y traslado hacia bodega."
-        resource="remitos-uva"
-        bodegaId={activeBodegaId}
-        fields={[
-          { name: "loteCosechaId", label: "Lote cosecha ID", type: "text", required: true },
-          { name: "salida_finca", label: "Salida finca", type: "datetime-local", required: true },
-          { name: "llegada_bodega", label: "Llegada bodega", type: "datetime-local", required: true },
-          { name: "transportista", label: "Transportista", type: "text" },
-          { name: "patente", label: "Patente", type: "text" },
-          { name: "kg_declarados", label: "Kg declarados", type: "number" },
+    <div className="space-y-4">
+      <SectionSelector
+        value={activeSection}
+        onChange={setActiveSection}
+        options={[
+          { key: "remito", label: "Remito Uva" },
+          { key: "recepcion", label: "Recepción Bodega" },
+          { key: "analisis", label: "Análisis Recepción" },
         ]}
       />
 
-      <GenericCrudSection
-        title="Recepción Bodega"
-        description="Ingreso efectivo y pesaje de remitos."
-        resource="recepciones-bodega"
-        bodegaId={activeBodegaId}
-        fields={[
-          { name: "remitoId", label: "Remito", type: "select", required: true, options: remitoOptions },
-          { name: "fecha_hora", label: "Fecha y hora", type: "datetime-local", required: true },
-          { name: "kg_pesados", label: "Kg pesados", type: "number" },
-          { name: "clasificacion", label: "Clasificación", type: "text" },
-          { name: "observaciones", label: "Observaciones", type: "textarea" },
-        ]}
-      />
+      {activeSection === "remito" ? (
+        <GenericCrudSection
+          title="Remito Uva"
+          description="Salida de finca y traslado hacia bodega."
+          resource="remitos-uva"
+          bodegaId={activeBodegaId}
+          fields={[
+            { name: "loteCosechaId", label: "Lote cosecha ID", type: "text", required: true },
+            { name: "salida_finca", label: "Salida finca", type: "datetime-local", required: true },
+            { name: "llegada_bodega", label: "Llegada bodega", type: "datetime-local", required: true },
+            { name: "transportista", label: "Transportista", type: "text" },
+            { name: "patente", label: "Patente", type: "text" },
+            { name: "kg_declarados", label: "Kg declarados", type: "number" },
+          ]}
+        />
+      ) : null}
 
-      <GenericCrudSection
-        title="Análisis Recepción"
-        description="Análisis general de recepción."
-        resource="analisis-recepcion"
-        bodegaId={activeBodegaId}
-        fields={[
-          {
-            name: "recepcionId",
-            label: "Recepción",
-            type: "select",
-            required: true,
-            options: recepcionOptions,
-            sourceKey: "id_recepcion",
-          },
-          { name: "brix", label: "Brix", type: "number" },
-          { name: "ph", label: "pH", type: "number" },
-          { name: "acidez", label: "Acidez", type: "number" },
-          { name: "temp_uva", label: "Temp. uva", type: "number" },
-          { name: "sanidad", label: "Sanidad", type: "text" },
-        ]}
-      />
+      {activeSection === "recepcion" ? (
+        <GenericCrudSection
+          title="Recepción Bodega"
+          description="Ingreso efectivo y pesaje de remitos."
+          resource="recepciones-bodega"
+          bodegaId={activeBodegaId}
+          fields={[
+            { name: "remitoId", label: "Remito", type: "select", required: true, options: remitoOptions },
+            { name: "fecha_hora", label: "Fecha y hora", type: "datetime-local", required: true },
+            { name: "kg_pesados", label: "Kg pesados", type: "number" },
+            { name: "clasificacion", label: "Clasificación", type: "text" },
+            { name: "observaciones", label: "Observaciones", type: "textarea" },
+          ]}
+        />
+      ) : null}
+
+      {activeSection === "analisis" ? (
+        <GenericCrudSection
+          title="Análisis Recepción"
+          description="Análisis general de recepción."
+          resource="analisis-recepcion"
+          bodegaId={activeBodegaId}
+          fields={[
+            {
+              name: "recepcionId",
+              label: "Recepción",
+              type: "select",
+              required: true,
+              options: recepcionOptions,
+              sourceKey: "id_recepcion",
+            },
+            { name: "brix", label: "Brix", type: "number" },
+            { name: "ph", label: "pH", type: "number" },
+            { name: "acidez", label: "Acidez", type: "number" },
+            { name: "temp_uva", label: "Temp. uva", type: "number" },
+            { name: "sanidad", label: "Sanidad", type: "text" },
+          ]}
+        />
+      ) : null}
     </div>
   );
 }

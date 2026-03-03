@@ -36,6 +36,17 @@ type GenericCrudSectionProps = {
   withBodegaId?: boolean;
   validate?: (values: Record<string, string | boolean>) => string | null;
   idResolver?: (item: ElaboracionEntity) => string;
+  controller?: {
+    list?: (
+      params: Record<string, string | number | undefined>,
+    ) => Promise<ElaboracionEntity[]>;
+    create?: (payload: Record<string, unknown>) => Promise<unknown>;
+    update?: (
+      context: { id: string; item: ElaboracionEntity },
+      payload: Record<string, unknown>,
+    ) => Promise<unknown>;
+    remove?: (context: { id: string; item: ElaboracionEntity }) => Promise<unknown>;
+  };
 };
 
 const ID_KEYS = [
@@ -110,11 +121,13 @@ export default function GenericCrudSection({
   withBodegaId = true,
   validate,
   idResolver,
+  controller,
 }: GenericCrudSectionProps) {
   const [items, setItems] = useState<ElaboracionEntity[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingItem, setEditingItem] = useState<ElaboracionEntity | null>(null);
   const [values, setValues] = useState<Record<string, string | boolean>>(() => getInitialValues(fields));
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -138,7 +151,9 @@ export default function GenericCrudSection({
     setLoading(true);
     setError(null);
     try {
-      const data = await listElaboracionResource(resource, mergedParams);
+      const data = controller?.list
+        ? await controller.list(mergedParams)
+        : await listElaboracionResource(resource, mergedParams);
       setItems(data);
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
@@ -155,6 +170,7 @@ export default function GenericCrudSection({
   useEffect(() => {
     setValues(getInitialValues(fields));
     setEditingId(null);
+    setEditingItem(null);
     setError(null);
     setSuccess(null);
   }, [fields, resource]);
@@ -221,14 +237,23 @@ export default function GenericCrudSection({
     setSuccess(null);
     try {
       if (editingId) {
-        await patchElaboracionResource(resource, editingId, payload);
+        if (controller?.update && editingItem) {
+          await controller.update({ id: editingId, item: editingItem }, payload);
+        } else {
+          await patchElaboracionResource(resource, editingId, payload);
+        }
         setSuccess(`${title}: actualizado correctamente.`);
       } else {
-        await createElaboracionResource(resource, payload);
+        if (controller?.create) {
+          await controller.create(payload);
+        } else {
+          await createElaboracionResource(resource, payload);
+        }
         setSuccess(`${title}: creado correctamente.`);
       }
       setValues(getInitialValues(fields));
       setEditingId(null);
+      setEditingItem(null);
       await load();
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
@@ -259,6 +284,7 @@ export default function GenericCrudSection({
 
     setValues(nextValues);
     setEditingId(recordId);
+    setEditingItem(item);
     setError(null);
     setSuccess(null);
   };
@@ -275,7 +301,11 @@ export default function GenericCrudSection({
     setError(null);
     setSuccess(null);
     try {
-      await deleteElaboracionResource(resource, recordId);
+      if (controller?.remove) {
+        await controller.remove({ id: recordId, item });
+      } else {
+        await deleteElaboracionResource(resource, recordId);
+      }
       setSuccess(`${title}: eliminado.`);
       await load();
     } catch (requestError) {
@@ -367,6 +397,7 @@ export default function GenericCrudSection({
             type="button"
             onClick={() => {
               setEditingId(null);
+              setEditingItem(null);
               setValues(getInitialValues(fields));
             }}
             className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"

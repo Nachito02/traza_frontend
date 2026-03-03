@@ -29,16 +29,17 @@ export default function QrInversaPage() {
 
   return (
     <section className="rounded-2xl bg-white p-6 shadow-sm">
-      <h2 className="text-lg font-semibold text-[#3D1B1F]">Trazabilidad Inversa por Código Envase</h2>
+      <h2 className="text-lg font-semibold text-[#3D1B1F]">Producto y Trazabilidad</h2>
       <p className="mt-1 text-xs text-[#7A4A50]">
-        Consulta transversal del flujo: lote de fraccionamiento, producto, corte y orígenes.
+        Etapa final del proceso. El detalle funcional completo de producto y trazabilidad se define en
+        la próxima iteración.
       </p>
 
       <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
         <input
           value={codigoQr}
           onChange={(event) => setCodigoQr(event.target.value)}
-          placeholder="Ej: QR-2026-000001"
+          placeholder="Código de envase / QR (consulta preliminar)"
           className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
         />
         <button

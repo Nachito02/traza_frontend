@@ -10,11 +10,18 @@ export type Campania = {
 };
 
 export type CreateCampaniaPayload = {
-  bodegaId?: string | number;
+  bodegaId: string | number;
   nombre: string;
   fecha_inicio: string;
   fecha_fin: string;
   estado: "abierta" | "cerrada";
+};
+
+export type UpdateCampaniaPayload = {
+  nombre?: string;
+  fecha_inicio?: string;
+  fecha_fin?: string;
+  estado?: "abierta" | "cerrada";
 };
 
 export async function createCampania(payload: CreateCampaniaPayload) {
@@ -31,9 +38,16 @@ export async function fetchCampanias(bodegaId?: string | number) {
   return response.data;
 }
 
+export async function fetchCampaniaById(campaniaId: string | number) {
+  const response = await apiClient.get<Campania>(
+    `/campanias/${encodeURIComponent(String(campaniaId))}`,
+  );
+  return response.data;
+}
+
 export async function patchCampania(
   campaniaId: string | number,
-  payload: Partial<CreateCampaniaPayload>,
+  payload: UpdateCampaniaPayload,
 ) {
   const response = await apiClient.patch<Campania>(
     `/campanias/${encodeURIComponent(String(campaniaId))}`,

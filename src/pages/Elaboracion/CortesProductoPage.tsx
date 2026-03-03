@@ -9,6 +9,7 @@ import {
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
 import GenericCrudSection, { type SelectOption } from "./components/GenericCrudSection";
+import SectionSelector from "./components/SectionSelector";
 
 type CorteComponenteForm = {
   vasijaId: string;
@@ -59,6 +60,7 @@ function resolveCorteId(item: ElaboracionEntity) {
 
 export default function CortesProductoPage() {
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
+  const [activeSection, setActiveSection] = useState<"cortes" | "productos">("cortes");
 
   const [vasijaOptions, setVasijaOptions] = useState<SelectOption[]>([]);
   const [cortes, setCortes] = useState<ElaboracionEntity[]>([]);
@@ -199,8 +201,18 @@ export default function CortesProductoPage() {
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <section className="rounded-2xl bg-white p-5 shadow-sm">
+    <div className="space-y-4">
+      <SectionSelector
+        value={activeSection}
+        onChange={setActiveSection}
+        options={[
+          { key: "cortes", label: "Cortes" },
+          { key: "productos", label: "Productos" },
+        ]}
+      />
+
+      {activeSection === "cortes" ? (
+        <section className="rounded-2xl bg-white p-5 shadow-sm">
         <h3 className="text-base font-semibold text-[#3D1B1F]">Cortes</h3>
         <p className="mt-1 text-xs text-[#7A4A50]">
           Validación aplicada: cada componente requiere vasijaId o loteCosechaId.
@@ -406,21 +418,24 @@ export default function CortesProductoPage() {
             })
           )}
         </div>
-      </section>
+        </section>
+      ) : null}
 
-      <GenericCrudSection
-        title="Productos"
-        description="Catálogo de productos finales para fraccionamiento."
-        resource="productos"
-        bodegaId={activeBodegaId}
-        fields={[
-          { name: "nombre_comercial", label: "Nombre comercial", type: "text", required: true },
-          { name: "varietal", label: "Varietal", type: "text" },
-          { name: "anio", label: "Año", type: "number" },
-          { name: "tipo", label: "Tipo", type: "text" },
-          { name: "activo", label: "Activo", type: "checkbox" },
-        ]}
-      />
+      {activeSection === "productos" ? (
+        <GenericCrudSection
+          title="Productos"
+          description="Catálogo de productos finales para fraccionamiento."
+          resource="productos"
+          bodegaId={activeBodegaId}
+          fields={[
+            { name: "nombre_comercial", label: "Nombre comercial", type: "text", required: true },
+            { name: "varietal", label: "Varietal", type: "text" },
+            { name: "anio", label: "Año", type: "number" },
+            { name: "tipo", label: "Tipo", type: "text" },
+            { name: "activo", label: "Activo", type: "checkbox" },
+          ]}
+        />
+      ) : null}
     </div>
   );
 }

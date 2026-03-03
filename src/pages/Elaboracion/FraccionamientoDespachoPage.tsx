@@ -9,6 +9,7 @@ import {
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
 import GenericCrudSection, { type SelectOption } from "./components/GenericCrudSection";
+import SectionSelector from "./components/SectionSelector";
 
 type LoteForm = {
   corteId: string;
@@ -46,6 +47,7 @@ function resolveBodegaId(item: ElaboracionEntity) {
 
 export default function FraccionamientoDespachoPage() {
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
+  const [activeSection, setActiveSection] = useState<"lotes" | "codigos" | "despachos">("lotes");
 
   const [cortes, setCortes] = useState<ElaboracionEntity[]>([]);
   const [productos, setProductos] = useState<ElaboracionEntity[]>([]);
@@ -202,8 +204,19 @@ export default function FraccionamientoDespachoPage() {
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <section className="rounded-2xl bg-white p-5 shadow-sm">
+    <div className="space-y-4">
+      <SectionSelector
+        value={activeSection}
+        onChange={setActiveSection}
+        options={[
+          { key: "lotes", label: "Lotes Fraccionamiento" },
+          { key: "codigos", label: "Códigos Envase" },
+          { key: "despachos", label: "Despachos" },
+        ]}
+      />
+
+      {activeSection === "lotes" ? (
+        <section className="rounded-2xl bg-white p-5 shadow-sm">
         <h3 className="text-base font-semibold text-[#3D1B1F]">Lotes de Fraccionamiento</h3>
         <p className="mt-1 text-xs text-[#7A4A50]">
           Validación aplicada: corte y producto deben ser de la misma bodega.
@@ -343,9 +356,11 @@ export default function FraccionamientoDespachoPage() {
             })
           )}
         </div>
-      </section>
+        </section>
+      ) : null}
 
-      <div className="space-y-6">
+      {activeSection === "codigos" ? (
+        <div className="space-y-6">
         <GenericCrudSection
           title="Códigos Envase"
           description="Generación de códigos QR por envase."
@@ -383,7 +398,10 @@ export default function FraccionamientoDespachoPage() {
             ))}
           </select>
         </div>
+        </div>
+      ) : null}
 
+      {activeSection === "despachos" ? (
         <GenericCrudSection
           title="Despachos"
           description="Salida comercial de lotes fraccionados."
@@ -404,7 +422,7 @@ export default function FraccionamientoDespachoPage() {
             { name: "documento", label: "Documento", type: "text" },
           ]}
         />
-      </div>
+      ) : null}
     </div>
   );
 }

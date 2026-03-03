@@ -32,6 +32,17 @@ const Fincas = () => {
     sistema_conduccion: "",
   });
 
+  const pickDetailValue = (detail: FincaDetail | undefined, keys: string[]) => {
+    if (!detail) return "-";
+    const source = detail as Record<string, unknown>;
+    for (const key of keys) {
+      const value = source[key];
+      if (typeof value === "string" && value.trim()) return value;
+      if (typeof value === "number") return String(value);
+    }
+    return "-";
+  };
+
   useEffect(() => {
     if (!activeBodegaId) return;
     void loadFincas(activeBodegaId);
@@ -44,6 +55,37 @@ const Fincas = () => {
       fincaId: String(fincas[0].finca_id ?? fincas[0].id ?? ""),
     }));
   }, [cuartelForm.fincaId, fincas]);
+
+  useEffect(() => {
+    const idsToFetch = fincas
+      .map((finca) => String(finca.finca_id ?? finca.id ?? ""))
+      .filter((id) => id && !fincaDetailById[id]);
+    if (idsToFetch.length === 0) return;
+
+    let mounted = true;
+    Promise.all(
+      idsToFetch.map(async (fincaId) => {
+        try {
+          const detail = await fetchFincaById(fincaId);
+          return { fincaId, detail };
+        } catch {
+          return null;
+        }
+      }),
+    ).then((results) => {
+      if (!mounted) return;
+      const nextEntries = results.filter(Boolean) as Array<{ fincaId: string; detail: FincaDetail }>;
+      if (nextEntries.length === 0) return;
+      setFincaDetailById((prev) => ({
+        ...prev,
+        ...Object.fromEntries(nextEntries.map((entry) => [entry.fincaId, entry.detail])),
+      }));
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [fincaDetailById, fincas]);
 
   const fincaOptions = useMemo(
     () =>
@@ -320,7 +362,19 @@ const Fincas = () => {
                         "Finca sin nombre"}
                     </div>
                     <div className="mt-1 text-xs text-[#7A4A50]">
-                      {finca.ubicacion ?? "Ubicación sin definir"}
+                      {pickDetailValue(
+                        detail ?? ({
+                          ubicacion: finca.ubicacion ?? null,
+                        } as FincaDetail),
+                        ["ubicacion_texto", "ubicacion", "ubicacion_finca", "ubicacionFinca"],
+                      ) === "-"
+                        ? "Ubicación sin definir"
+                        : pickDetailValue(
+                            detail ?? ({
+                              ubicacion: finca.ubicacion ?? null,
+                            } as FincaDetail),
+                            ["ubicacion_texto", "ubicacion", "ubicacion_finca", "ubicacionFinca"],
+                          )}
                     </div>
                     <div className="mt-2 text-[11px] text-[#8B4049]/80">
                       Ver detalles y gestionar cuarteles
@@ -356,19 +410,24 @@ const Fincas = () => {
                           <div className="grid gap-1">
                             <div>
                               <span className="font-semibold text-[#3D1B1F]">RUT:</span>{" "}
-                              {detail?.rut ?? "-"}
+                              {pickDetailValue(detail, ["rut", "rut_finca", "rutFinca"])}
                             </div>
                             <div>
                               <span className="font-semibold text-[#3D1B1F]">RENSPA:</span>{" "}
-                              {detail?.renspa ?? "-"}
+                              {pickDetailValue(detail, ["renspa", "renspa_finca", "renspaFinca"])}
                             </div>
                             <div>
                               <span className="font-semibold text-[#3D1B1F]">Catastro:</span>{" "}
-                              {detail?.catastro ?? "-"}
+                              {pickDetailValue(detail, ["catastro", "catastro_finca", "catastroFinca"])}
                             </div>
                             <div>
                               <span className="font-semibold text-[#3D1B1F]">Ubicación:</span>{" "}
-                              {detail?.ubicacion_texto ?? detail?.ubicacion ?? "-"}
+                              {pickDetailValue(detail, [
+                                "ubicacion_texto",
+                                "ubicacion",
+                                "ubicacion_finca",
+                                "ubicacionFinca",
+                              ])}
                             </div>
                           </div>
                         )}

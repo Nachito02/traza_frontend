@@ -39,7 +39,11 @@ export async function fetchPendientesByScope(params: {
   fincaId?: string;
   mode?: "mine" | "scope";
 }) {
-  const mineCandidates = ["/encargos/me/asignaciones", "/encargos/mis-pendientes"];
+  const mineCandidates = [
+    "/encargos/me/asignaciones",
+    "/encargos/mis-pendientes",
+    "/encargos?mine=1&pendientes=1",
+  ];
   const scopeCandidates: string[] = [];
   if (params.fincaId) {
     scopeCandidates.push(
@@ -49,8 +53,7 @@ export async function fetchPendientesByScope(params: {
   scopeCandidates.push(`/encargos/bodega/${encodeURIComponent(params.bodegaId)}/pendientes`);
   scopeCandidates.push(`/encargos?bodegaId=${encodeURIComponent(params.bodegaId)}&pendientes=1`);
   scopeCandidates.push("/encargos/mis-pendientes");
-  const candidates =
-    params.mode === "mine" ? [...mineCandidates, ...scopeCandidates] : [...scopeCandidates];
+  const candidates = params.mode === "mine" ? [...mineCandidates] : [...scopeCandidates];
 
   let lastError: unknown;
   for (const url of candidates) {

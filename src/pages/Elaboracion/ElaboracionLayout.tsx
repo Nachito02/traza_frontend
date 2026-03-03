@@ -6,7 +6,7 @@ const LINKS = [
   { to: "/elaboracion/vasijas", label: "Vasijas y Proceso" },
   { to: "/elaboracion/cortes", label: "Cortes y Producto" },
   { to: "/elaboracion/fraccionamiento", label: "Fraccionamiento y Despacho" },
-  { to: "/elaboracion/qr", label: "QR Inversa" },
+  { to: "/elaboracion/qr", label: "Producto y Trazabilidad" },
 ];
 
 export default function ElaboracionLayout() {
@@ -17,7 +17,7 @@ export default function ElaboracionLayout() {
           <h1 className="text-3xl font-bold text-text">Elaboración de Bodega</h1>
           <p className="mt-2 text-sm text-text-secondary">
             Flujo operativo completo: recepción, control, elaboración, fraccionamiento y trazabilidad
-            inversa.
+            de producto final.
           </p>
           <nav className="mt-4 flex flex-wrap gap-2">
             {LINKS.map((link) => (

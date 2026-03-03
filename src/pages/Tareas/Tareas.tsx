@@ -14,6 +14,36 @@ import { fetchAuthUsers, type AuthUser } from "../../features/users/api";
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
 
+const MANAGER_ROLES = [
+  "encargado_finca",
+  "encargado_bodega",
+  "admin_bodega",
+  "admin",
+  "super_admin",
+  "super_user",
+  "enologo",
+];
+
+const OPERATOR_ROLES = [
+  "operador_campo",
+  "operario_campo",
+  "operario_finca",
+  "operador_bodega",
+  "operario_bodega",
+];
+
+function normalizeRoles(input: unknown): string[] {
+  if (!Array.isArray(input)) return [];
+  return input
+    .map((role) => (typeof role === "string" ? role.trim().toLowerCase() : ""))
+    .filter(Boolean);
+}
+
+function includesAnyRole(currentRoles: string[], expectedRoles: string[]) {
+  const expected = new Set(expectedRoles.map((role) => role.toLowerCase()));
+  return currentRoles.some((role) => expected.has(role));
+}
+
 const Tareas = () => {
   const user = useAuthStore((state) => state.user);
   const bodegas = useAuthStore((state) => state.bodegas);
@@ -31,6 +61,7 @@ const Tareas = () => {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [form, setForm] = useState({
+    ambito: "finca" as "finca" | "bodega",
     titulo: "",
     descripcion: "",
     fechaObjetivo: "",
@@ -45,6 +76,30 @@ const Tareas = () => {
   const activeBodega = useMemo(
     () => bodegas.find((item) => String(item.bodega_id) === String(activeBodegaId)),
     [activeBodegaId, bodegas],
+  );
+  const userRoles = useMemo(() => normalizeRoles(user?.roles_globales), [user?.roles_globales]);
+  const activeBodegaRoles = useMemo(() => {
+    const userAny = (user ?? {}) as {
+      bodegas?: Array<{
+        bodega_id?: string | number;
+        roles_en_bodega?: string[];
+        rol_en_bodega?: string;
+      }>;
+    };
+    const targetBodegaId = String(activeBodegaId ?? "");
+    const match = (userAny.bodegas ?? []).find(
+      (item) => String(item.bodega_id ?? "") === targetBodegaId,
+    );
+    const localRoles = match
+      ? match.roles_en_bodega ?? (match.rol_en_bodega ? [match.rol_en_bodega] : [])
+      : [];
+    return normalizeRoles(localRoles);
+  }, [activeBodegaId, user]);
+  const canManageByRole = useMemo(
+    () =>
+      includesAnyRole(userRoles, MANAGER_ROLES) ||
+      includesAnyRole(activeBodegaRoles, MANAGER_ROLES),
+    [activeBodegaRoles, userRoles],
   );
 
   const refreshTasks = async () => {
@@ -77,11 +132,17 @@ const Tareas = () => {
   }, [activeBodegaId]);
 
   useEffect(() => {
-    void fetchCanManageEncargos().then((canManage) => {
-      setCanManageTasks(canManage);
-      setForceMineMode(!canManage);
+    let mounted = true;
+    void fetchCanManageEncargos().then((canManageFromApi) => {
+      if (!mounted) return;
+      const resolvedCanManage = Boolean(canManageFromApi || canManageByRole);
+      setCanManageTasks(resolvedCanManage);
+      setForceMineMode(!resolvedCanManage);
     });
-  }, []);
+    return () => {
+      mounted = false;
+    };
+  }, [canManageByRole]);
 
   useEffect(() => {
     const milestoneId = searchParams.get("milestoneId");
@@ -126,7 +187,7 @@ const Tareas = () => {
               : b.rol_en_bodega
                 ? [b.rol_en_bodega]
                 : [];
-            return roles.includes("operador_campo");
+            return includesAnyRole(normalizeRoles(roles), OPERATOR_ROLES);
           }),
         );
         setOperarios(list);
@@ -156,7 +217,7 @@ const Tareas = () => {
       setError("El título de la tarea es obligatorio.");
       return;
     }
-    if (!form.fincaId || !form.cuartelId) {
+    if (form.ambito === "finca" && (!form.fincaId || !form.cuartelId)) {
       setError("Seleccioná finca y cuartel.");
       return;
     }
@@ -166,8 +227,8 @@ const Tareas = () => {
     try {
       const created = await createEncargo({
         bodegaId: String(activeBodegaId),
-        fincaId: form.fincaId,
-        cuartelId: form.cuartelId,
+        fincaId: form.ambito === "finca" ? form.fincaId : undefined,
+        cuartelId: form.ambito === "finca" ? form.cuartelId : undefined,
         milestoneId: form.milestoneId || undefined,
         titulo: form.titulo.trim(),
         descripcion: form.descripcion.trim() || undefined,
@@ -192,10 +253,13 @@ const Tareas = () => {
 
       setForm((prev) => ({
         ...prev,
+        ambito: prev.ambito,
         titulo: "",
         descripcion: "",
         fechaObjetivo: "",
         milestoneId: "",
+        fincaId: prev.ambito === "finca" ? prev.fincaId : "",
+        cuartelId: prev.ambito === "finca" ? prev.cuartelId : "",
         operarioUserId: "",
       }));
       await refreshTasks();
@@ -270,7 +334,7 @@ const Tareas = () => {
         <div>
           <h1 className="text-3xl font-bold text-text">Tareas</h1>
           <p className="mt-2 text-sm text-text-secondary">
-            Asignación de tareas operativas por finca y cuartel.
+            Encargados de finca o bodega asignan tareas; operarios ven sus pendientes.
           </p>
         </div>
 
@@ -281,6 +345,21 @@ const Tareas = () => {
               Usuario actual: {user?.nombre ?? user?.email ?? "Usuario"}
             </p>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <select
+                value={form.ambito}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    ambito: e.target.value as "finca" | "bodega",
+                    fincaId: e.target.value === "finca" ? prev.fincaId : "",
+                    cuartelId: "",
+                  }))
+                }
+                className="rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
+              >
+                <option value="finca">Ámbito finca</option>
+                <option value="bodega">Ámbito bodega</option>
+              </select>
               <input
                 type="text"
                 value={form.titulo}
@@ -302,40 +381,48 @@ const Tareas = () => {
                 <option value="media">media</option>
                 <option value="alta">alta</option>
               </select>
-              <select
-                value={form.fincaId}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, fincaId: e.target.value, cuartelId: "" }))
-                }
-                className="rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
-              >
-                <option value="">Seleccionar finca</option>
-                {fincas.map((finca) => {
-                  const id = String(finca.finca_id ?? finca.id ?? "");
-                  const label = finca.nombre ?? finca.nombre_finca ?? finca.name ?? "Finca";
-                  return (
-                    <option key={id} value={id}>
-                      {label}
-                    </option>
-                  );
-                })}
-              </select>
-              <select
-                value={form.cuartelId}
-                onChange={(e) => setForm((prev) => ({ ...prev, cuartelId: e.target.value }))}
-                className="rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
-                disabled={!form.fincaId}
-              >
-                <option value="">Seleccionar cuartel</option>
-                {cuartelOptions.map((cuartel) => {
-                  const id = String(cuartel.cuartel_id ?? cuartel.id ?? "");
-                  return (
-                    <option key={id} value={id}>
-                      {cuartel.codigo_cuartel}
-                    </option>
-                  );
-                })}
-              </select>
+              {form.ambito === "finca" ? (
+                <>
+                  <select
+                    value={form.fincaId}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, fincaId: e.target.value, cuartelId: "" }))
+                    }
+                    className="rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
+                  >
+                    <option value="">Seleccionar finca</option>
+                    {fincas.map((finca) => {
+                      const id = String(finca.finca_id ?? finca.id ?? "");
+                      const label = finca.nombre ?? finca.nombre_finca ?? finca.name ?? "Finca";
+                      return (
+                        <option key={id} value={id}>
+                          {label}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <select
+                    value={form.cuartelId}
+                    onChange={(e) => setForm((prev) => ({ ...prev, cuartelId: e.target.value }))}
+                    className="rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
+                    disabled={!form.fincaId}
+                  >
+                    <option value="">Seleccionar cuartel</option>
+                    {cuartelOptions.map((cuartel) => {
+                      const id = String(cuartel.cuartel_id ?? cuartel.id ?? "");
+                      return (
+                        <option key={id} value={id}>
+                          {cuartel.codigo_cuartel}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </>
+              ) : (
+                <div className="rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-xs text-[#7A4A50] md:col-span-2">
+                  Tarea de bodega: se crea sin finca/cuartel y se asigna directamente al operario.
+                </div>
+              )}
               <select
                 value={form.operarioUserId}
                 onChange={(e) =>
@@ -389,7 +476,7 @@ const Tareas = () => {
           <section className="rounded-2xl bg-primary/30 p-5">
             <h2 className="text-lg font-semibold text-text">Mis tareas</h2>
             <p className="mt-1 text-xs text-text-secondary">
-              Vista operario: solo tareas asignadas a tu usuario.
+              Vista operario: solo tareas pendientes asignadas a tu usuario.
             </p>
           </section>
         )}
