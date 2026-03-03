@@ -6,9 +6,11 @@ import {
   type Campania,
 } from "../../features/campanias/api";
 import { getApiErrorMessage } from "../../lib/api";
+import { useAuthStore } from "../../store/authStore";
 
 const SetupCampania = () => {
   const navigate = useNavigate();
+  const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const [mode, setMode] = useState<"existing" | "new">("existing");
   const [campanias, setCampanias] = useState<Campania[]>([]);
   const [selectedCampaniaId, setSelectedCampaniaId] = useState("");
@@ -29,7 +31,7 @@ const SetupCampania = () => {
   useEffect(() => {
     let mounted = true;
     setLoadingCampanias(true);
-    fetchCampanias()
+    fetchCampanias(activeBodegaId ?? undefined)
       .then((data) => {
         if (!mounted) return;
         const loaded = data ?? [];
@@ -51,7 +53,7 @@ const SetupCampania = () => {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [activeBodegaId]);
 
   const validateDates = () => {
     if (!form.fecha_inicio || !form.fecha_fin) return true;
@@ -84,6 +86,7 @@ const SetupCampania = () => {
     setError(null);
     try {
       await createCampania({
+        bodegaId: String(activeBodegaId ?? ""),
         nombre: form.nombre.trim(),
         fecha_inicio: form.fecha_inicio,
         fecha_fin: form.fecha_fin,
@@ -127,6 +130,11 @@ const SetupCampania = () => {
         <p className="mt-2 text-sm text-[#6B3A3F]">
           Paso 2 de 4 del setup guiado.
         </p>
+        {!activeBodegaId ? (
+          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            Seleccioná una bodega activa para crear o usar campañas.
+          </div>
+        ) : null}
 
         <div className="mt-6 grid grid-cols-2 rounded-lg border border-[#C9A961]/30 bg-[#FFF9F0] p-1">
           <button
@@ -190,7 +198,7 @@ const SetupCampania = () => {
             </div>
             <button
               type="button"
-              disabled={!canUseExisting}
+              disabled={!canUseExisting || !activeBodegaId}
               onClick={handleContinueWithExisting}
               className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:cursor-not-allowed disabled:opacity-60"
             >
@@ -238,7 +246,7 @@ const SetupCampania = () => {
 
             <button
               type="button"
-              disabled={saving}
+              disabled={saving || !activeBodegaId}
               onClick={() => void handleSubmit()}
               className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:cursor-not-allowed disabled:opacity-60"
             >

@@ -11,11 +11,12 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
   const user = useAuthStore((state) => state.user);
   const bodegas = useAuthStore((state) => state.bodegas);
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
+  const setActiveBodega = useAuthStore((state) => state.setActiveBodega);
   const logout = useAuthStore((state) => state.logout);
   const isLoading = useAuthStore((state) => state.isLoading);
   const [campanias, setCampanias] = useState<Campania[]>([]);
   const activeBodega = bodegas.find(
-    (bodega) => bodega.bodega_id === activeBodegaId,
+    (bodega) => bodega.bodega_id === String(activeBodegaId),
   );
   const activeCampania = useMemo(() => {
     if (campanias.length === 0) return null;
@@ -29,10 +30,22 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
       (a, b) => b.fecha_inicio.localeCompare(a.fecha_inicio),
     )[0];
   }, [campanias]);
+  const canSwitchBodega = useMemo(() => {
+    const roles = Array.isArray(user?.roles_globales) ? user.roles_globales : [];
+    const isSuperUser =
+      roles.includes("super_admin") ||
+      roles.includes("admin_sistema") ||
+      roles.includes("super_user");
+    return isSuperUser || bodegas.length > 1;
+  }, [bodegas.length, user]);
 
   useEffect(() => {
+    if (!activeBodegaId) {
+      setCampanias([]);
+      return;
+    }
     let mounted = true;
-    fetchCampanias()
+    fetchCampanias(activeBodegaId)
       .then((data) => {
         if (!mounted) return;
         setCampanias(data ?? []);
@@ -45,7 +58,7 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [activeBodegaId]);
 
   return (
     <header className="w-full  bg-secondary  px-6">
@@ -59,7 +72,7 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <div className="text-lg font-semibold text-text">Traza</div>
+          {/* <div className="text-lg font-semibold text-text">Traza</div> */}
         </div>
 
         <div className="flex items-center gap-3">
@@ -70,6 +83,23 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
                 {activeBodega?.nombre ?? "Sin seleccionar"}
               </span>
             </div>
+            {canSwitchBodega ? (
+              <div className="flex items-center gap-2">
+                <span className="text-text">Cambiar:</span>
+                <select
+                  value={String(activeBodegaId ?? "")}
+                  onChange={(event) => setActiveBodega(event.target.value)}
+                  className="rounded border border-[#C9A961]/40 bg-white px-2 py-1 text-xs text-[#3D1B1F]"
+                >
+                  <option value="">Seleccionar</option>
+                  {bodegas.map((bodega) => (
+                    <option key={bodega.bodega_id} value={bodega.bodega_id}>
+                      {bodega.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
             <div>
               <span className=" text-text">Campaña:</span>{" "}
               <span className="font-medium  text-text">

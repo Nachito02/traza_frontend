@@ -21,6 +21,7 @@ const Dashboard = () => {
   const [campanias, setCampanias] = useState<Campania[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const activeBodega = bodegas.find((bodega) => bodega.bodega_id === String(activeBodegaId));
 
   useEffect(() => {
     if (!activeBodegaId) return;
@@ -41,7 +42,7 @@ const Dashboard = () => {
 
     Promise.all([
       fetchTrazabilidades(activeBodegaId),
-      fetchCampanias(),
+      fetchCampanias(activeBodegaId),
       Promise.all(
         fincas
           .map((finca) => finca.finca_id ?? finca.id)
@@ -106,55 +107,57 @@ const Dashboard = () => {
         ) : (
           <div className="space-y-6">
             <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <article className="rounded-2xl border border-white/10 bg-primary/30 p-4">
+              <Link to="/contexto" className="rounded-2xl border border-white/10 bg-primary/30 p-4 transition hover:bg-primary/40">
                 <p className="text-xs uppercase tracking-[0.12em] text-text-secondary">
-                  Bodegas asignadas
+                  Bodega activa
                 </p>
-                <p className="mt-3 text-3xl font-bold text-text">{bodegas.length}</p>
-              </article>
-              <article className="rounded-2xl border border-white/10 bg-primary/30 p-4">
+                <p className="mt-3 text-xl font-bold text-text">
+                  {activeBodega?.nombre ?? "Sin seleccionar"}
+                </p>
+              </Link>
+              <Link to="/admin/fincas" className="rounded-2xl border border-white/10 bg-primary/30 p-4 transition hover:bg-primary/40">
                 <p className="text-xs uppercase tracking-[0.12em] text-text-secondary">
                   Fincas
                 </p>
                 <p className="mt-3 text-3xl font-bold text-text">
                   {fincasLoading ? "…" : fincas.length}
                 </p>
-              </article>
-              <article className="rounded-2xl border border-white/10 bg-primary/30 p-4">
+              </Link>
+              <Link to="/admin/cuarteles" className="rounded-2xl border border-white/10 bg-primary/30 p-4 transition hover:bg-primary/40">
                 <p className="text-xs uppercase tracking-[0.12em] text-text-secondary">
                   Cuarteles
                 </p>
                 <p className="mt-3 text-3xl font-bold text-text">
                   {loading ? "…" : cuartelesCount}
                 </p>
-              </article>
-              <article className="rounded-2xl border border-white/10 bg-primary/30 p-4">
+              </Link>
+              <Link to="/productos" className="rounded-2xl border border-white/10 bg-primary/30 p-4 transition hover:bg-primary/40">
                 <p className="text-xs uppercase tracking-[0.12em] text-text-secondary">
                   Productos
                 </p>
                 <p className="mt-3 text-3xl font-bold text-text">
                   {loading ? "…" : trazabilidades.length}
                 </p>
-              </article>
+              </Link>
             </section>
 
             <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <article className="rounded-2xl border border-white/10 bg-primary/20 p-4">
+              <Link to="/productos" className="rounded-2xl border border-white/10 bg-primary/20 p-4 transition hover:bg-primary/30">
                 <p className="text-xs text-text-secondary">En curso</p>
                 <p className="mt-2 text-2xl font-semibold text-text">{stats.enCurso}</p>
-              </article>
-              <article className="rounded-2xl border border-white/10 bg-primary/20 p-4">
+              </Link>
+              <Link to="/productos" className="rounded-2xl border border-white/10 bg-primary/20 p-4 transition hover:bg-primary/30">
                 <p className="text-xs text-text-secondary">Finalizadas / Certificadas</p>
                 <p className="mt-2 text-2xl font-semibold text-text">{stats.finalizadas}</p>
-              </article>
-              <article className="rounded-2xl border border-white/10 bg-primary/20 p-4">
+              </Link>
+              <Link to="/productos" className="rounded-2xl border border-white/10 bg-primary/20 p-4 transition hover:bg-primary/30">
                 <p className="text-xs text-text-secondary">Borrador</p>
                 <p className="mt-2 text-2xl font-semibold text-text">{stats.borrador}</p>
-              </article>
-              <article className="rounded-2xl border border-white/10 bg-primary/20 p-4">
+              </Link>
+              <Link to="/admin/campanias" className="rounded-2xl border border-white/10 bg-primary/20 p-4 transition hover:bg-primary/30">
                 <p className="text-xs text-text-secondary">Campañas abiertas</p>
                 <p className="mt-2 text-2xl font-semibold text-text">{stats.campaniasAbiertas}</p>
-              </article>
+              </Link>
             </section>
 
             {error && (
@@ -172,7 +175,7 @@ const Dashboard = () => {
                   </p>
                 </div>
                 <Link
-                  to="/setup/finca"
+                  to="/admin/fincas"
                   className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
                 >
                   Crear finca

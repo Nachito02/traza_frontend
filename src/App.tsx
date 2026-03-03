@@ -24,6 +24,16 @@ import FincaDetail from "./pages/Fincas/FincaDetail";
 import Fincas from "./pages/Fincas/Fincas";
 import Usuarios from "./pages/Usuarios/Usuarios";
 import Tareas from "./pages/Tareas/Tareas";
+import ElaboracionLayout from "./pages/Elaboracion/ElaboracionLayout";
+import RecepcionPage from "./pages/Elaboracion/RecepcionPage";
+import CiuQcPage from "./pages/Elaboracion/CiuQcPage";
+import VasijasProcesoPage from "./pages/Elaboracion/VasijasProcesoPage";
+import CortesProductoPage from "./pages/Elaboracion/CortesProductoPage";
+import FraccionamientoDespachoPage from "./pages/Elaboracion/FraccionamientoDespachoPage";
+import QrInversaPage from "./pages/Elaboracion/QrInversaPage";
+import FincasAdmin from "./pages/Admin/FincasAdmin";
+import CuartelesAdmin from "./pages/Admin/CuartelesAdmin";
+import CampaniasAdmin from "./pages/Admin/CampaniasAdmin";
 
 export default function App() {
   const bootstrap = useAuthStore((state) => state.bootstrap);
@@ -81,6 +91,18 @@ export default function App() {
         <Route path="/contexto" element={<ContextSelector />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/fincas" element={<Fincas />} />
+        <Route path="/admin/fincas" element={<FincasAdmin />} />
+        <Route path="/admin/cuarteles" element={<CuartelesAdmin />} />
+        <Route path="/admin/campanias" element={<CampaniasAdmin />} />
+        <Route path="/elaboracion" element={<Navigate to="/elaboracion/recepcion" replace />} />
+        <Route path="/elaboracion" element={<ElaboracionLayout />}>
+          <Route path="recepcion" element={<RecepcionPage />} />
+          <Route path="ciu-qc" element={<CiuQcPage />} />
+          <Route path="vasijas" element={<VasijasProcesoPage />} />
+          <Route path="cortes" element={<CortesProductoPage />} />
+          <Route path="fraccionamiento" element={<FraccionamientoDespachoPage />} />
+          <Route path="qr" element={<QrInversaPage />} />
+        </Route>
         <Route path="/tareas" element={<Tareas />} />
         <Route path="/usuarios" element={<Usuarios />} />
         <Route path="/fincas/:id" element={<FincaDetail />} />

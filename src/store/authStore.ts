@@ -6,6 +6,7 @@ export type User = {
   email: string;
   nombre: string;
   bodegaId: string | number | null;
+  roles_globales?: string[];
 };
 
 export type Bodega = {

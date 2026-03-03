@@ -3,6 +3,7 @@ import { apiClient } from "../../lib/api";
 export type Cuartel = {
   cuartel_id?: string;
   id?: string;
+  finca_id?: string;
   codigo_cuartel: string;
   superficie_ha: number;
   cultivo: string;
@@ -21,6 +22,15 @@ export type CreateCuartelPayload = {
   sistema_conduccion?: string | null;
 };
 
+export type UpdateCuartelPayload = {
+  codigo_cuartel: string;
+  superficie_ha: number;
+  cultivo: string;
+  variedad: string;
+  sistema_productivo?: string | null;
+  sistema_conduccion?: string | null;
+};
+
 export async function createCuartel(payload: CreateCuartelPayload) {
   const response = await apiClient.post<Cuartel>("/cuarteles", payload);
   return response.data;
@@ -31,4 +41,26 @@ export async function fetchCuartelesByFinca(fincaId: string | number) {
     `/cuarteles/finca/${fincaId}`
   );
   return response.data;
+}
+
+export async function fetchCuartelById(cuartelId: string | number) {
+  const response = await apiClient.get<Cuartel>(
+    `/cuarteles/${encodeURIComponent(String(cuartelId))}`
+  );
+  return response.data;
+}
+
+export async function patchCuartel(
+  cuartelId: string | number,
+  payload: UpdateCuartelPayload,
+) {
+  const response = await apiClient.patch<Cuartel>(
+    `/cuarteles/${encodeURIComponent(String(cuartelId))}`,
+    payload,
+  );
+  return response.data;
+}
+
+export async function deleteCuartel(cuartelId: string | number) {
+  await apiClient.delete(`/cuarteles/${encodeURIComponent(String(cuartelId))}`);
 }

@@ -1,4 +1,13 @@
-import { LayoutDashboard, Map, GitPullRequest, Users, Boxes, ListTodo } from "lucide-react";
+import {
+  LayoutDashboard,
+  Map,
+  GitPullRequest,
+  Users,
+  Boxes,
+  ListTodo,
+  FlaskConical,
+  Grape,
+} from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 type AsideProps = {
@@ -10,6 +19,7 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
   const links = [
     { to: "/dashboard", label: "Dashboard", icon: <LayoutDashboard /> },
     { to: "/fincas", label: "Fincas", icon: <Map /> },
+    { to: "/elaboracion", label: "Elaboracion", icon: <FlaskConical /> },
     { to: "/productos", label: "Productos", icon: <Boxes /> },
     { to: "/tareas", label: "Tareas", icon: <ListTodo /> },
     { to: "/usuarios", label: "Usuarios", icon: <Users /> },
@@ -18,7 +28,14 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
 
   return (
     <aside className={`bg-secondary p-4 shadow-sm ${className}`}>
-      <h2 className="mb-4 text-sm font-bold text-center text-text">Menú</h2>
+      <div className="mb-4 flex items-center gap-2 rounded-lg bg-[#3D1B1F] px-2 py-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#C9A961] text-[#3D1B1F]">
+          <Grape size={16} />
+        </div>
+        <div className="text-sm font-bold uppercase tracking-wide text-[#FFF9F0]">
+          Traza
+        </div>
+      </div>
       <nav className="space-y-2">
         {links.map((link) => (
           <NavLink
