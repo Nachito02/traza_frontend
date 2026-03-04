@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { createCuartel } from "../../features/cuarteles/api";
-import { fetchFincaById, type Finca as FincaDetail } from "../../features/fincas/api";
+import { deleteFinca, type Finca as FincaDetail } from "../../features/fincas/api";
 import { useAuthStore } from "../../store/authStore";
 import { useFincasStore } from "../../features/fincas/store";
 import { getApiErrorMessage } from "../../lib/api";
@@ -16,12 +16,10 @@ const Fincas = () => {
   const [savingCuartel, setSavingCuartel] = useState(false);
   const [cuartelMessage, setCuartelMessage] = useState<string | null>(null);
   const [cuartelError, setCuartelError] = useState<string | null>(null);
+  const [fincaActionError, setFincaActionError] = useState<string | null>(null);
+  const [fincaActionMessage, setFincaActionMessage] = useState<string | null>(null);
+  const [deletingFincaId, setDeletingFincaId] = useState<string | null>(null);
   const [expandedFincaId, setExpandedFincaId] = useState<string | null>(null);
-  const [loadingDetailId, setLoadingDetailId] = useState<string | null>(null);
-  const [fincaDetailById, setFincaDetailById] = useState<Record<string, FincaDetail>>({});
-  const [fincaDetailErrorById, setFincaDetailErrorById] = useState<Record<string, string>>(
-    {},
-  );
   const [cuartelForm, setCuartelForm] = useState({
     fincaId: "",
     codigo_cuartel: "",
@@ -55,37 +53,6 @@ const Fincas = () => {
       fincaId: String(fincas[0].finca_id ?? fincas[0].id ?? ""),
     }));
   }, [cuartelForm.fincaId, fincas]);
-
-  useEffect(() => {
-    const idsToFetch = fincas
-      .map((finca) => String(finca.finca_id ?? finca.id ?? ""))
-      .filter((id) => id && !fincaDetailById[id]);
-    if (idsToFetch.length === 0) return;
-
-    let mounted = true;
-    Promise.all(
-      idsToFetch.map(async (fincaId) => {
-        try {
-          const detail = await fetchFincaById(fincaId);
-          return { fincaId, detail };
-        } catch {
-          return null;
-        }
-      }),
-    ).then((results) => {
-      if (!mounted) return;
-      const nextEntries = results.filter(Boolean) as Array<{ fincaId: string; detail: FincaDetail }>;
-      if (nextEntries.length === 0) return;
-      setFincaDetailById((prev) => ({
-        ...prev,
-        ...Object.fromEntries(nextEntries.map((entry) => [entry.fincaId, entry.detail])),
-      }));
-    });
-
-    return () => {
-      mounted = false;
-    };
-  }, [fincaDetailById, fincas]);
 
   const fincaOptions = useMemo(
     () =>
@@ -143,27 +110,33 @@ const Fincas = () => {
     }
   };
 
-  const onToggleFincaDetail = async (fincaId: string) => {
+  const onToggleFincaDetail = (fincaId: string) => {
     if (!fincaId) return;
     if (expandedFincaId === fincaId) {
       setExpandedFincaId(null);
       return;
     }
     setExpandedFincaId(fincaId);
-    if (fincaDetailById[fincaId]) return;
+  };
 
-    setLoadingDetailId(fincaId);
-    setFincaDetailErrorById((prev) => ({ ...prev, [fincaId]: "" }));
+  const onDeleteFinca = async (fincaId: string, fincaNombre: string) => {
+    if (!fincaId) return;
+    const ok = window.confirm(`¿Eliminar la finca "${fincaNombre}"?`);
+    if (!ok) return;
+    setDeletingFincaId(fincaId);
+    setFincaActionError(null);
+    setFincaActionMessage(null);
     try {
-      const detail = await fetchFincaById(fincaId);
-      setFincaDetailById((prev) => ({ ...prev, [fincaId]: detail }));
+      await deleteFinca(fincaId);
+      setFincaActionMessage("Finca eliminada correctamente.");
+      if (expandedFincaId === fincaId) {
+        setExpandedFincaId(null);
+      }
+      await loadFincas(String(activeBodegaId));
     } catch (error) {
-      setFincaDetailErrorById((prev) => ({
-        ...prev,
-        [fincaId]: getApiErrorMessage(error),
-      }));
+      setFincaActionError(getApiErrorMessage(error));
     } finally {
-      setLoadingDetailId(null);
+      setDeletingFincaId(null);
     }
   };
 
@@ -350,9 +323,14 @@ const Fincas = () => {
                     {(() => {
                       const fincaId = String(finca.finca_id ?? finca.id ?? "");
                       const isExpanded = expandedFincaId === fincaId;
-                      const detail = fincaDetailById[fincaId];
-                      const detailError = fincaDetailErrorById[fincaId];
-                      const isLoadingDetail = loadingDetailId === fincaId;
+                      const detail = finca as FincaDetail;
+                      const vinculo = finca.vinculo ?? (Array.isArray(finca.vinculos) ? finca.vinculos[0] : undefined);
+                      const tipoVinculo =
+                        vinculo?.tipo_vinculo === "proveedor_tercero"
+                          ? "Proveedor tercero"
+                          : vinculo?.tipo_vinculo === "propia"
+                            ? "Propia"
+                            : "Sin definir";
                       return (
                         <>
                     <div className="text-sm font-semibold text-[#3D1B1F]">
@@ -394,6 +372,24 @@ const Fincas = () => {
                       </Link>
                       <button
                         type="button"
+                        disabled={deletingFincaId === fincaId}
+                        onClick={() =>
+                          void onDeleteFinca(
+                            fincaId,
+                            String(
+                              finca.nombre ??
+                                finca.nombre_finca ??
+                                finca.name ??
+                                fincaId,
+                            ),
+                          )
+                        }
+                        className="cursor-pointer rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {deletingFincaId === fincaId ? "Eliminando..." : "Eliminar finca"}
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => void onToggleFincaDetail(fincaId)}
                         className="cursor-pointer rounded border border-[#C9A961]/40 px-2 py-1 text-xs font-semibold text-[#722F37] transition hover:bg-white"
                       >
@@ -402,35 +398,37 @@ const Fincas = () => {
                     </div>
                     {isExpanded ? (
                       <div className="mt-3 rounded border border-[#C9A961]/30 bg-white px-3 py-2 text-xs text-[#6B3A3F]">
-                        {isLoadingDetail ? (
-                          <div>Cargando detalle...</div>
-                        ) : detailError ? (
-                          <div className="text-red-700">{detailError}</div>
-                        ) : (
-                          <div className="grid gap-1">
-                            <div>
-                              <span className="font-semibold text-[#3D1B1F]">RUT:</span>{" "}
-                              {pickDetailValue(detail, ["rut", "rut_finca", "rutFinca"])}
-                            </div>
-                            <div>
-                              <span className="font-semibold text-[#3D1B1F]">RENSPA:</span>{" "}
-                              {pickDetailValue(detail, ["renspa", "renspa_finca", "renspaFinca"])}
-                            </div>
-                            <div>
-                              <span className="font-semibold text-[#3D1B1F]">Catastro:</span>{" "}
-                              {pickDetailValue(detail, ["catastro", "catastro_finca", "catastroFinca"])}
-                            </div>
-                            <div>
-                              <span className="font-semibold text-[#3D1B1F]">Ubicación:</span>{" "}
-                              {pickDetailValue(detail, [
-                                "ubicacion_texto",
-                                "ubicacion",
-                                "ubicacion_finca",
-                                "ubicacionFinca",
-                              ])}
-                            </div>
+                        <div className="grid gap-1">
+                          <div>
+                            <span className="font-semibold text-[#3D1B1F]">RUT:</span>{" "}
+                            {pickDetailValue(detail, ["rut", "rut_finca", "rutFinca"])}
                           </div>
-                        )}
+                          <div>
+                            <span className="font-semibold text-[#3D1B1F]">RENSPA:</span>{" "}
+                            {pickDetailValue(detail, ["renspa", "renspa_finca", "renspaFinca"])}
+                          </div>
+                          <div>
+                            <span className="font-semibold text-[#3D1B1F]">Catastro:</span>{" "}
+                            {pickDetailValue(detail, ["catastro", "catastro_finca", "catastroFinca"])}
+                          </div>
+                          <div>
+                            <span className="font-semibold text-[#3D1B1F]">Ubicación:</span>{" "}
+                            {pickDetailValue(detail, [
+                              "ubicacion_texto",
+                              "ubicacion",
+                              "ubicacion_finca",
+                              "ubicacionFinca",
+                            ])}
+                          </div>
+                          <div>
+                            <span className="font-semibold text-[#3D1B1F]">Tipo de vínculo:</span>{" "}
+                            {tipoVinculo}
+                          </div>
+                          <div>
+                            <span className="font-semibold text-[#3D1B1F]">Vínculo activo:</span>{" "}
+                            {vinculo?.activo === false ? "No" : "Sí"}
+                          </div>
+                        </div>
                       </div>
                     ) : null}
                         </>
@@ -440,6 +438,16 @@ const Fincas = () => {
                 ))}
               </div>
             )}
+            {fincaActionError ? (
+              <div className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                {fincaActionError}
+              </div>
+            ) : null}
+            {fincaActionMessage ? (
+              <div className="mt-3 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                {fincaActionMessage}
+              </div>
+            ) : null}
           </div>
         </section>
 

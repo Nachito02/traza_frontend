@@ -13,14 +13,23 @@ import {
 import { fetchAuthUsers, type AuthUser } from "../../features/users/api";
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
+import { fetchProtocolosExpanded, type ProtocoloExpanded } from "../../features/protocolos/api";
+import { resolveModuleAccess } from "../../lib/permissions";
 
-const MANAGER_ROLES = [
+const FINCA_MANAGER_ROLES = [
   "encargado_finca",
-  "encargado_bodega",
+];
+
+const GLOBAL_MANAGER_ROLES = [
+  "admin_sistema",
+];
+
+const BODEGA_MANAGER_ROLES = [
   "admin_bodega",
-  "admin",
-  "super_admin",
-  "super_user",
+  "encargado_bodega",
+  "productor",
+  "responsable_calidad_inocuidad",
+  "responsable_ssyo",
   "enologo",
 ];
 
@@ -32,11 +41,85 @@ const OPERATOR_ROLES = [
   "operario_bodega",
 ];
 
+type ProtocoloTaskOption = {
+  value: string;
+  label: string;
+  titulo: string;
+  eventoTipo: string;
+  etapaLabel: string;
+  protocoloLabel: string;
+};
+
+const OPERACION_SCOPE_STORAGE_KEY = "operacion_scope";
+
+const FINCA_PRODUCCION_EVENT_TYPES = new Set([
+  "riego",
+  "cosecha",
+  "fenologia",
+  "fertilizacion",
+  "labor_suelo",
+  "canopia",
+  "aplicacion_fitosanitaria",
+  "monitoreo_enfermedad",
+  "monitoreo_plaga",
+  "analisis_suelo",
+  "precipitacion",
+]);
+
+function isFincaProductionOption(option: ProtocoloTaskOption) {
+  if (FINCA_PRODUCCION_EVENT_TYPES.has(option.eventoTipo)) return true;
+  const fingerprint = `${option.protocoloLabel} ${option.etapaLabel} ${option.titulo} ${option.eventoTipo}`
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  return [
+    "finca",
+    "campo",
+    "cuartel",
+    "vinedo",
+    "vinedo",
+    "produccion",
+    "agronom",
+    "cosecha",
+    "cultivo",
+  ].some((keyword) => fingerprint.includes(keyword));
+}
+
 function normalizeRoles(input: unknown): string[] {
-  if (!Array.isArray(input)) return [];
-  return input
-    .map((role) => (typeof role === "string" ? role.trim().toLowerCase() : ""))
-    .filter(Boolean);
+  if (typeof input === "string") {
+    const normalized = input.trim().toLowerCase();
+    return normalized ? [normalized] : [];
+  }
+  if (Array.isArray(input)) {
+    return input
+      .flatMap((role) => {
+        if (typeof role === "string") return [role];
+        if (role && typeof role === "object") {
+          const anyRole = role as Record<string, unknown>;
+          return [
+            anyRole.rol_global,
+            anyRole.rol_en_bodega,
+            anyRole.rol_en_finca,
+            anyRole.rol,
+            anyRole.role,
+          ].filter((value): value is string => typeof value === "string");
+        }
+        return [];
+      })
+      .map((role) => role.trim().toLowerCase())
+      .filter(Boolean);
+  }
+  if (input && typeof input === "object") {
+    const anyRole = input as Record<string, unknown>;
+    return normalizeRoles([
+      anyRole.rol_global,
+      anyRole.rol_en_bodega,
+      anyRole.rol_en_finca,
+      anyRole.rol,
+      anyRole.role,
+    ]);
+  }
+  return [];
 }
 
 function includesAnyRole(currentRoles: string[], expectedRoles: string[]) {
@@ -53,6 +136,7 @@ const Tareas = () => {
   const [cuartelesByFinca, setCuartelesByFinca] = useState<Record<string, Cuartel[]>>({});
   const [operarios, setOperarios] = useState<AuthUser[]>([]);
   const [tasks, setTasks] = useState<Encargo[]>([]);
+  const [protocoloTaskOptions, setProtocoloTaskOptions] = useState<ProtocoloTaskOption[]>([]);
   const [canManageTasks, setCanManageTasks] = useState(false);
   const [forceMineMode, setForceMineMode] = useState(true);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
@@ -61,7 +145,7 @@ const Tareas = () => {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [form, setForm] = useState({
-    ambito: "finca" as "finca" | "bodega",
+    tareaProtocolo: "",
     titulo: "",
     descripcion: "",
     fechaObjetivo: "",
@@ -77,7 +161,16 @@ const Tareas = () => {
     () => bodegas.find((item) => String(item.bodega_id) === String(activeBodegaId)),
     [activeBodegaId, bodegas],
   );
-  const userRoles = useMemo(() => normalizeRoles(user?.roles_globales), [user?.roles_globales]);
+  const userRoles = useMemo(
+    () =>
+      normalizeRoles([
+        user?.roles_globales,
+        (user as { rol?: unknown } | null)?.rol,
+        (user as { role?: unknown } | null)?.role,
+      ]),
+    [user],
+  );
+  const access = resolveModuleAccess(user, activeBodegaId);
   const activeBodegaRoles = useMemo(() => {
     const userAny = (user ?? {}) as {
       bodegas?: Array<{
@@ -95,11 +188,46 @@ const Tareas = () => {
       : [];
     return normalizeRoles(localRoles);
   }, [activeBodegaId, user]);
+  const hasFincaManagerRole = useMemo(
+    () => {
+      const userAny = (user ?? {}) as {
+        fincas?: Array<{
+          roles_en_finca?: unknown;
+          rol_en_finca?: unknown;
+        }>;
+      };
+      const fincaRoles = (userAny.fincas ?? []).flatMap((finca) =>
+        normalizeRoles([finca.roles_en_finca, finca.rol_en_finca]),
+      );
+      return (
+        includesAnyRole(userRoles, FINCA_MANAGER_ROLES) ||
+        includesAnyRole(activeBodegaRoles, FINCA_MANAGER_ROLES) ||
+        includesAnyRole(fincaRoles, FINCA_MANAGER_ROLES)
+      );
+    },
+    [activeBodegaRoles, user, userRoles],
+  );
+  const hasBodegaManagerRole = useMemo(
+    () =>
+      includesAnyRole(userRoles, BODEGA_MANAGER_ROLES) ||
+      includesAnyRole(activeBodegaRoles, BODEGA_MANAGER_ROLES),
+    [activeBodegaRoles, userRoles],
+  );
+  const managerScope = useMemo<"finca" | "bodega">(() => {
+    if (access.hasBothOperacionScopes) {
+      if (typeof window !== "undefined") {
+        const preferred = window.localStorage.getItem(OPERACION_SCOPE_STORAGE_KEY);
+        if (preferred === "finca") return "finca";
+      }
+      return "bodega";
+    }
+    if (hasBodegaManagerRole) return "bodega";
+    return "finca";
+  }, [access.hasBothOperacionScopes, hasBodegaManagerRole]);
   const canManageByRole = useMemo(
     () =>
-      includesAnyRole(userRoles, MANAGER_ROLES) ||
-      includesAnyRole(activeBodegaRoles, MANAGER_ROLES),
-    [activeBodegaRoles, userRoles],
+      includesAnyRole(userRoles, GLOBAL_MANAGER_ROLES) || hasFincaManagerRole || hasBodegaManagerRole,
+    [hasBodegaManagerRole, hasFincaManagerRole, userRoles],
   );
 
   const refreshTasks = async () => {
@@ -187,7 +315,15 @@ const Tareas = () => {
               : b.rol_en_bodega
                 ? [b.rol_en_bodega]
                 : [];
-            return includesAnyRole(normalizeRoles(roles), OPERATOR_ROLES);
+            const roleList = normalizeRoles(roles);
+            if (managerScope === "finca") {
+              return includesAnyRole(roleList, [
+                "operador_campo",
+                "operario_campo",
+                "operario_finca",
+              ]);
+            }
+            return includesAnyRole(roleList, OPERATOR_ROLES);
           }),
         );
         setOperarios(list);
@@ -195,7 +331,7 @@ const Tareas = () => {
       .catch(() => {
         setOperarios([]);
       });
-  }, [activeBodega?.nombre, activeBodegaId, canManageTasks]);
+  }, [activeBodega?.nombre, activeBodegaId, canManageTasks, managerScope]);
 
   useEffect(() => {
     if (!activeBodegaId) return;
@@ -208,16 +344,85 @@ const Tareas = () => {
     [cuartelesByFinca, form.fincaId],
   );
 
+  useEffect(() => {
+    let mounted = true;
+    fetchProtocolosExpanded()
+      .then((data) => {
+        if (!mounted) return;
+        const options = (data ?? [])
+          .flatMap((protocolo: ProtocoloExpanded) =>
+            (protocolo.protocolo_etapa ?? []).flatMap((etapa) =>
+              (etapa.protocolo_proceso ?? []).map((proceso) => {
+                const protocoloId = String(protocolo.protocolo_id ?? protocolo.id ?? "protocolo");
+                const etapaId = String(etapa.etapa_id ?? etapa.nombre ?? "etapa");
+                const procesoId = String(proceso.proceso_id ?? proceso.nombre ?? "proceso");
+                const titulo = String(proceso.nombre ?? "Tarea");
+                const etapaLabel = String(etapa.nombre ?? "Etapa");
+                const protocoloLabel = String(protocolo.nombre ?? protocolo.codigo ?? "Protocolo");
+                const eventoTipo = String(proceso.evento_tipo ?? "").toLowerCase().trim();
+                return {
+                  value: `${protocoloId}:${etapaId}:${procesoId}`,
+                  titulo,
+                  label: `${protocoloLabel} · ${etapaLabel} · ${titulo}`,
+                  eventoTipo,
+                  etapaLabel,
+                  protocoloLabel,
+                  ordenEtapa: Number(etapa.orden ?? 999),
+                  ordenProceso: Number(proceso.orden ?? 999),
+                };
+              }),
+            ),
+          )
+          .sort((a, b) => a.ordenEtapa - b.ordenEtapa || a.ordenProceso - b.ordenProceso)
+          .map(({ value, label, titulo, eventoTipo, etapaLabel, protocoloLabel }) => ({
+            value,
+            label,
+            titulo,
+            eventoTipo,
+            etapaLabel,
+            protocoloLabel,
+          }));
+
+        setProtocoloTaskOptions(options);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setProtocoloTaskOptions([]);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const scopedProtocoloTaskOptions = useMemo(
+    () =>
+      protocoloTaskOptions.filter((option) =>
+        managerScope === "finca"
+          ? isFincaProductionOption(option)
+          : !isFincaProductionOption(option),
+      ),
+    [managerScope, protocoloTaskOptions],
+  );
+
+  useEffect(() => {
+    if (!form.tareaProtocolo) return;
+    const stillAvailable = scopedProtocoloTaskOptions.some(
+      (option) => option.value === form.tareaProtocolo,
+    );
+    if (stillAvailable) return;
+    setForm((prev) => ({ ...prev, tareaProtocolo: "", titulo: "" }));
+  }, [form.tareaProtocolo, scopedProtocoloTaskOptions]);
+
   const onCreate = async () => {
     if (!activeBodegaId) {
       setError("Seleccioná una bodega activa.");
       return;
     }
-    if (!form.titulo.trim()) {
-      setError("El título de la tarea es obligatorio.");
+    if (!form.tareaProtocolo) {
+      setError("Seleccioná una tarea del protocolo.");
       return;
     }
-    if (form.ambito === "finca" && (!form.fincaId || !form.cuartelId)) {
+    if (managerScope === "finca" && (!form.fincaId || !form.cuartelId)) {
       setError("Seleccioná finca y cuartel.");
       return;
     }
@@ -227,8 +432,8 @@ const Tareas = () => {
     try {
       const created = await createEncargo({
         bodegaId: String(activeBodegaId),
-        fincaId: form.ambito === "finca" ? form.fincaId : undefined,
-        cuartelId: form.ambito === "finca" ? form.cuartelId : undefined,
+        fincaId: managerScope === "finca" ? form.fincaId : undefined,
+        cuartelId: managerScope === "finca" ? form.cuartelId : undefined,
         milestoneId: form.milestoneId || undefined,
         titulo: form.titulo.trim(),
         descripcion: form.descripcion.trim() || undefined,
@@ -253,13 +458,13 @@ const Tareas = () => {
 
       setForm((prev) => ({
         ...prev,
-        ambito: prev.ambito,
+        tareaProtocolo: "",
         titulo: "",
         descripcion: "",
         fechaObjetivo: "",
         milestoneId: "",
-        fincaId: prev.ambito === "finca" ? prev.fincaId : "",
-        cuartelId: prev.ambito === "finca" ? prev.cuartelId : "",
+        fincaId: managerScope === "finca" ? prev.fincaId : "",
+        cuartelId: managerScope === "finca" ? prev.cuartelId : "",
         operarioUserId: "",
       }));
       await refreshTasks();
@@ -346,27 +551,27 @@ const Tareas = () => {
             </p>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <select
-                value={form.ambito}
-                onChange={(e) =>
+                value={form.tareaProtocolo}
+                onChange={(e) => {
+                  const selected = e.target.value;
+                  const task = scopedProtocoloTaskOptions.find(
+                    (item) => item.value === selected,
+                  );
                   setForm((prev) => ({
                     ...prev,
-                    ambito: e.target.value as "finca" | "bodega",
-                    fincaId: e.target.value === "finca" ? prev.fincaId : "",
-                    cuartelId: "",
-                  }))
-                }
+                    tareaProtocolo: selected,
+                    titulo: task?.titulo ?? "",
+                  }));
+                }}
                 className="rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
               >
-                <option value="finca">Ámbito finca</option>
-                <option value="bodega">Ámbito bodega</option>
+                <option value="">Seleccionar tarea del protocolo</option>
+                {scopedProtocoloTaskOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
-              <input
-                type="text"
-                value={form.titulo}
-                onChange={(e) => setForm((prev) => ({ ...prev, titulo: e.target.value }))}
-                placeholder="Título de tarea"
-                className="rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
-              />
               <select
                 value={form.prioridad}
                 onChange={(e) =>
@@ -381,7 +586,7 @@ const Tareas = () => {
                 <option value="media">media</option>
                 <option value="alta">alta</option>
               </select>
-              {form.ambito === "finca" ? (
+              {managerScope === "finca" ? (
                 <>
                   <select
                     value={form.fincaId}
@@ -420,7 +625,7 @@ const Tareas = () => {
                 </>
               ) : (
                 <div className="rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-xs text-[#7A4A50] md:col-span-2">
-                  Tarea de bodega: se crea sin finca/cuartel y se asigna directamente al operario.
+                  Encargado de bodega: las tareas se crean a nivel bodega (sin finca/cuartel).
                 </div>
               )}
               <select

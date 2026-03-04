@@ -8,6 +8,10 @@ import {
   patchFinca,
   type Finca,
 } from "../../features/fincas/api";
+import {
+  upsertBodegaFincaVinculo,
+  type BodegaFincaVinculo,
+} from "../../features/users/api";
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
 
@@ -27,6 +31,25 @@ const emptyForm: FormState = {
   catastro: "",
 };
 
+type VinculoFormState = {
+  tipo_vinculo: "propia" | "proveedor_tercero";
+  activo: boolean;
+};
+
+const emptyVinculoForm: VinculoFormState = {
+  tipo_vinculo: "propia",
+  activo: true,
+};
+
+function resolveFincaId(item: Finca) {
+  const value = item.finca_id ?? item.id;
+  return typeof value === "string" || typeof value === "number" ? String(value) : "";
+}
+
+function resolveFincaVinculo(item: Finca) {
+  return item.vinculo ?? (Array.isArray(item.vinculos) ? item.vinculos[0] : undefined);
+}
+
 export default function FincasAdmin() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
@@ -37,6 +60,10 @@ export default function FincasAdmin() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formMode, setFormMode] = useState<"none" | "create" | "edit">("none");
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [vinculoForm, setVinculoForm] = useState<VinculoFormState>(emptyVinculoForm);
+  const [vinculosByFincaId, setVinculosByFincaId] = useState<Record<string, BodegaFincaVinculo>>(
+    {},
+  );
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -48,7 +75,19 @@ export default function FincasAdmin() {
     setLoading(true);
     setError(null);
     try {
-      setItems(await fetchFincas(activeBodegaId));
+      const list = await fetchFincas(activeBodegaId);
+      setItems(list);
+      const mapped = Object.fromEntries(
+        (list ?? [])
+          .map((item) => {
+            const fincaId = resolveFincaId(item);
+            const vinculo = resolveFincaVinculo(item);
+            if (!fincaId || !vinculo) return null;
+            return [fincaId, vinculo] as const;
+          })
+          .filter(Boolean) as Array<readonly [string, BodegaFincaVinculo]>,
+      );
+      setVinculosByFincaId(mapped);
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
     } finally {
@@ -93,17 +132,28 @@ export default function FincasAdmin() {
         renspa: form.renspa.trim() || null,
         catastro: form.catastro.trim() || null,
       };
+      let targetFincaId = editingId ?? "";
       if (editingId) {
         await patchFinca(editingId, payload);
         setSuccess("Finca actualizada.");
       } else {
-        await createFinca({
+        const created = await createFinca({
           bodegaId: String(activeBodegaId),
           ...payload,
         });
+        targetFincaId = String(created.finca_id ?? created.id ?? "");
         setSuccess("Finca creada.");
       }
+      if (targetFincaId) {
+        await upsertBodegaFincaVinculo({
+          bodegaId: String(activeBodegaId),
+          fincaId: targetFincaId,
+          tipo_vinculo: vinculoForm.tipo_vinculo,
+          activo: vinculoForm.activo,
+        });
+      }
       setForm(emptyForm);
+      setVinculoForm(emptyVinculoForm);
       setEditingId(null);
       setFormMode("none");
       await load();
@@ -128,6 +178,12 @@ export default function FincasAdmin() {
         rut: item.rut ?? "",
         renspa: item.renspa ?? "",
         catastro: item.catastro ?? "",
+      });
+      const vinculo = vinculosByFincaId[id];
+      setVinculoForm({
+        tipo_vinculo:
+          vinculo?.tipo_vinculo === "proveedor_tercero" ? "proveedor_tercero" : "propia",
+        activo: vinculo?.activo !== false,
       });
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
@@ -162,6 +218,7 @@ export default function FincasAdmin() {
                 onClick={() => {
                   setEditingId(null);
                   setForm(emptyForm);
+                  setVinculoForm(emptyVinculoForm);
                   setFormMode("create");
                   setError(null);
                 }}
@@ -176,11 +233,20 @@ export default function FincasAdmin() {
           </div>
           <div className="mt-3 space-y-2">
             {loading ? <div className="text-sm text-[#7A4A50]">Cargando...</div> : items.length === 0 ? <div className="text-sm text-[#7A4A50]">Sin fincas.</div> : items.map((item) => {
-              const id = String(item.finca_id ?? item.id ?? "");
+              const id = resolveFincaId(item);
+              const vinculo = vinculosByFincaId[id];
               return (
                 <article key={id} className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-3">
                   <div className="text-sm font-semibold text-[#3D1B1F]">{item.nombre ?? item.nombre_finca ?? item.name ?? "Finca"}</div>
-                  <div className="text-xs text-[#6B3A3F]">{item.ubicacion ?? "Sin ubicación"}</div>
+                  <div className="text-xs text-[#6B3A3F]">{item.ubicacion_texto ?? item.ubicacion ?? "Sin ubicación"}</div>
+                  <div className="mt-1 text-xs text-[#6B3A3F]">
+                    Vínculo:{" "}
+                    {vinculo?.tipo_vinculo === "proveedor_tercero"
+                      ? "Proveedor tercero"
+                      : vinculo?.tipo_vinculo === "propia"
+                        ? "Propia"
+                        : "Sin definir"}
+                  </div>
                   <div className="mt-2 flex gap-2">
                     <button
                       type="button"
@@ -219,6 +285,29 @@ export default function FincasAdmin() {
               <input value={form.rut} onChange={(e) => setForm((p) => ({ ...p, rut: e.target.value }))} placeholder="RUT" className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm" />
               <input value={form.renspa} onChange={(e) => setForm((p) => ({ ...p, renspa: e.target.value }))} placeholder="RENSPA" className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm" />
               <input value={form.catastro} onChange={(e) => setForm((p) => ({ ...p, catastro: e.target.value }))} placeholder="Catastro" className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm" />
+              <select
+                value={vinculoForm.tipo_vinculo}
+                onChange={(e) =>
+                  setVinculoForm((prev) => ({
+                    ...prev,
+                    tipo_vinculo: e.target.value as "propia" | "proveedor_tercero",
+                  }))
+                }
+                className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
+              >
+                <option value="propia">Vínculo: Propia</option>
+                <option value="proveedor_tercero">Vínculo: Proveedor tercero</option>
+              </select>
+              <label className="flex items-center gap-2 rounded border border-[#C9A961]/40 px-3 py-2 text-sm text-[#3D1B1F]">
+                <input
+                  type="checkbox"
+                  checked={vinculoForm.activo}
+                  onChange={(e) =>
+                    setVinculoForm((prev) => ({ ...prev, activo: e.target.checked }))
+                  }
+                />
+                Vínculo activo
+              </label>
             </div>
             <div className="mt-3 flex gap-2">
               <button type="button" onClick={() => void onSubmit()} disabled={disabled} className="cursor-pointer rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:bg-[#FFF9F0] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60">{editingId ? "Guardar cambios" : "Guardar finca"}</button>
@@ -227,6 +316,7 @@ export default function FincasAdmin() {
                 onClick={() => {
                   setEditingId(null);
                   setForm(emptyForm);
+                  setVinculoForm(emptyVinculoForm);
                   setFormMode("none");
                 }}
                 className="cursor-pointer rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 active:scale-[0.98]"

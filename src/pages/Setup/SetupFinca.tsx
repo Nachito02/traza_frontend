@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createFinca } from "../../features/fincas/api";
+import { upsertBodegaFincaVinculo } from "../../features/users/api";
 import { useAuthStore } from "../../store/authStore";
 import { useFincasStore } from "../../features/fincas/store";
 
@@ -20,6 +21,8 @@ const SetupFinca = () => {
     renspa: "",
     catastro: "",
     ubicacion_texto: "",
+    tipo_vinculo: "propia" as "propia" | "proveedor_tercero",
+    vinculo_activo: true,
   });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -52,7 +55,7 @@ const SetupFinca = () => {
     setSaving(true);
     setError(null);
     try {
-      await createFinca({
+      const created = await createFinca({
         bodegaId: selectedBodegaId,
         nombre_finca: form.nombre_finca.trim(),
         rut: form.rut.trim() || null,
@@ -60,6 +63,15 @@ const SetupFinca = () => {
         catastro: form.catastro.trim() || null,
         ubicacion_texto: form.ubicacion_texto.trim() || null,
       });
+      const fincaId = String(created.finca_id ?? created.id ?? "");
+      if (fincaId) {
+        await upsertBodegaFincaVinculo({
+          bodegaId: String(selectedBodegaId),
+          fincaId,
+          tipo_vinculo: form.tipo_vinculo,
+          activo: Boolean(form.vinculo_activo),
+        });
+      }
       setActiveBodega(selectedBodegaId);
       await loadFincas(selectedBodegaId);
       navigate("/setup/campania");
@@ -163,6 +175,34 @@ const SetupFinca = () => {
                 onChange={(e) => onChange("ubicacion_texto", e.target.value)}
               />
             </div>
+            <div>
+              <label className="block text-sm text-[#722F37] mb-2">
+                Vínculo con la bodega
+              </label>
+              <select
+                className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                value={form.tipo_vinculo}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    tipo_vinculo: e.target.value as "propia" | "proveedor_tercero",
+                  }))
+                }
+              >
+                <option value="propia">Propia</option>
+                <option value="proveedor_tercero">Proveedor tercero</option>
+              </select>
+            </div>
+            <label className="flex items-center gap-2 text-sm text-[#722F37]">
+              <input
+                type="checkbox"
+                checked={form.vinculo_activo}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, vinculo_activo: e.target.checked }))
+                }
+              />
+              Vínculo activo
+            </label>
             {error && (
               <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                 {error}

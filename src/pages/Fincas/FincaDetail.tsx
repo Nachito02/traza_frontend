@@ -1,17 +1,22 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import type { Cuartel } from "../../features/cuarteles/api";
 import {
   fetchCuartelById,
   fetchCuartelesByFinca,
   patchCuartel,
 } from "../../features/cuarteles/api";
+import { deleteFinca } from "../../features/fincas/api";
 import { useFincasStore } from "../../features/fincas/store";
 import { getApiErrorMessage } from "../../lib/api";
+import { useAuthStore } from "../../store/authStore";
 
 const FincaDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const fincas = useFincasStore((state) => state.fincas);
+  const loadFincas = useFincasStore((state) => state.loadFincas);
   const finca = fincas.find((item) => item.finca_id === id || item.id === id);
 
   const [cuarteles, setCuarteles] = useState<Cuartel[]>([]);
@@ -25,6 +30,7 @@ const FincaDetail = () => {
   const [loadingDetailId, setLoadingDetailId] = useState<string | null>(null);
   const [editingCuartelId, setEditingCuartelId] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingFinca, setDeletingFinca] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [editSuccess, setEditSuccess] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
@@ -159,6 +165,28 @@ const FincaDetail = () => {
     }
   };
 
+  const onDeleteFinca = async () => {
+    if (!id) return;
+    const fincaNombre = finca?.nombre ?? finca?.nombre_finca ?? finca?.name ?? id;
+    const ok = window.confirm(`¿Eliminar la finca "${fincaNombre}"?`);
+    if (!ok) return;
+
+    setDeletingFinca(true);
+    setEditError(null);
+    setEditSuccess(null);
+    try {
+      await deleteFinca(id);
+      if (activeBodegaId) {
+        await loadFincas(String(activeBodegaId));
+      }
+      navigate("/fincas", { replace: true });
+    } catch (requestError) {
+      setEditError(getApiErrorMessage(requestError));
+    } finally {
+      setDeletingFinca(false);
+    }
+  };
+
   if (!id) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#F9F6F2] via-[#F3E7DA] to-[#EAD8C6] px-6 py-10">
@@ -181,6 +209,20 @@ const FincaDetail = () => {
             elaboración/fraccionamiento.
           </p>
           <div className="mt-4 flex gap-2">
+            <Link
+              to={`/admin/fincas?edit=${encodeURIComponent(String(id))}`}
+              className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE]"
+            >
+              Editar finca
+            </Link>
+            <button
+              type="button"
+              onClick={() => void onDeleteFinca()}
+              disabled={deletingFinca}
+              className="rounded-lg border border-red-300 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {deletingFinca ? "Eliminando..." : "Eliminar finca"}
+            </button>
             <Link
               to="/setup/cuarteles"
               className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE]"

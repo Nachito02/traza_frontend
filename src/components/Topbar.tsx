@@ -32,11 +32,8 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
   }, [campanias]);
   const canSwitchBodega = useMemo(() => {
     const roles = Array.isArray(user?.roles_globales) ? user.roles_globales : [];
-    const isSuperUser =
-      roles.includes("super_admin") ||
-      roles.includes("admin_sistema") ||
-      roles.includes("super_user");
-    return isSuperUser || bodegas.length > 1;
+    const isAdminSistema = roles.includes("admin_sistema");
+    return isAdminSistema || bodegas.length > 1;
   }, [bodegas.length, user]);
 
   useEffect(() => {

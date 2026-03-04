@@ -24,7 +24,6 @@ import FincaDetail from "./pages/Fincas/FincaDetail";
 import Fincas from "./pages/Fincas/Fincas";
 import Usuarios from "./pages/Usuarios/Usuarios";
 import Tareas from "./pages/Tareas/Tareas";
-import ElaboracionLayout from "./pages/Elaboracion/ElaboracionLayout";
 import RecepcionPage from "./pages/Elaboracion/RecepcionPage";
 import CiuQcPage from "./pages/Elaboracion/CiuQcPage";
 import VasijasProcesoPage from "./pages/Elaboracion/VasijasProcesoPage";
@@ -34,16 +33,45 @@ import QrInversaPage from "./pages/Elaboracion/QrInversaPage";
 import FincasAdmin from "./pages/Admin/FincasAdmin";
 import CuartelesAdmin from "./pages/Admin/CuartelesAdmin";
 import CampaniasAdmin from "./pages/Admin/CampaniasAdmin";
+import BodegaHome from "./pages/Bodega/BodegaHome";
+import BodegaVasijasPage from "./pages/Bodega/BodegaVasijasPage";
+import OperacionLayout from "./pages/Operacion/OperacionLayout";
+import { resolveModuleAccess } from "./lib/permissions";
+
+const OPERACION_SCOPE_STORAGE_KEY = "operacion_scope";
+
+function getPreferredOperacionScope(): "bodega" | "finca" {
+  if (typeof window === "undefined") return "bodega";
+  const raw = window.localStorage.getItem(OPERACION_SCOPE_STORAGE_KEY);
+  return raw === "finca" ? "finca" : "bodega";
+}
+
+function LegacyElaboracionRedirect() {
+  const location = useLocation();
+  const user = useAuthStore((state) => state.user);
+  const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
+  const access = resolveModuleAccess(user, activeBodegaId);
+  const canUseOperacionBodega = access.canAccessOperacionBodega;
+  if (!canUseOperacionBodega) {
+    return <Navigate to="/operacion/tareas" replace />;
+  }
+  const targetPath = location.pathname.replace(/^\/elaboracion/, "/operacion");
+  return <Navigate to={`${targetPath}${location.search}${location.hash}`} replace />;
+}
 
 export default function App() {
   const bootstrap = useAuthStore((state) => state.bootstrap);
   const isLoading = useAuthStore((state) => state.isLoading);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const user = useAuthStore((state) => state.user);
   const bodegas = useAuthStore((state) => state.bodegas);
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const setActiveBodega = useAuthStore((state) => state.setActiveBodega);
   const navigate = useNavigate();
   const location = useLocation();
+  const access = resolveModuleAccess(user, activeBodegaId);
+  const preferredScope = getPreferredOperacionScope();
+  const canUseOperacionBodega = access.canAccessOperacionBodega;
 
   useEffect(() => {
     void bootstrap();
@@ -94,15 +122,33 @@ export default function App() {
         <Route path="/admin/fincas" element={<FincasAdmin />} />
         <Route path="/admin/cuarteles" element={<CuartelesAdmin />} />
         <Route path="/admin/campanias" element={<CampaniasAdmin />} />
-        <Route path="/elaboracion" element={<Navigate to="/elaboracion/recepcion" replace />} />
-        <Route path="/elaboracion" element={<ElaboracionLayout />}>
-          <Route path="recepcion" element={<RecepcionPage />} />
-          <Route path="ciu-qc" element={<CiuQcPage />} />
-          <Route path="vasijas" element={<VasijasProcesoPage />} />
-          <Route path="cortes" element={<CortesProductoPage />} />
-          <Route path="fraccionamiento" element={<FraccionamientoDespachoPage />} />
-          <Route path="qr" element={<QrInversaPage />} />
+        <Route path="/bodega" element={access.canAccessBodega ? <BodegaHome /> : <Navigate to="/fincas" replace />} />
+        <Route path="/bodega/vasijas" element={access.canAccessBodega ? <BodegaVasijasPage /> : <Navigate to="/fincas" replace />} />
+        <Route path="/bodega/recepcion" element={canUseOperacionBodega ? <Navigate to="/operacion/recepcion" replace /> : <Navigate to="/fincas" replace />} />
+        <Route path="/bodega/ciu-qc" element={canUseOperacionBodega ? <Navigate to="/operacion/ciu-qc" replace /> : <Navigate to="/fincas" replace />} />
+        <Route path="/bodega/vasijas-proceso" element={canUseOperacionBodega ? <Navigate to="/operacion/vasijas" replace /> : <Navigate to="/fincas" replace />} />
+        <Route path="/bodega/cortes" element={canUseOperacionBodega ? <Navigate to="/operacion/cortes" replace /> : <Navigate to="/fincas" replace />} />
+        <Route path="/bodega/fraccionamiento" element={canUseOperacionBodega ? <Navigate to="/operacion/fraccionamiento" replace /> : <Navigate to="/fincas" replace />} />
+        <Route path="/bodega/qr" element={canUseOperacionBodega ? <Navigate to="/operacion/qr" replace /> : <Navigate to="/fincas" replace />} />
+        <Route
+          path="/operacion"
+          element={
+            access.canAccessOperacion
+              ? <Navigate to={canUseOperacionBodega && (!access.canAccessOperacionFinca || preferredScope === "bodega") ? "/operacion/recepcion" : "/operacion/tareas"} replace />
+              : <Navigate to="/fincas" replace />
+          }
+        />
+        <Route path="/operacion" element={access.canAccessOperacion ? <OperacionLayout /> : <Navigate to="/fincas" replace />}>
+          <Route path="tareas" element={<Tareas />} />
+          <Route path="recepcion" element={canUseOperacionBodega ? <RecepcionPage /> : <Navigate to="/operacion/tareas" replace />} />
+          <Route path="ciu-qc" element={canUseOperacionBodega ? <CiuQcPage /> : <Navigate to="/operacion/tareas" replace />} />
+          <Route path="vasijas" element={canUseOperacionBodega ? <VasijasProcesoPage /> : <Navigate to="/operacion/tareas" replace />} />
+          <Route path="cortes" element={canUseOperacionBodega ? <CortesProductoPage /> : <Navigate to="/operacion/tareas" replace />} />
+          <Route path="fraccionamiento" element={canUseOperacionBodega ? <FraccionamientoDespachoPage /> : <Navigate to="/operacion/tareas" replace />} />
+          <Route path="qr" element={canUseOperacionBodega ? <QrInversaPage /> : <Navigate to="/operacion/tareas" replace />} />
         </Route>
+        <Route path="/elaboracion" element={canUseOperacionBodega ? <Navigate to="/operacion/recepcion" replace /> : <Navigate to="/fincas" replace />} />
+        <Route path="/elaboracion/*" element={<LegacyElaboracionRedirect />} />
         <Route path="/tareas" element={<Tareas />} />
         <Route path="/usuarios" element={<Usuarios />} />
         <Route path="/fincas/:id" element={<FincaDetail />} />

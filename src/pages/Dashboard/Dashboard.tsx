@@ -197,7 +197,7 @@ const Dashboard = () => {
                           {finca.nombre ?? finca.nombre_finca ?? finca.name ?? "Finca sin nombre"}
                         </div>
                         <div className="mt-1 text-xs text-[#7A4A50]">
-                          {finca.ubicacion ?? "Ubicación sin definir"}
+                          {finca.ubicacion_texto ?? finca.ubicacion ?? "Ubicación sin definir"}
                         </div>
                       </Link>
                     ))}

@@ -5,10 +5,13 @@ import {
   Users,
   Boxes,
   ListTodo,
-  FlaskConical,
+  Warehouse,
+  ClipboardPenLine,
   Grape,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
+import { useAuthStore } from "../store/authStore";
+import { resolveModuleAccess } from "../lib/permissions";
 
 type AsideProps = {
   className?: string;
@@ -16,10 +19,19 @@ type AsideProps = {
 };
 
 const Aside = ({ className = "", onNavigate }: AsideProps) => {
+  const user = useAuthStore((state) => state.user);
+  const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
+  const access = resolveModuleAccess(user, activeBodegaId);
+
   const links = [
     { to: "/dashboard", label: "Dashboard", icon: <LayoutDashboard /> },
     { to: "/fincas", label: "Fincas", icon: <Map /> },
-    { to: "/elaboracion", label: "Elaboracion", icon: <FlaskConical /> },
+    ...(access.canAccessBodega
+      ? [{ to: "/bodega", label: "Bodega", icon: <Warehouse /> }]
+      : []),
+    ...(access.canAccessOperacion
+      ? [{ to: "/operacion", label: "Operacion", icon: <ClipboardPenLine /> }]
+      : []),
     { to: "/productos", label: "Productos", icon: <Boxes /> },
     { to: "/tareas", label: "Tareas", icon: <ListTodo /> },
     { to: "/usuarios", label: "Usuarios", icon: <Users /> },

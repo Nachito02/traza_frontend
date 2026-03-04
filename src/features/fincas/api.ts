@@ -13,17 +13,37 @@ export type Finca = {
   renspa?: string | null;
   catastro?: string | null;
   created_at?: string;
+  vinculo?: {
+    bodega_id?: string;
+    finca_id?: string;
+    tipo_vinculo?: "propia" | "proveedor_tercero" | string;
+    activo?: boolean;
+  };
+  vinculos?: Array<{
+    bodega_id?: string;
+    finca_id?: string;
+    tipo_vinculo?: "propia" | "proveedor_tercero" | string;
+    activo?: boolean;
+  }>;
 };
 
 export async function fetchFincas(bodegaId: string | number) {
   const normalizedBodegaId = encodeURIComponent(String(bodegaId));
   try {
     const response = await apiClient.get<Finca[]>(
-      `/bodegas/${normalizedBodegaId}/fincas`,
+      `/fincas?bodegaId=${normalizedBodegaId}`,
     );
     return response.data ?? [];
   } catch {
-    // Compatibilidad con backends que exponen fincas por query.
+    // Compatibilidad con backends que exponen fincas por ruta bodega.
+    try {
+      const response = await apiClient.get<Finca[]>(
+        `/bodegas/${normalizedBodegaId}/fincas`,
+      );
+      return response.data ?? [];
+    } catch {
+      // Compatibilidad adicional si la respuesta usa wrapper.
+    }
     const response = await apiClient.get<Finca[] | { items?: Finca[] }>(
       `/fincas?bodegaId=${normalizedBodegaId}`,
     );
