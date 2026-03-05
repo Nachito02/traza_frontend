@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { apiClient, getApiErrorMessage } from "../lib/api";
+import { apiClient, getApiErrorMessage, setAuthFailureHandler } from "../lib/api";
 
 export type User = {
   id: string | number;
@@ -164,3 +164,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 }));
+
+setAuthFailureHandler(() => {
+  useAuthStore.setState({
+    user: null,
+    isAuthenticated: false,
+    isLoading: false,
+    error: null,
+    bodegas: [],
+    activeBodegaId: null,
+  });
+});

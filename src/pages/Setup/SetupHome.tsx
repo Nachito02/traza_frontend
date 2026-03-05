@@ -30,7 +30,7 @@ const steps = [
 
 const SetupHome = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F9F6F2] via-[#F3E7DA] to-[#EAD8C6] px-6 py-10">
+    <div className="min-h-screen bg-linear-to-br from-[#F9F6F2] via-[#F3E7DA] to-[#EAD8C6] px-6 py-10">
       <div className="mx-auto w-full max-w-4xl">
         <div className="mb-8">
           <h1 className="text-3xl text-[#3D1B1F]">Setup guiado</h1>

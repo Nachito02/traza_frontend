@@ -5,7 +5,11 @@
 @theme {
   --color-primary: #490e0e;
   --color-secondary: #201212;
+  --color-crem: #ecddcd;
   --color-text : #ffffff;
+  --color-dark:#3D1B1F;
+  --color-text-dark-secondary:#3D1B1F;
+
   --color-text-secondary: #64748B;
   --font-sans: 'Work Sans', sans-serif;
 } 

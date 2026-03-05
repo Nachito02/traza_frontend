@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   Map,
+  LayoutGrid,
   GitPullRequest,
   Users,
   ListTodo,
@@ -25,6 +26,7 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
   const links = [
     { to: "/dashboard", label: "Dashboard", icon: <LayoutDashboard /> },
     { to: "/fincas", label: "Fincas", icon: <Map /> },
+    { to: "/admin/cuarteles", label: "Cuarteles", icon: <LayoutGrid /> },
     ...(access.canAccessBodega
       ? [{ to: "/bodega", label: "Bodega", icon: <Warehouse /> }]
       : []),

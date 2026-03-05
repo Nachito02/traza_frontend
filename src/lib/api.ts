@@ -1,4 +1,4 @@
-import axios, { type AxiosError } from "axios";
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -17,6 +17,98 @@ export const apiClient = axios.create({
     Accept: "application/json",
   },
 });
+
+const REFRESH_PATH = "/auth/refresh";
+const AUTH_PATHS_WITHOUT_REFRESH = new Set([
+  "/auth/login",
+  "/auth/register",
+  "/auth/logout",
+]);
+
+type RetryableRequestConfig = InternalAxiosRequestConfig & {
+  _retry?: boolean;
+  skipAuthRefresh?: boolean;
+};
+
+type PendingRequest = {
+  resolve: () => void;
+  reject: (error: unknown) => void;
+};
+
+let isRefreshing = false;
+let pendingRequests: PendingRequest[] = [];
+let authFailureHandler: (() => void) | null = null;
+
+export function setAuthFailureHandler(handler: (() => void) | null) {
+  authFailureHandler = handler;
+}
+
+function flushPendingRequests(error: unknown | null) {
+  const requests = pendingRequests;
+  pendingRequests = [];
+  requests.forEach(({ resolve, reject }) => {
+    if (error) {
+      reject(error);
+      return;
+    }
+    resolve();
+  });
+}
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error: AxiosError) => {
+    const status = error.response?.status;
+    const originalRequest = error.config as RetryableRequestConfig | undefined;
+    const requestUrl = originalRequest?.url ?? "";
+
+    if (!originalRequest || status !== 401 || originalRequest.skipAuthRefresh) {
+      return Promise.reject(error);
+    }
+
+    if (
+      requestUrl.includes(REFRESH_PATH) ||
+      Array.from(AUTH_PATHS_WITHOUT_REFRESH).some((path) => requestUrl.includes(path))
+    ) {
+      return Promise.reject(error);
+    }
+
+    if (originalRequest._retry) {
+      return Promise.reject(error);
+    }
+    originalRequest._retry = true;
+
+    if (isRefreshing) {
+      try {
+        await new Promise<void>((resolve, reject) => {
+          pendingRequests.push({ resolve, reject });
+        });
+        return apiClient(originalRequest);
+      } catch (refreshError) {
+        return Promise.reject(refreshError);
+      }
+    }
+
+    isRefreshing = true;
+    try {
+      await apiClient.post(
+        REFRESH_PATH,
+        {},
+        {
+          skipAuthRefresh: true,
+        } as RetryableRequestConfig,
+      );
+      flushPendingRequests(null);
+      return apiClient(originalRequest);
+    } catch (refreshError) {
+      flushPendingRequests(refreshError);
+      authFailureHandler?.();
+      return Promise.reject(refreshError);
+    } finally {
+      isRefreshing = false;
+    }
+  },
+);
 
 export function getApiErrorMessage(error: unknown) {
   if (axios.isAxiosError(error)) {

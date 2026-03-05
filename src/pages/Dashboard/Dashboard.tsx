@@ -91,19 +91,19 @@ const Dashboard = () => {
   }, [campanias, trazabilidades]);
 
   return (
-    <div className="min-h-screen bg-secondary px-6 py-10">
+    <div className="min-h-screen bg-linear-to-br from-[#F9F6F2] via-[#F3E7DA] to-[#EAD8C6] px-6 py-10">
       <div className="mx-auto w-full max-w-6xl">
         <div className="mb-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h1 className="text-3xl font-bold text-text">Resumen operativo</h1>
-              <p className="mt-2 text-sm text-text-secondary">
+              <h1 className="text-3xl font-bold text-dark">Resumen operativo</h1>
+              <p className="mt-2 text-sm text-text-dark-secondary ">
                 Datos del usuario autenticado y su bodega activa.
               </p>
             </div>
             <Link
               to="/trazabilidades"
-              className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
+              className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:cursor-not-allowed disabled:opacity-60"
             >
               Ver procesos y etapas
             </Link>
@@ -117,32 +117,32 @@ const Dashboard = () => {
         ) : (
           <div className="space-y-6">
             <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Link to="/contexto" className="rounded-2xl border border-white/10 bg-primary/30 p-4 transition hover:bg-primary/40">
-                <p className="text-xs uppercase tracking-[0.12em] text-text-secondary">
+              <Link to="/contexto" className="rounded-2xl border border-white/10 bg-primary p-4 transition hover:bg-secondary">
+                <p className="text-xs uppercase tracking-[0.12em] text-text">
                   Bodega activa
                 </p>
                 <p className="mt-3 text-xl font-bold text-text">
                   {activeBodega?.nombre ?? "Sin seleccionar"}
                 </p>
               </Link>
-              <Link to="/fincas" className="rounded-2xl border border-white/10 bg-primary/30 p-4 transition hover:bg-primary/40">
-                <p className="text-xs uppercase tracking-[0.12em] text-text-secondary">
+              <Link to="/fincas" className="rounded-2xl border border-white/10 bg-primary p-4 transition hover:bg-secondary">
+                <p className="text-xs uppercase tracking-[0.12em] text-text">
                   Fincas
                 </p>
                 <p className="mt-3 text-3xl font-bold text-text">
                   {fincasLoading ? "…" : fincas.length}
                 </p>
               </Link>
-              <Link to="/admin/cuarteles" className="rounded-2xl border border-white/10 bg-primary/30 p-4 transition hover:bg-primary/40">
-                <p className="text-xs uppercase tracking-[0.12em] text-text-secondary">
+              <Link to="/admin/cuarteles" className="rounded-2xl border border-white/10 bg-primary p-4 transition hover:bg-secondary">
+                <p className="text-xs uppercase tracking-[0.12em] text-text">
                   Cuarteles
                 </p>
                 <p className="mt-3 text-3xl font-bold text-text">
                   {loading ? "…" : cuartelesCount}
                 </p>
               </Link>
-              <Link to="/trazabilidades" className="rounded-2xl border border-white/10 bg-primary/30 p-4 transition hover:bg-primary/40">
-                <p className="text-xs uppercase tracking-[0.12em] text-text-secondary">
+              <Link to="/trazabilidades" className="rounded-2xl border border-white/10 bg-primary p-4 transition hover:bg-secondary">
+                <p className="text-xs uppercase tracking-[0.12em] text-text">
                   Trazabilidades
                 </p>
                 <p className="mt-3 text-3xl font-bold text-text">
@@ -152,20 +152,20 @@ const Dashboard = () => {
             </section>
 
             <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Link to="/trazabilidades" className="rounded-2xl border border-white/10 bg-primary/20 p-4 transition hover:bg-primary/30">
-                <p className="text-xs text-text-secondary">En curso</p>
+              <Link to="/trazabilidades" className="rounded-2xl border border-white/10 bg-primary p-4 transition hover:bg-secondary ">
+                <p className="text-xs uppercase tracking-[0.12em] text-text">En curso</p>
                 <p className="mt-2 text-2xl font-semibold text-text">{stats.enCurso}</p>
               </Link>
-              <Link to="/trazabilidades" className="rounded-2xl border border-white/10 bg-primary/20 p-4 transition hover:bg-primary/30">
-                <p className="text-xs text-text-secondary">Finalizadas / Certificadas</p>
+              <Link to="/trazabilidades" className="rounded-2xl border border-white/10 bg-primary p-4 transition hover:bg-secondary ">
+                <p className="text-xs uppercase tracking-[0.12em] text-text">Finalizadas / Certificadas</p>
                 <p className="mt-2 text-2xl font-semibold text-text">{stats.finalizadas}</p>
               </Link>
-              <Link to="/trazabilidades" className="rounded-2xl border border-white/10 bg-primary/20 p-4 transition hover:bg-primary/30">
-                <p className="text-xs text-text-secondary">Borrador</p>
+              <Link to="/trazabilidades" className="rounded-2xl border border-white/10 bg-primary p-4 transition hover:bg-secondary ">
+                <p className="text-xs uppercase tracking-[0.12em] text-text">Borrador</p>
                 <p className="mt-2 text-2xl font-semibold text-text">{stats.borrador}</p>
               </Link>
-              <Link to="/admin/campanias" className="rounded-2xl border border-white/10 bg-primary/20 p-4 transition hover:bg-primary/30">
-                <p className="text-xs text-text-secondary">Campañas abiertas</p>
+              <Link to="/admin/campanias" className="rounded-2xl border border-white/10 bg-primary p-4 transition hover:bg-secondary ">
+                <p className="text-xs uppercase tracking-[0.12em] text-text">Campañas abiertas</p>
                 <p className="mt-2 text-2xl font-semibold text-text">{stats.campaniasAbiertas}</p>
               </Link>
             </section>

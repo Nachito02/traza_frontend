@@ -48,7 +48,9 @@ export default function CuartelesAdmin() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [detailById, setDetailById] = useState<Record<string, Cuartel>>({});
   const [loadingDetailId, setLoadingDetailId] = useState<string | null>(null);
-  const [detailErrorById, setDetailErrorById] = useState<Record<string, string>>({});
+  const [detailErrorById, setDetailErrorById] = useState<
+    Record<string, string>
+  >({});
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -59,7 +61,10 @@ export default function CuartelesAdmin() {
 
   useEffect(() => {
     if (!form.fincaId && fincas.length > 0) {
-      setForm((prev) => ({ ...prev, fincaId: String(fincas[0].finca_id ?? fincas[0].id ?? "") }));
+      setForm((prev) => ({
+        ...prev,
+        fincaId: String(fincas[0].finca_id ?? fincas[0].id ?? ""),
+      }));
     }
   }, [fincas, form.fincaId]);
 
@@ -163,7 +168,10 @@ export default function CuartelesAdmin() {
       setForm({
         fincaId: String(detail.finca_id ?? fallbackFincaId ?? ""),
         codigo_cuartel: detail.codigo_cuartel ?? "",
-        superficie_ha: detail.superficie_ha === undefined || detail.superficie_ha === null ? "" : String(detail.superficie_ha),
+        superficie_ha:
+          detail.superficie_ha === undefined || detail.superficie_ha === null
+            ? ""
+            : String(detail.superficie_ha),
         cultivo: detail.cultivo ?? "vid",
         variedad: detail.variedad ?? "",
         sistema_productivo: detail.sistema_productivo ?? "",
@@ -205,19 +213,30 @@ export default function CuartelesAdmin() {
       const detail = await fetchCuartelById(id);
       setDetailById((prev) => ({ ...prev, [id]: detail }));
     } catch (requestError) {
-      setDetailErrorById((prev) => ({ ...prev, [id]: getApiErrorMessage(requestError) }));
+      setDetailErrorById((prev) => ({
+        ...prev,
+        [id]: getApiErrorMessage(requestError),
+      }));
     } finally {
       setLoadingDetailId(null);
     }
   };
 
   return (
-    <div className="min-h-screen bg-secondary px-6 py-10">
+    <div className="min-h-screen bg-linear-to-br from-[#F9F6F2] via-[#F3E7DA] to-[#EAD8C6] px-6 py-10">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-dark">
+          Administracion de cuarteles
+        </h1>
+        <p className="mt-2 text-sm text-text-dark-secondary">
+          Supervisa y gestiona tus cuarteles.
+        </p>
+      </div>
       <div className="mx-auto w-full max-w-6xl space-y-6">
         {formMode === "none" ? (
-          <section className="rounded-2xl bg-white p-6 shadow-sm">
+          <section className="rounded-2xl bg-primary p-6 shadow-sm">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-[#3D1B1F]">Cuarteles</h2>
+              <h2 className="text-lg font-semibold text-text">Cuarteles</h2>
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -227,14 +246,14 @@ export default function CuartelesAdmin() {
                     setFormMode("create");
                     setError(null);
                   }}
-                  className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37]"
+                  className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary cursor-pointer"
                 >
                   Nuevo cuartel
                 </button>
                 <button
                   type="button"
                   onClick={() => void load()}
-                  className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37]"
+                  className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary cursor-pointer"
                 >
                   Actualizar listado
                 </button>
@@ -254,23 +273,29 @@ export default function CuartelesAdmin() {
                   const detailError = detailErrorById[id];
                   const isLoadingDetail = loadingDetailId === id;
                   return (
-                    <article key={id} className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-3">
-                      <div className="text-sm font-semibold text-[#3D1B1F]">{item.codigo_cuartel}</div>
+                    <article
+                      key={id}
+                      className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-3"
+                    >
+                      <div className="text-sm font-semibold text-[#3D1B1F]">
+                        {item.codigo_cuartel}
+                      </div>
                       <div className="text-xs text-[#6B3A3F]">
-                        {fincaById[item.fincaId] ?? item.fincaId} · {item.variedad} · {item.superficie_ha} ha
+                        {fincaById[item.fincaId] ?? item.fincaId} ·{" "}
+                        {item.variedad} · {item.superficie_ha} ha
                       </div>
                       <div className="mt-2 flex flex-wrap gap-2">
                         <button
                           type="button"
                           onClick={() => void onEditById(id, item.fincaId)}
-                          className="cursor-pointer rounded border border-[#C9A961]/50 px-2 py-1 text-xs font-semibold text-[#722F37] transition hover:bg-white active:scale-[0.98]"
+                          className="cursor-pointer rounded border border-[#C9A961]/50 px-2 py-1 text-xs font-semibold text-[#722F37] transition hover:bg-[#FFF9F0] active:scale-[0.98]"
                         >
                           Editar
                         </button>
                         <button
                           type="button"
                           onClick={() => void onToggleDetail(id)}
-                          className="cursor-pointer rounded border border-[#C9A961]/50 px-2 py-1 text-xs font-semibold text-[#722F37] transition hover:bg-white active:scale-[0.98]"
+                          className="cursor-pointer rounded border border-[#C9A961]/50 px-2 py-1 text-xs font-semibold text-[#722F37] transition hover:bg-[#FFF9F0] active:scale-[0.98]"
                         >
                           {isExpanded ? "Ocultar detalle" : "Ver detalle"}
                         </button>
@@ -284,19 +309,49 @@ export default function CuartelesAdmin() {
                       </div>
 
                       {isExpanded ? (
-                        <div className="mt-3 rounded border border-[#C9A961]/30 bg-white px-3 py-2 text-xs text-[#6B3A3F]">
+                        <div className="mt-3 rounded border border-[#C9A961]/30 bg-[#FFF9F0] px-3 py-2 text-xs text-[#6B3A3F]">
                           {isLoadingDetail ? (
                             <div>Cargando detalle...</div>
                           ) : detailError ? (
                             <div className="text-red-700">{detailError}</div>
                           ) : (
                             <div className="grid gap-1">
-                              <div><span className="font-semibold text-[#3D1B1F]">Código:</span> {detail?.codigo_cuartel ?? "-"}</div>
-                              <div><span className="font-semibold text-[#3D1B1F]">Cultivo:</span> {detail?.cultivo ?? "-"}</div>
-                              <div><span className="font-semibold text-[#3D1B1F]">Variedad:</span> {detail?.variedad ?? "-"}</div>
-                              <div><span className="font-semibold text-[#3D1B1F]">Superficie:</span> {detail?.superficie_ha ?? "-"} ha</div>
-                              <div><span className="font-semibold text-[#3D1B1F]">Sistema productivo:</span> {detail?.sistema_productivo ?? "-"}</div>
-                              <div><span className="font-semibold text-[#3D1B1F]">Sistema conducción:</span> {detail?.sistema_conduccion ?? "-"}</div>
+                              <div>
+                                <span className="font-semibold text-[#3D1B1F]">
+                                  Código:
+                                </span>{" "}
+                                {detail?.codigo_cuartel ?? "-"}
+                              </div>
+                              <div>
+                                <span className="font-semibold text-[#3D1B1F]">
+                                  Cultivo:
+                                </span>{" "}
+                                {detail?.cultivo ?? "-"}
+                              </div>
+                              <div>
+                                <span className="font-semibold text-[#3D1B1F]">
+                                  Variedad:
+                                </span>{" "}
+                                {detail?.variedad ?? "-"}
+                              </div>
+                              <div>
+                                <span className="font-semibold text-[#3D1B1F]">
+                                  Superficie:
+                                </span>{" "}
+                                {detail?.superficie_ha ?? "-"} ha
+                              </div>
+                              <div>
+                                <span className="font-semibold text-[#3D1B1F]">
+                                  Sistema productivo:
+                                </span>{" "}
+                                {detail?.sistema_productivo ?? "-"}
+                              </div>
+                              <div>
+                                <span className="font-semibold text-[#3D1B1F]">
+                                  Sistema conducción:
+                                </span>{" "}
+                                {detail?.sistema_conduccion ?? "-"}
+                              </div>
                             </div>
                           )}
                         </div>
@@ -307,14 +362,22 @@ export default function CuartelesAdmin() {
               )}
             </div>
 
-            {error ? <div className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">{error}</div> : null}
-            {success ? <div className="mt-3 rounded border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-700">{success}</div> : null}
+            {error ? (
+              <div className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+                {error}
+              </div>
+            ) : null}
+            {success ? (
+              <div className="mt-3 rounded border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-700">
+                {success}
+              </div>
+            ) : null}
           </section>
         ) : null}
 
         {formMode !== "none" ? (
-          <section className="rounded-2xl bg-white p-6 shadow-sm">
-            <h1 className="text-2xl font-bold text-[#3D1B1F]">
+          <section className="rounded-2xl bg-primary p-6 shadow-sm">
+            <h1 className="text-2xl font-bold text-text">
               {formMode === "edit" ? "Editar cuartel" : "Nuevo cuartel"}
             </h1>
             {loadingEdit ? (
@@ -325,8 +388,10 @@ export default function CuartelesAdmin() {
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <select
                 value={form.fincaId}
-                onChange={(event) => setForm((prev) => ({ ...prev, fincaId: event.target.value }))}
-                className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, fincaId: event.target.value }))
+                }
+                className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm bg-[#FFF9F0]"
                 disabled={formMode === "edit"}
               >
                 <option value="">Seleccionar finca</option>
@@ -339,19 +404,63 @@ export default function CuartelesAdmin() {
                   );
                 })}
               </select>
-              <input value={form.codigo_cuartel} onChange={(e) => setForm((p) => ({ ...p, codigo_cuartel: e.target.value }))} placeholder="Código cuartel" className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm" />
-              <input type="number" step="0.01" value={form.superficie_ha} onChange={(e) => setForm((p) => ({ ...p, superficie_ha: e.target.value }))} placeholder="Superficie ha" className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm" />
-              <input value={form.cultivo} onChange={(e) => setForm((p) => ({ ...p, cultivo: e.target.value }))} placeholder="Cultivo" className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm" />
-              <input value={form.variedad} onChange={(e) => setForm((p) => ({ ...p, variedad: e.target.value }))} placeholder="Variedad" className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm" />
-              <input value={form.sistema_productivo} onChange={(e) => setForm((p) => ({ ...p, sistema_productivo: e.target.value }))} placeholder="Sistema productivo" className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm" />
-              <input value={form.sistema_conduccion} onChange={(e) => setForm((p) => ({ ...p, sistema_conduccion: e.target.value }))} placeholder="Sistema conducción" className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm" />
+              <input
+                value={form.codigo_cuartel}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, codigo_cuartel: e.target.value }))
+                }
+                placeholder="Código cuartel"
+                className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm bg-[#FFF9F0]"
+              />
+              <input
+                type="number"
+                step="0.01"
+                value={form.superficie_ha}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, superficie_ha: e.target.value }))
+                }
+                placeholder="Superficie ha"
+                className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm bg-[#FFF9F0]"
+              />
+              <input
+                value={form.cultivo}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, cultivo: e.target.value }))
+                }
+                placeholder="Cultivo"
+                className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm bg-[#FFF9F0]"
+              />
+              <input
+                value={form.variedad}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, variedad: e.target.value }))
+                }
+                placeholder="Variedad"
+                className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm bg-[#FFF9F0]"
+              />
+              <input
+                value={form.sistema_productivo}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, sistema_productivo: e.target.value }))
+                }
+                placeholder="Sistema productivo"
+                className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm bg-[#FFF9F0]"
+              />
+              <input
+                value={form.sistema_conduccion}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, sistema_conduccion: e.target.value }))
+                }
+                placeholder="Sistema conducción"
+                className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm bg-[#FFF9F0]"
+              />
             </div>
             <div className="mt-3 flex gap-2">
               <button
                 type="button"
                 onClick={() => void onSubmit()}
                 disabled={saving || !activeBodegaId}
-                className="cursor-pointer rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:bg-[#FFF9F0] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text  hover:bg-primary cursor-pointer transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {editingId ? "Guardar cambios" : "Guardar cuartel"}
               </button>
@@ -362,13 +471,21 @@ export default function CuartelesAdmin() {
                   setForm(emptyForm);
                   setFormMode("none");
                 }}
-                className="cursor-pointer rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 active:scale-[0.98]"
+                className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-red-500  hover:bg-primary cursor-pointer transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Cancelar
               </button>
             </div>
-            {error ? <div className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">{error}</div> : null}
-            {success ? <div className="mt-3 rounded border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-700">{success}</div> : null}
+            {error ? (
+              <div className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+                {error}
+              </div>
+            ) : null}
+            {success ? (
+              <div className="mt-3 rounded border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-700">
+                {success}
+              </div>
+            ) : null}
           </section>
         ) : null}
       </div>
