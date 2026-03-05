@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { createCuartel } from "../../features/cuarteles/api";
 import { useFincasStore } from "../../features/fincas/store";
 import { useAuthStore } from "../../store/authStore";
+import { getApiErrorMessage } from "../../lib/api";
 
 const SetupCuarteles = () => {
   const navigate = useNavigate();
@@ -32,7 +33,13 @@ const SetupCuarteles = () => {
 
   useEffect(() => {
     if (!form.fincaId && fincas.length > 0) {
-      const firstId = fincas[0].finca_id ?? fincas[0].id ?? "";
+      const preferredFincaId = sessionStorage.getItem("setupFincaId");
+      const exists = fincas.some(
+        (finca) => String(finca.finca_id ?? finca.id ?? "") === preferredFincaId,
+      );
+      const firstId = exists
+        ? String(preferredFincaId ?? "")
+        : String(fincas[0].finca_id ?? fincas[0].id ?? "");
       setForm((prev) => ({ ...prev, fincaId: firstId }));
     }
   }, [fincas, form.fincaId]);
@@ -71,7 +78,7 @@ const SetupCuarteles = () => {
     setSaving(true);
     setError(null);
     try {
-      await createCuartel({
+      const createdCuartel = await createCuartel({
         fincaId: form.fincaId,
         codigo_cuartel: form.codigo_cuartel.trim(),
         superficie_ha: Number(form.superficie_ha),
@@ -80,9 +87,13 @@ const SetupCuarteles = () => {
         sistema_productivo: form.sistema_productivo.trim() || null,
         sistema_conduccion: form.sistema_conduccion.trim() || null,
       });
+      const cuartelId = String(createdCuartel.cuartel_id ?? createdCuartel.id ?? "");
+      sessionStorage.setItem("setupFincaId", form.fincaId);
+      sessionStorage.setItem("setupCuartelId", cuartelId);
+      sessionStorage.setItem("setupCuartelCodigo", form.codigo_cuartel.trim());
       navigate("/setup/protocolos");
-    } catch {
-      setError("No se pudo crear el cuartel.");
+    } catch (e) {
+      setError(getApiErrorMessage(e));
     } finally {
       setSaving(false);
     }

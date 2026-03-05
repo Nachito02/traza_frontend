@@ -5,12 +5,17 @@ import {
   getDefaultProtocoloId,
   type Protocolo,
 } from "../../features/protocolos/api";
+import { createTrazabilidad } from "../../features/trazabilidades/api";
+import { getApiErrorMessage } from "../../lib/api";
+import { useAuthStore } from "../../store/authStore";
 
 const SetupProtocolos = () => {
   const navigate = useNavigate();
+  const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const [protocolos, setProtocolos] = useState<Protocolo[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -41,12 +46,45 @@ const SetupProtocolos = () => {
     };
   }, []);
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!selected) {
       setError("Seleccioná un protocolo para continuar.");
       return;
     }
-    navigate("/dashboard");
+    const fincaId = sessionStorage.getItem("setupFincaId") ?? "";
+    const cuartelId = sessionStorage.getItem("setupCuartelId") ?? "";
+    const campaniaId = sessionStorage.getItem("activeCampaniaId") ?? "";
+    const cuartelCodigo = sessionStorage.getItem("setupCuartelCodigo") ?? "";
+
+    if (!activeBodegaId || !fincaId || !cuartelId || !campaniaId) {
+      setError(
+        "Faltan datos previos del setup. Completá finca, campaña y cuartel antes de finalizar.",
+      );
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      await createTrazabilidad({
+        bodegaId: String(activeBodegaId),
+        protocoloId: selected,
+        campaniaId,
+        fincaId,
+        cuartelId,
+        nombre_producto: `Trazabilidad ${cuartelCodigo || cuartelId.slice(0, 8)}`,
+      });
+
+      sessionStorage.removeItem("setupFincaId");
+      sessionStorage.removeItem("setupFincaNombre");
+      sessionStorage.removeItem("setupCuartelId");
+      sessionStorage.removeItem("setupCuartelCodigo");
+      navigate("/dashboard");
+    } catch (e) {
+      setError(getApiErrorMessage(e));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -112,10 +150,11 @@ const SetupProtocolos = () => {
 
         <button
           type="button"
-          onClick={handleContinue}
-          className="mt-6 rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE]"
+          onClick={() => void handleContinue()}
+          disabled={saving}
+          className="mt-6 rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Finalizar setup
+          {saving ? "Creando trazabilidad..." : "Finalizar setup"}
         </button>
       </div>
     </div>

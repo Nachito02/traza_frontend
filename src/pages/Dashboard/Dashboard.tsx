@@ -94,15 +94,25 @@ const Dashboard = () => {
     <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-6xl">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-text">Resumen operativo</h1>
-          <p className="mt-2 text-sm text-text-secondary">
-            Datos del usuario autenticado y su bodega activa.
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h1 className="text-3xl font-bold text-text">Resumen operativo</h1>
+              <p className="mt-2 text-sm text-text-secondary">
+                Datos del usuario autenticado y su bodega activa.
+              </p>
+            </div>
+            <Link
+              to="/trazabilidades"
+              className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
+            >
+              Ver procesos y etapas
+            </Link>
+          </div>
         </div>
 
         {!activeBodegaId ? (
           <div className="rounded-2xl border border-red-400/30 bg-red-500/10 p-6 text-sm text-red-200">
-            Seleccioná una bodega para ver datos de fincas, cuarteles y productos.
+            Seleccioná una bodega para ver datos de fincas, cuarteles y trazabilidades.
           </div>
         ) : (
           <div className="space-y-6">
@@ -115,7 +125,7 @@ const Dashboard = () => {
                   {activeBodega?.nombre ?? "Sin seleccionar"}
                 </p>
               </Link>
-              <Link to="/admin/fincas" className="rounded-2xl border border-white/10 bg-primary/30 p-4 transition hover:bg-primary/40">
+              <Link to="/fincas" className="rounded-2xl border border-white/10 bg-primary/30 p-4 transition hover:bg-primary/40">
                 <p className="text-xs uppercase tracking-[0.12em] text-text-secondary">
                   Fincas
                 </p>
@@ -131,9 +141,9 @@ const Dashboard = () => {
                   {loading ? "…" : cuartelesCount}
                 </p>
               </Link>
-              <Link to="/productos" className="rounded-2xl border border-white/10 bg-primary/30 p-4 transition hover:bg-primary/40">
+              <Link to="/trazabilidades" className="rounded-2xl border border-white/10 bg-primary/30 p-4 transition hover:bg-primary/40">
                 <p className="text-xs uppercase tracking-[0.12em] text-text-secondary">
-                  Productos
+                  Trazabilidades
                 </p>
                 <p className="mt-3 text-3xl font-bold text-text">
                   {loading ? "…" : trazabilidades.length}
@@ -142,15 +152,15 @@ const Dashboard = () => {
             </section>
 
             <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Link to="/productos" className="rounded-2xl border border-white/10 bg-primary/20 p-4 transition hover:bg-primary/30">
+              <Link to="/trazabilidades" className="rounded-2xl border border-white/10 bg-primary/20 p-4 transition hover:bg-primary/30">
                 <p className="text-xs text-text-secondary">En curso</p>
                 <p className="mt-2 text-2xl font-semibold text-text">{stats.enCurso}</p>
               </Link>
-              <Link to="/productos" className="rounded-2xl border border-white/10 bg-primary/20 p-4 transition hover:bg-primary/30">
+              <Link to="/trazabilidades" className="rounded-2xl border border-white/10 bg-primary/20 p-4 transition hover:bg-primary/30">
                 <p className="text-xs text-text-secondary">Finalizadas / Certificadas</p>
                 <p className="mt-2 text-2xl font-semibold text-text">{stats.finalizadas}</p>
               </Link>
-              <Link to="/productos" className="rounded-2xl border border-white/10 bg-primary/20 p-4 transition hover:bg-primary/30">
+              <Link to="/trazabilidades" className="rounded-2xl border border-white/10 bg-primary/20 p-4 transition hover:bg-primary/30">
                 <p className="text-xs text-text-secondary">Borrador</p>
                 <p className="mt-2 text-2xl font-semibold text-text">{stats.borrador}</p>
               </Link>
@@ -165,46 +175,6 @@ const Dashboard = () => {
                 {error}
               </div>
             )}
-
-            <section className="rounded-2xl border border-white/10 bg-primary/25 p-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold text-text">Fincas de la bodega activa</h2>
-                  <p className="text-xs text-text-secondary">
-                    Cargadas para este usuario y contexto.
-                  </p>
-                </div>
-                <Link
-                  to="/admin/fincas"
-                  className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
-                >
-                  Crear finca
-                </Link>
-              </div>
-
-              <div className="mt-4">
-                {fincas.length === 0 ? (
-                  <p className="text-sm text-text-secondary">No hay fincas cargadas todavía.</p>
-                ) : (
-                  <div className="grid gap-3 md:grid-cols-2">
-                    {fincas.slice(0, 6).map((finca) => (
-                      <Link
-                        key={finca.finca_id ?? finca.id ?? finca.nombre ?? finca.name}
-                        to={`/fincas/${finca.finca_id ?? finca.id}`}
-                        className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4 transition hover:border-[#C9A961] hover:shadow-md"
-                      >
-                        <div className="text-sm font-semibold text-[#3D1B1F]">
-                          {finca.nombre ?? finca.nombre_finca ?? finca.name ?? "Finca sin nombre"}
-                        </div>
-                        <div className="mt-1 text-xs text-[#7A4A50]">
-                          {finca.ubicacion_texto ?? finca.ubicacion ?? "Ubicación sin definir"}
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </section>
           </div>
         )}
       </div>

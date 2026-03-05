@@ -16,8 +16,8 @@ const AppLayout = () => {
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
-
   return (
+    
     <div className="min-h-screen bg-[#F9F6F2]">
       <div className="mx-auto grid w-full max-w-7xl   md:grid-cols-[240px_1fr]">
         <Aside className="hidden md:block" />

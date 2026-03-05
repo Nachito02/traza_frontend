@@ -18,7 +18,6 @@ import SetupCampania from "./pages/Setup/SetupCampania";
 import SetupCuarteles from "./pages/Setup/SetupCuarteles";
 import SetupProtocolos from "./pages/Setup/SetupProtocolos";
 import MilestonesPlan from "./pages/Trazabilidad/MilestonesPlan";
-import NuevaTrazabilidadProducto from "./pages/Trazabilidad/NuevaTrazabilidadProducto";
 import TrazabilidadesActivas from "./pages/Trazabilidad/TrazabilidadesActivas";
 import FincaDetail from "./pages/Fincas/FincaDetail";
 import Fincas from "./pages/Fincas/Fincas";
@@ -102,13 +101,13 @@ export default function App() {
     setActiveBodega,
   ]);
 
-  // if (isLoading) {
-  //   return (
-  //     <div className="min-h-screen flex items-center justify-center text-[#722F37]">
-  //       Cargando sesión…
-  //     </div>
-  //   );
-  // }
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-[#722F37]">
+        Cargando sesión…
+      </div>
+    );
+  }
 
   return (
     <Routes>
@@ -157,11 +156,7 @@ export default function App() {
         <Route path="/setup/campania" element={<SetupCampania />} />
         <Route path="/setup/cuarteles" element={<SetupCuarteles />} />
         <Route path="/setup/protocolos" element={<SetupProtocolos />} />
-        <Route path="/productos" element={<TrazabilidadesActivas />} />
-        <Route path="/productos/nuevo" element={<NuevaTrazabilidadProducto />} />
-        <Route path="/productos/:id/plan" element={<MilestonesPlan />} />
-        <Route path="/trazabilidades" element={<Navigate to="/productos" replace />} />
-        <Route path="/trazabilidades/nueva" element={<Navigate to="/productos/nuevo" replace />} />
+        <Route path="/trazabilidades" element={<TrazabilidadesActivas />} />
         <Route path="/trazabilidades/:id/plan" element={<MilestonesPlan />} />
       </Route>
       {/* <Route path="*" element={<NotFound />} /> */}

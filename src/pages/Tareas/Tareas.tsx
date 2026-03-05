@@ -274,15 +274,15 @@ const Tareas = () => {
 
   useEffect(() => {
     const milestoneId = searchParams.get("milestoneId");
-    const productoId = searchParams.get("productoId");
-    if (!milestoneId && !productoId) return;
+    const trazabilidadId = searchParams.get("trazabilidadId");
+    if (!milestoneId && !trazabilidadId) return;
     setForm((prev) => ({
       ...prev,
       milestoneId: milestoneId ?? prev.milestoneId,
       titulo:
         prev.titulo ||
-        (productoId
-          ? `Tarea de producto ${productoId.slice(0, 8)}`
+        (trazabilidadId
+          ? `Tarea de trazabilidad ${trazabilidadId.slice(0, 8)}`
           : "Tarea de milestone"),
     }));
   }, [searchParams]);
@@ -475,7 +475,7 @@ const Tareas = () => {
     }
   };
 
-  const getProductoIdFromTask = (task: Encargo) => {
+  const getTrazabilidadIdFromTask = (task: Encargo) => {
     const anyTask = task as Encargo & {
       trazabilidadId?: string;
       productoId?: string;
@@ -492,19 +492,19 @@ const Tareas = () => {
 
   const onOpenTaskMilestone = (task: Encargo) => {
     const milestoneId = task.milestone_id ?? task.milestone?.milestone_id;
-    const productoId = getProductoIdFromTask(task);
+    const trazabilidadId = getTrazabilidadIdFromTask(task);
     if (!milestoneId) {
       setError("Esta tarea no tiene milestone asociado.");
       return;
     }
-    if (!productoId) {
+    if (!trazabilidadId) {
       setError(
-        "No se pudo determinar el producto de la tarea. Verificá que el backend incluya trazabilidad_id en el encargo.",
+        "No se pudo determinar la trazabilidad de la tarea. Verificá que el backend incluya trazabilidad_id en el encargo.",
       );
       return;
     }
     navigate(
-      `/productos/${encodeURIComponent(productoId)}/plan?milestoneId=${encodeURIComponent(
+      `/trazabilidades/${encodeURIComponent(trazabilidadId)}/plan?milestoneId=${encodeURIComponent(
         milestoneId,
       )}`,
     );
@@ -722,7 +722,7 @@ const Tareas = () => {
                 >
                   {(() => {
                     const milestoneId = task.milestone_id ?? task.milestone?.milestone_id;
-                    const productoId = getProductoIdFromTask(task);
+                    const trazabilidadId = getTrazabilidadIdFromTask(task);
                     const taskId = String(task.encargo_id ?? task.id ?? "");
                     return (
                       <>
@@ -733,7 +733,7 @@ const Tareas = () => {
                   {task.descripcion && (
                     <div className="mt-1 text-xs text-[#6B3A3F]">{task.descripcion}</div>
                   )}
-                  {milestoneId && productoId ? (
+                  {milestoneId && trazabilidadId ? (
                     <button
                       type="button"
                       onClick={() => onOpenTaskMilestone(task)}

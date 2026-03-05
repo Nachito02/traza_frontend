@@ -64,6 +64,13 @@ const SetupFinca = () => {
         ubicacion_texto: form.ubicacion_texto.trim() || null,
       });
       const fincaId = String(created.finca_id ?? created.id ?? "");
+      const fincaNombre = (
+        created.nombre_finca ??
+        created.nombre ??
+        created.name ??
+        form.nombre_finca
+      ).trim();
+
       if (fincaId) {
         await upsertBodegaFincaVinculo({
           bodegaId: String(selectedBodegaId),
@@ -72,6 +79,8 @@ const SetupFinca = () => {
           activo: Boolean(form.vinculo_activo),
         });
       }
+      sessionStorage.setItem("setupFincaId", fincaId);
+      sessionStorage.setItem("setupFincaNombre", fincaNombre || form.nombre_finca.trim());
       setActiveBodega(selectedBodegaId);
       await loadFincas(selectedBodegaId);
       navigate("/setup/campania");

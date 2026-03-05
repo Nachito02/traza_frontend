@@ -3,7 +3,6 @@ import {
   Map,
   GitPullRequest,
   Users,
-  Boxes,
   ListTodo,
   Warehouse,
   ClipboardPenLine,
@@ -32,7 +31,6 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
     ...(access.canAccessOperacion
       ? [{ to: "/operacion", label: "Operacion", icon: <ClipboardPenLine /> }]
       : []),
-    { to: "/productos", label: "Productos", icon: <Boxes /> },
     { to: "/tareas", label: "Tareas", icon: <ListTodo /> },
     { to: "/usuarios", label: "Usuarios", icon: <Users /> },
     { to: "/setup", label: "Trazabilidad", icon: <GitPullRequest /> },

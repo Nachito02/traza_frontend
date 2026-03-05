@@ -10,7 +10,15 @@ import {
   createEvento,
 } from "../../features/eventos/api";
 import { fetchTrazabilidad, type Trazabilidad } from "../../features/trazabilidades/api";
-import { Upload, FileText, ExternalLink } from "lucide-react";
+import {
+  Upload,
+  FileText,
+  ExternalLink,
+  CheckCircle2,
+  ListChecks,
+  Clock3,
+  AlertTriangle,
+} from "lucide-react";
 
 type FieldType = "date" | "text" | "number" | "textarea";
 
@@ -350,6 +358,7 @@ const MilestonesPlan = () => {
   const [formError, setFormError] = useState<string | null>(null);
   const [trazabilidad, setTrazabilidad] = useState<Trazabilidad | null>(null);
   const [fileToUpload, setFileToUpload] = useState<File | null>(null);
+  const [selectedStageName, setSelectedStageName] = useState<string>("");
 
   const [form, setForm] = useState<Record<string, string>>({});
   const milestoneIdFromQuery = searchParams.get("milestoneId");
@@ -384,33 +393,67 @@ const MilestonesPlan = () => {
   }, [id]);
 
   const milestonesByStage = useMemo(() => {
-    const groups: Record<string, Milestone[]> = {};
-    
-    // Sort logic handled in fetch/useEffect, but grouping preserves order if we iterate correctly
-    // or we can re-sort. Since they are sorted by process order, they should be roughly in stage order mostly.
-    // Better to group by stage ID or Name and keeping the stage order (which we have in protocol_etapa.orden)
-    
+    const groups: Record<
+      string,
+      { order: number; milestones: Milestone[] }
+    > = {};
+
     milestones.forEach((m) => {
       const stageName = m.protocolo_proceso.protocolo_etapa?.nombre || "General";
+      const stageOrder = m.protocolo_proceso.protocolo_etapa?.orden ?? 999;
       if (!groups[stageName]) {
-        groups[stageName] = [];
+        groups[stageName] = { order: stageOrder, milestones: [] };
       }
-      groups[stageName].push(m);
+      groups[stageName].milestones.push(m);
     });
 
-    // We want to return an array of groups sorted by stage order
-    // But we need stage order from somewhere. `m.protocolo_proceso.protocolo_etapa.orden`
-    
-    const sortedStages = Object.keys(groups).sort((a, b) => {
-        const stageA = groups[a][0].protocolo_proceso.protocolo_etapa?.orden ?? 999;
-        const stageB = groups[b][0].protocolo_proceso.protocolo_etapa?.orden ?? 999;
-        return stageA - stageB;
-    });
+    return Object.entries(groups)
+      .map(([name, value]) => {
+        const total = value.milestones.length;
+        const completed = value.milestones.filter((m) => m.estado === "completado").length;
+        const requiredPending = value.milestones.filter(
+          (m) => m.protocolo_proceso.obligatorio && m.estado !== "completado",
+        ).length;
+        return {
+          name,
+          order: value.order,
+          milestones: value.milestones,
+          total,
+          completed,
+          requiredPending,
+        };
+      })
+      .sort((a, b) => a.order - b.order);
+  }, [milestones]);
 
-    return sortedStages.map(stage => ({
-        name: stage,
-        milestones: groups[stage]
-    }));
+  useEffect(() => {
+    if (milestonesByStage.length === 0) {
+      setSelectedStageName("");
+      return;
+    }
+    const selectedExists = milestonesByStage.some((stage) => stage.name === selectedStageName);
+    if (selectedExists) return;
+    const firstPendingStage =
+      milestonesByStage.find((stage) => stage.requiredPending > 0) ?? milestonesByStage[0];
+    setSelectedStageName(firstPendingStage.name);
+  }, [milestonesByStage, selectedStageName]);
+
+  const selectedStage = useMemo(
+    () =>
+      milestonesByStage.find((stage) => stage.name === selectedStageName) ??
+      milestonesByStage[0] ??
+      null,
+    [milestonesByStage, selectedStageName],
+  );
+
+  const globalSummary = useMemo(() => {
+    const total = milestones.length;
+    const completed = milestones.filter((m) => m.estado === "completado").length;
+    const requiredPending = milestones.filter(
+      (m) => m.protocolo_proceso.obligatorio && m.estado !== "completado",
+    ).length;
+    const progress = total === 0 ? 0 : Math.round((completed / total) * 100);
+    return { total, completed, requiredPending, progress };
   }, [milestones]);
 
   const obligatorioPendiente = useMemo(() => {
@@ -611,12 +654,112 @@ const MilestonesPlan = () => {
           </div>
         ) : (
           <div className="space-y-8">
-            {milestonesByStage.map((stage) => (
-                <div key={stage.name} className="space-y-3">
-                    <h3 className="text-lg font-bold text-[#722F37] border-b border-[#C9A961]/30 pb-2">
-                        {stage.name}
-                    </h3>
-                    {stage.milestones.map((m) => (
+            <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-2xl border border-[#C9A961]/30 bg-white/90 p-4">
+                <div className="flex items-center gap-2 text-xs text-[#7A4A50]">
+                  <ListChecks className="h-4 w-4" />
+                  Total hitos
+                </div>
+                <div className="mt-2 text-2xl font-bold text-[#3D1B1F]">
+                  {globalSummary.total}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-[#C9A961]/30 bg-white/90 p-4">
+                <div className="flex items-center gap-2 text-xs text-[#7A4A50]">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  Completados
+                </div>
+                <div className="mt-2 text-2xl font-bold text-[#2D6B2D]">
+                  {globalSummary.completed}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-[#C9A961]/30 bg-white/90 p-4">
+                <div className="flex items-center gap-2 text-xs text-[#7A4A50]">
+                  <Clock3 className="h-4 w-4 text-amber-600" />
+                  Avance
+                </div>
+                <div className="mt-2 text-2xl font-bold text-[#8A6B1F]">
+                  {globalSummary.progress}%
+                </div>
+              </div>
+              <div className="rounded-2xl border border-[#C9A961]/30 bg-white/90 p-4">
+                <div className="flex items-center gap-2 text-xs text-[#7A4A50]">
+                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                  Obligatorios pendientes
+                </div>
+                <div className="mt-2 text-2xl font-bold text-[#8B2A2A]">
+                  {globalSummary.requiredPending}
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-[#C9A961]/30 bg-white/90 p-4">
+              <h3 className="text-sm font-semibold text-[#722F37]">Etapas del protocolo</h3>
+              <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                {milestonesByStage.map((stage) => {
+                  const isActive = selectedStage?.name === stage.name;
+                  const stageProgress =
+                    stage.total === 0 ? 0 : Math.round((stage.completed / stage.total) * 100);
+                  return (
+                    <button
+                      key={stage.name}
+                      type="button"
+                      onClick={() => setSelectedStageName(stage.name)}
+                      className={[
+                        "min-w-[220px] rounded-xl border px-3 py-2 text-left transition",
+                        isActive
+                          ? "border-[#C9A961] bg-[#FFF9F0]"
+                          : "border-[#C9A961]/30 bg-white hover:bg-[#F8F3EE]",
+                      ].join(" ")}
+                    >
+                      <div className="text-sm font-semibold text-[#3D1B1F]">{stage.name}</div>
+                      <div className="mt-1 text-xs text-[#7A4A50]">
+                        {stage.completed}/{stage.total} completos ({stageProgress}%)
+                      </div>
+                      <div className="mt-1 text-xs text-[#8B4049]">
+                        Pendientes obligatorios: {stage.requiredPending}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            {selectedStage && (
+              <section className="rounded-2xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4">
+                <h3 className="text-sm font-semibold text-[#722F37]">
+                  Checklist de obligatorios · {selectedStage.name}
+                </h3>
+                <div className="mt-2 space-y-1">
+                  {selectedStage.milestones
+                    .filter((m) => m.protocolo_proceso.obligatorio)
+                    .map((m) => (
+                      <div
+                        key={`req-${m.milestone_id}`}
+                        className="flex items-center justify-between rounded-lg bg-white px-3 py-2 text-xs"
+                      >
+                        <span className="text-[#3D1B1F]">
+                          {m.protocolo_proceso.orden}. {m.protocolo_proceso.nombre}
+                        </span>
+                        <span
+                          className={`font-semibold ${
+                            m.estado === "completado" ? "text-[#2D6B2D]" : "text-[#8A6B1F]"
+                          }`}
+                        >
+                          {m.estado === "completado" ? "Listo" : "Pendiente"}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </section>
+            )}
+
+            {selectedStage && (
+              <div key={selectedStage.name} className="space-y-3">
+                <h3 className="border-b border-[#C9A961]/30 pb-2 text-lg font-bold text-[#722F37]">
+                  {selectedStage.name}
+                </h3>
+                {selectedStage.milestones.map((m) => (
                     <div
                         key={m.milestone_id}
                         className="rounded-2xl border border-[#C9A961]/30 bg-white/90 p-5 shadow-sm"
@@ -670,7 +813,7 @@ const MilestonesPlan = () => {
                                       navigate(
                                         `/tareas?milestoneId=${encodeURIComponent(
                                           m.milestone_id,
-                                        )}&productoId=${encodeURIComponent(id ?? "")}`,
+                                        )}&trazabilidadId=${encodeURIComponent(id ?? "")}`,
                                       )
                                     }
                                     className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE]"
@@ -702,9 +845,9 @@ const MilestonesPlan = () => {
                             </div>
                         )}
                     </div>
-                    ))}
-                </div>
-            ))}
+                ))}
+              </div>
+            )}
           </div>
         )}
 

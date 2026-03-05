@@ -205,8 +205,7 @@ const FincaDetail = () => {
             {finca?.nombre ?? finca?.nombre_finca ?? finca?.name ?? "Finca"}
           </h1>
           <p className="mt-2 text-sm text-[#6B3A3F]">
-            Desde esta vista gestionás cuarteles. La creación de producto se realiza en el flujo de
-            elaboración/fraccionamiento.
+            Desde esta vista gestionás cuarteles y el contexto base para iniciar trazabilidades.
           </p>
           <div className="mt-4 flex gap-2">
             <Link

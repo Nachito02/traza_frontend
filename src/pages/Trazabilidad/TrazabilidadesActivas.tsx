@@ -98,24 +98,16 @@ const TrazabilidadesActivas = () => {
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-6xl space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-3xl font-bold text-text">Productos activos</h1>
-            <p className="mt-2 text-sm text-text-secondary">
-              Estado draft y en curso para la bodega activa.
-            </p>
-          </div>
-          <Link
-            to="/productos/nuevo"
-            className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
-          >
-            Nuevo producto
-          </Link>
+        <div>
+          <h1 className="text-3xl font-bold text-text">Trazabilidades activas</h1>
+          <p className="mt-2 text-sm text-text-secondary">
+            Estado draft y en curso para la bodega activa.
+          </p>
         </div>
 
         {!activeBodegaId ? (
           <div className="rounded-2xl border border-red-400/30 bg-red-500/10 p-6 text-sm text-red-200">
-            Seleccioná una bodega para ver los productos activos.
+            Seleccioná una bodega para ver las trazabilidades activas.
           </div>
         ) : loading ? (
           <div className="rounded-2xl border border-white/10 bg-primary/25 p-6 text-sm text-text-secondary">
@@ -127,7 +119,7 @@ const TrazabilidadesActivas = () => {
           </div>
         ) : activas.length === 0 ? (
           <div className="rounded-2xl border border-white/10 bg-primary/25 p-6 text-sm text-text-secondary">
-            No hay productos activos.
+            No hay trazabilidades activas.
           </div>
         ) : (
           <div className="grid gap-3">
@@ -139,7 +131,7 @@ const TrazabilidadesActivas = () => {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <div className="text-sm font-semibold text-[#3D1B1F]">
-                      {item.nombre_producto?.trim() || "Producto sin nombre"}
+                      {item.nombre_producto?.trim() || "Trazabilidad sin nombre"}
                     </div>
                     <div className="mt-1 text-xs text-[#7A4A50]">
                       Campaña{" "}
@@ -157,10 +149,10 @@ const TrazabilidadesActivas = () => {
                       {item.estado}
                     </span>
                     <Link
-                      to={`/productos/${item.trazabilidad_id}/plan`}
+                      to={`/trazabilidades/${item.trazabilidad_id}/plan`}
                       className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:bg-[#F8F3EE]"
                     >
-                      Abrir producto
+                      Abrir plan
                     </Link>
                   </div>
                 </div>

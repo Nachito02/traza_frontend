@@ -85,13 +85,21 @@ const SetupCampania = () => {
     setSaving(true);
     setError(null);
     try {
-      await createCampania({
+      const created = await createCampania({
         bodegaId: String(activeBodegaId ?? ""),
         nombre: form.nombre.trim(),
         fecha_inicio: form.fecha_inicio,
         fecha_fin: form.fecha_fin,
         estado: "abierta",
       });
+      const createdCampaniaId = String(created.campania_id ?? created.id ?? "");
+      if (createdCampaniaId) {
+        sessionStorage.setItem("activeCampaniaId", createdCampaniaId);
+        sessionStorage.setItem(
+          "activeCampaniaNombre",
+          created.nombre ?? form.nombre.trim() ?? createdCampaniaId,
+        );
+      }
       navigate("/setup/cuarteles");
     } catch (e) {
       const message = getApiErrorMessage(e);
