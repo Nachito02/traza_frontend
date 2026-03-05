@@ -11,6 +11,7 @@ import {
 import { NavLink } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
 import { resolveModuleAccess } from "../lib/permissions";
+import trazaLogo from "../assets/traza.png";
 
 type AsideProps = {
   className?: string;
@@ -42,9 +43,7 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#C9A961] text-[#3D1B1F]">
           <Grape size={16} />
         </div>
-        <div className="text-sm font-bold uppercase tracking-wide text-[#FFF9F0]">
-          Traza
-        </div>
+        <img src={trazaLogo} alt="Traza" className="h-7 w-auto object-contain" />
       </div>
       <nav className="space-y-2">
         {links.map((link) => (
