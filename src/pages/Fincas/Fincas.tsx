@@ -56,13 +56,13 @@ const Fincas = () => {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-[#F9F6F2] via-[#F3E7DA] to-[#EAD8C6] px-6 py-10">
+    <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-6xl">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-dark">
+          <h1 className="text-3xl font-bold text-text">
             Administracion de fincas
           </h1>
-          <p className="mt-2 text-sm text-text-dark-secondary">
+          <p className="mt-2 text-sm text-text-secondary">
             Supervisa y gestiona tus fincas.
           </p>
         </div>

@@ -697,8 +697,8 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
         </div>
 
         {canRenderManagerFlow ? (
-          <section className="rounded-2xl bg-primary/30 p-5">
-            <h2 className="text-lg font-semibold text-text">Nuevo registro</h2>
+          <section className="rounded-2xl bg-white p-5">
+            <h2 className="text-lg font-semibold text-dark">Nuevo registro</h2>
             <p className="mt-1 text-xs text-text-secondary">
               Usuario actual: {user?.nombre ?? user?.email ?? "Usuario"}
             </p>
@@ -869,7 +869,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
               type="button"
               onClick={() => void onCreate()}
               disabled={saving}
-              className="mt-6 rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-text transition hover:bg-primary disabled:opacity-60"
+              className="mt-6 rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE]"
             >
               {saving ? "Guardando..." : "Registrar tarea"}
             </button>
@@ -882,12 +882,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
             </p>
           </section>
         ) : (
-          <section className="rounded-2xl bg-primary/30 p-5">
-            <h2 className="text-lg font-semibold text-text">Mis tareas</h2>
-            <p className="mt-1 text-xs text-text-secondary">
-              Vista operario: solo tareas pendientes asignadas a tu usuario.
-            </p>
-          </section>
+         <></>
         )}
 
         {error && (
@@ -901,13 +896,14 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
           </div>
         )}
 
-        <section className="rounded-2xl bg-primary/20 p-5">
+        <section className="rounded-2xl bg-white p-5">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-text">Pendientes</h2>
+            <h2 className="text-lg font-semibold text-dark">Pendientes</h2>
             <button
               type="button"
               onClick={() => void refreshTasks()}
-              className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
+              className="cursor-pointer Sin permisos de encargado
+rounded-lg border text-red-500 border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE]"
             >
               Refrescar
             </button>
