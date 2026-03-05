@@ -15,10 +15,9 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
   const logout = useAuthStore((state) => state.logout);
   const isLoading = useAuthStore((state) => state.isLoading);
   const [campanias, setCampanias] = useState<Campania[]>([]);
-  const activeBodega = bodegas.find(
-    (bodega) => bodega.bodega_id === String(activeBodegaId),
-  );
-  const activeCampania = useMemo(() => {
+  const [activeCampaniaId, setActiveCampaniaId] = useState<string>("");
+  const activeBodega = bodegas.find((bodega) => bodega.bodega_id === String(activeBodegaId));
+  const defaultCampania = useMemo(() => {
     if (campanias.length === 0) return null;
     const abiertas = campanias.filter((item) => item.estado === "abierta");
     if (abiertas.length > 0) {
@@ -30,6 +29,13 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
       (a, b) => b.fecha_inicio.localeCompare(a.fecha_inicio),
     )[0];
   }, [campanias]);
+  const activeCampania = useMemo(() => {
+    if (campanias.length === 0) return null;
+    const selected = campanias.find(
+      (item) => String(item.campania_id ?? item.id ?? "") === String(activeCampaniaId),
+    );
+    return selected ?? defaultCampania;
+  }, [activeCampaniaId, campanias, defaultCampania]);
   const canSwitchBodega = useMemo(() => {
     const roles = Array.isArray(user?.roles_globales) ? user.roles_globales : [];
     const isAdminSistema = roles.includes("admin_sistema");
@@ -39,17 +45,45 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
   useEffect(() => {
     if (!activeBodegaId) {
       setCampanias([]);
+      setActiveCampaniaId("");
       return;
     }
     let mounted = true;
     fetchCampanias(activeBodegaId)
       .then((data) => {
         if (!mounted) return;
-        setCampanias(data ?? []);
+        const next = data ?? [];
+        setCampanias(next);
+        const storageKey = `activeCampaniaId:${String(activeBodegaId)}`;
+        const savedCampaniaId = sessionStorage.getItem(storageKey) ?? "";
+        const exists = next.some(
+          (item) => String(item.campania_id ?? item.id ?? "") === String(savedCampaniaId),
+        );
+        const fallback = (() => {
+          if (next.length === 0) return "";
+          const abiertas = next.filter((item) => item.estado === "abierta");
+          const candidate = (abiertas.length > 0 ? abiertas : next).sort((a, b) =>
+            b.fecha_inicio.localeCompare(a.fecha_inicio),
+          )[0];
+          return String(candidate.campania_id ?? candidate.id ?? "");
+        })();
+        const selectedId = exists ? savedCampaniaId : fallback;
+        setActiveCampaniaId(selectedId);
+        if (selectedId) {
+          sessionStorage.setItem(storageKey, selectedId);
+          const selectedCampania = next.find(
+            (item) => String(item.campania_id ?? item.id ?? "") === String(selectedId),
+          );
+          if (selectedCampania) {
+            sessionStorage.setItem("activeCampaniaId", selectedId);
+            sessionStorage.setItem("activeCampaniaNombre", selectedCampania.nombre);
+          }
+        }
       })
       .catch(() => {
         if (!mounted) return;
         setCampanias([]);
+        setActiveCampaniaId("");
       });
 
     return () => {
@@ -74,15 +108,9 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
 
         <div className="flex items-center gap-3">
           <div className="hidden items-center gap-4 text-xs text-[#6B3A3F] md:flex">
-            <div>
-              <span className="text-text">Bodega activa:</span>{" "}
-              <span className="font-medium text-text">
-                {activeBodega?.nombre ?? "Sin seleccionar"}
-              </span>
-            </div>
+            <div className="text-text">Bodega:</div>
             {canSwitchBodega ? (
               <div className="flex items-center gap-2">
-                <span className="text-text">Cambiar:</span>
                 <select
                   value={String(activeBodegaId ?? "")}
                   onChange={(event) => setActiveBodega(event.target.value)}
@@ -96,12 +124,53 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
                   ))}
                 </select>
               </div>
-            ) : null}
+            ) : (
+              <div className="font-medium text-text">
+                {activeBodega?.nombre ?? "Sin seleccionar"}
+              </div>
+            )}
             <div>
               <span className=" text-text">Campaña:</span>{" "}
-              <span className="font-medium  text-text">
-                {activeCampania?.nombre ?? "Sin campaña activa"}
-              </span>
+              {campanias.length > 0 ? (
+                <select
+                  value={activeCampaniaId}
+                  onChange={(event) => {
+                    const selectedId = event.target.value;
+                    setActiveCampaniaId(selectedId);
+                    if (!activeBodegaId) return;
+                    const storageKey = `activeCampaniaId:${String(activeBodegaId)}`;
+                    if (selectedId) {
+                      sessionStorage.setItem(storageKey, selectedId);
+                      const selectedCampania = campanias.find(
+                        (item) =>
+                          String(item.campania_id ?? item.id ?? "") === String(selectedId),
+                      );
+                      if (selectedCampania) {
+                        sessionStorage.setItem("activeCampaniaId", selectedId);
+                        sessionStorage.setItem("activeCampaniaNombre", selectedCampania.nombre);
+                      }
+                    } else {
+                      sessionStorage.removeItem(storageKey);
+                      sessionStorage.removeItem("activeCampaniaId");
+                      sessionStorage.removeItem("activeCampaniaNombre");
+                    }
+                  }}
+                  className="rounded border border-[#C9A961]/40 bg-white px-2 py-1 text-xs text-[#3D1B1F]"
+                >
+                  {campanias.map((campania) => {
+                    const id = String(campania.campania_id ?? campania.id ?? "");
+                    return (
+                      <option key={id} value={id}>
+                        {campania.nombre}
+                      </option>
+                    );
+                  })}
+                </select>
+              ) : (
+                <span className="font-medium text-text">
+                  {activeCampania?.nombre ?? "Sin campaña activa"}
+                </span>
+              )}
             </div>
             <div>
               <span className=" text-text">Usuario:</span>{" "}

@@ -22,13 +22,27 @@ function toOptions(items: ElaboracionEntity[], idKeys: string[], labelKeys: stri
     .filter((option): option is SelectOption => option !== null);
 }
 
-export default function RecepcionPage() {
+type RecepcionPageProps = {
+  initialSection?: "remito" | "recepcion" | "analisis";
+  hideSectionSelector?: boolean;
+  hidePrimaryAction?: boolean;
+};
+
+export default function RecepcionPage({
+  initialSection = "remito",
+  hideSectionSelector = false,
+  hidePrimaryAction = false,
+}: RecepcionPageProps) {
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const [remitoOptions, setRemitoOptions] = useState<SelectOption[]>([]);
   const [recepcionOptions, setRecepcionOptions] = useState<SelectOption[]>([]);
   const [activeSection, setActiveSection] = useState<"remito" | "recepcion" | "analisis">(
-    "remito",
+    initialSection,
   );
+
+  useEffect(() => {
+    setActiveSection(initialSection);
+  }, [initialSection]);
 
   useEffect(() => {
     if (!activeBodegaId) return;
@@ -45,15 +59,17 @@ export default function RecepcionPage() {
 
   return (
     <div className="space-y-4">
-      <SectionSelector
-        value={activeSection}
-        onChange={setActiveSection}
-        options={[
-          { key: "remito", label: "Remito Uva" },
-          { key: "recepcion", label: "Recepción Bodega" },
-          { key: "analisis", label: "Análisis Recepción" },
-        ]}
-      />
+      {!hideSectionSelector ? (
+        <SectionSelector
+          value={activeSection}
+          onChange={setActiveSection}
+          options={[
+            { key: "remito", label: "Remito Uva" },
+            { key: "recepcion", label: "Recepción Bodega" },
+            { key: "analisis", label: "Análisis Recepción" },
+          ]}
+        />
+      ) : null}
 
       {activeSection === "remito" ? (
         <GenericCrudSection
@@ -61,6 +77,7 @@ export default function RecepcionPage() {
           description="Salida de finca y traslado hacia bodega."
           resource="remitos-uva"
           bodegaId={activeBodegaId}
+          hidePrimaryAction={hidePrimaryAction}
           fields={[
             { name: "loteCosechaId", label: "Lote cosecha ID", type: "text", required: true },
             { name: "salida_finca", label: "Salida finca", type: "datetime-local", required: true },
@@ -78,6 +95,7 @@ export default function RecepcionPage() {
           description="Ingreso efectivo y pesaje de remitos."
           resource="recepciones-bodega"
           bodegaId={activeBodegaId}
+          hidePrimaryAction={hidePrimaryAction}
           fields={[
             { name: "remitoId", label: "Remito", type: "select", required: true, options: remitoOptions },
             { name: "fecha_hora", label: "Fecha y hora", type: "datetime-local", required: true },
@@ -94,6 +112,7 @@ export default function RecepcionPage() {
           description="Análisis general de recepción."
           resource="analisis-recepcion"
           bodegaId={activeBodegaId}
+          hidePrimaryAction={hidePrimaryAction}
           fields={[
             {
               name: "recepcionId",

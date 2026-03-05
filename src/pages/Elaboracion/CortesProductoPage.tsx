@@ -58,9 +58,19 @@ function resolveCorteId(item: ElaboracionEntity) {
   return typeof value === "string" || typeof value === "number" ? String(value) : "";
 }
 
-export default function CortesProductoPage() {
+type CortesProductoPageProps = {
+  initialSection?: "cortes" | "productos";
+  hideSectionSelector?: boolean;
+  hidePrimaryAction?: boolean;
+};
+
+export default function CortesProductoPage({
+  initialSection = "cortes",
+  hideSectionSelector = false,
+  hidePrimaryAction = false,
+}: CortesProductoPageProps) {
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
-  const [activeSection, setActiveSection] = useState<"cortes" | "productos">("cortes");
+  const [activeSection, setActiveSection] = useState<"cortes" | "productos">(initialSection);
 
   const [vasijaOptions, setVasijaOptions] = useState<SelectOption[]>([]);
   const [cortes, setCortes] = useState<ElaboracionEntity[]>([]);
@@ -70,6 +80,10 @@ export default function CortesProductoPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    setActiveSection(initialSection);
+  }, [initialSection]);
 
   const loadData = async () => {
     if (!activeBodegaId) return;
@@ -202,14 +216,16 @@ export default function CortesProductoPage() {
 
   return (
     <div className="space-y-4">
-      <SectionSelector
-        value={activeSection}
-        onChange={setActiveSection}
-        options={[
-          { key: "cortes", label: "Cortes" },
-          { key: "productos", label: "Productos" },
-        ]}
-      />
+      {!hideSectionSelector ? (
+        <SectionSelector
+          value={activeSection}
+          onChange={setActiveSection}
+          options={[
+            { key: "cortes", label: "Cortes" },
+            { key: "productos", label: "Productos" },
+          ]}
+        />
+      ) : null}
 
       {activeSection === "cortes" ? (
         <section className="rounded-2xl bg-white p-5 shadow-sm">
@@ -335,50 +351,45 @@ export default function CortesProductoPage() {
           ))}
         </div>
 
-        <div className="mt-2 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() =>
-              setForm((prev) => ({
-                ...prev,
-                componentes: [
-                  ...prev.componentes,
-                  { vasijaId: "", loteCosechaId: "", volumen_l: "", porcentaje: "" },
-                ],
-              }))
-            }
-            className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37]"
-          >
-            Agregar componente
-          </button>
-          <button
-            type="button"
-            onClick={() => void submitCorte()}
-            disabled={saving}
-            className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37] disabled:opacity-60"
-          >
-            {editingId ? "Guardar corte" : "Crear corte"}
-          </button>
-          {editingId ? (
+        {!hidePrimaryAction ? (
+          <div className="mt-2 flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => {
-                setEditingId(null);
-                setForm(emptyCorteForm());
-              }}
-              className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"
+              onClick={() =>
+                setForm((prev) => ({
+                  ...prev,
+                  componentes: [
+                    ...prev.componentes,
+                    { vasijaId: "", loteCosechaId: "", volumen_l: "", porcentaje: "" },
+                  ],
+                }))
+              }
+              className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37]"
             >
-              Cancelar edición
+              Agregar componente
             </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => void loadData()}
-            className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37]"
-          >
-            Actualizar
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={() => void submitCorte()}
+              disabled={saving}
+              className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37] disabled:opacity-60"
+            >
+              {editingId ? "Guardar" : "Crear"}
+            </button>
+            {editingId ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingId(null);
+                  setForm(emptyCorteForm());
+                }}
+                className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"
+              >
+                Cancelar edición
+              </button>
+            ) : null}
+          </div>
+        ) : null}
 
         {error ? <div className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">{error}</div> : null}
         {success ? <div className="mt-3 rounded border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-700">{success}</div> : null}

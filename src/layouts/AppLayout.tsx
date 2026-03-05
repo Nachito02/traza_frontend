@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import Topbar from "../components/Topbar";
 import { useAuthStore } from "../store/authStore";
 import Aside from "../components/Aside";
@@ -7,7 +8,9 @@ import Aside from "../components/Aside";
 const AppLayout = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const location = useLocation();
+  const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const showBackButton = location.pathname !== "/dashboard";
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -24,6 +27,24 @@ const AppLayout = () => {
 
         <main className="min-w-0">
           <Topbar onOpenMenu={() => setMobileMenuOpen(true)} />
+          {showBackButton ? (
+            <div className="bg-secondary px-6 pt-1 -mb-4">
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.history.length > 1) {
+                    navigate(-1);
+                    return;
+                  }
+                  navigate("/dashboard");
+                }}
+                className="inline-flex items-center rounded-md px-3 py-2 text-white transition hover:bg-white/10"
+                aria-label="Volver"
+              >
+                <ArrowLeft className="h-6 w-6" strokeWidth={4} />
+              </button>
+            </div>
+          ) : null}
           <Outlet />
         </main>
       </div>

@@ -37,14 +37,6 @@ import BodegaVasijasPage from "./pages/Bodega/BodegaVasijasPage";
 import OperacionLayout from "./pages/Operacion/OperacionLayout";
 import { resolveModuleAccess } from "./lib/permissions";
 
-const OPERACION_SCOPE_STORAGE_KEY = "operacion_scope";
-
-function getPreferredOperacionScope(): "bodega" | "finca" {
-  if (typeof window === "undefined") return "bodega";
-  const raw = window.localStorage.getItem(OPERACION_SCOPE_STORAGE_KEY);
-  return raw === "finca" ? "finca" : "bodega";
-}
-
 function LegacyElaboracionRedirect() {
   const location = useLocation();
   const user = useAuthStore((state) => state.user);
@@ -69,7 +61,6 @@ export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const access = resolveModuleAccess(user, activeBodegaId);
-  const preferredScope = getPreferredOperacionScope();
   const canUseOperacionBodega = access.canAccessOperacionBodega;
 
   useEffect(() => {
@@ -133,12 +124,12 @@ export default function App() {
           path="/operacion"
           element={
             access.canAccessOperacion
-              ? <Navigate to={canUseOperacionBodega && (!access.canAccessOperacionFinca || preferredScope === "bodega") ? "/operacion/recepcion" : "/operacion/tareas"} replace />
+              ? <Navigate to="/operacion/tareas" replace />
               : <Navigate to="/fincas" replace />
           }
         />
         <Route path="/operacion" element={access.canAccessOperacion ? <OperacionLayout /> : <Navigate to="/fincas" replace />}>
-          <Route path="tareas" element={<Tareas />} />
+          <Route path="tareas" element={<Tareas mode="manager" />} />
           <Route path="recepcion" element={canUseOperacionBodega ? <RecepcionPage /> : <Navigate to="/operacion/tareas" replace />} />
           <Route path="ciu-qc" element={canUseOperacionBodega ? <CiuQcPage /> : <Navigate to="/operacion/tareas" replace />} />
           <Route path="vasijas" element={canUseOperacionBodega ? <VasijasProcesoPage /> : <Navigate to="/operacion/tareas" replace />} />
@@ -148,7 +139,7 @@ export default function App() {
         </Route>
         <Route path="/elaboracion" element={canUseOperacionBodega ? <Navigate to="/operacion/recepcion" replace /> : <Navigate to="/fincas" replace />} />
         <Route path="/elaboracion/*" element={<LegacyElaboracionRedirect />} />
-        <Route path="/tareas" element={<Tareas />} />
+        <Route path="/tareas" element={<Tareas mode="operator" />} />
         <Route path="/usuarios" element={<Usuarios />} />
         <Route path="/fincas/:id" element={<FincaDetail />} />
         <Route path="/setup" element={<SetupHome />} />

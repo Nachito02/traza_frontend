@@ -92,6 +92,26 @@ const FincaDetail = () => {
     }
   };
 
+  const onOpenCuartelTag = async (cuartelId: string) => {
+    if (!cuartelId) return;
+    setExpandedCuartelId(cuartelId);
+    if (cuartelDetailById[cuartelId]) return;
+
+    setLoadingDetailId(cuartelId);
+    setCuartelDetailErrorById((prev) => ({ ...prev, [cuartelId]: "" }));
+    try {
+      const detail = await fetchCuartelById(cuartelId);
+      setCuartelDetailById((prev) => ({ ...prev, [cuartelId]: detail }));
+    } catch (requestError) {
+      setCuartelDetailErrorById((prev) => ({
+        ...prev,
+        [cuartelId]: getApiErrorMessage(requestError),
+      }));
+    } finally {
+      setLoadingDetailId(null);
+    }
+  };
+
   const onStartEdit = async (cuartelId: string) => {
     if (!cuartelId) return;
     setEditError(null);
@@ -239,6 +259,29 @@ const FincaDetail = () => {
 
         <div className="rounded-2xl bg-white/90 p-8 shadow-lg">
           <h2 className="text-lg font-semibold text-[#3D1B1F]">Cuarteles de la finca</h2>
+          {cuarteles.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {cuarteles.map((cuartel) => {
+                const cuartelId = String(cuartel.cuartel_id ?? cuartel.id ?? "");
+                const isActive = expandedCuartelId === cuartelId;
+                return (
+                  <button
+                    key={`tag-${cuartelId}`}
+                    type="button"
+                    onClick={() => void onOpenCuartelTag(cuartelId)}
+                    className={[
+                      "rounded-full border px-3 py-1 text-xs font-semibold transition",
+                      isActive
+                        ? "border-[#722F37] bg-[#722F37] text-[#FFF9F0]"
+                        : "border-[#C9A961]/50 bg-[#FFF9F0] text-[#722F37] hover:bg-white",
+                    ].join(" ")}
+                  >
+                    {cuartel.codigo_cuartel ?? "Cuartel"}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
 
           {loading ? (
             <div className="mt-3 text-sm text-[#7A4A50]">Cargando cuarteles…</div>
@@ -366,7 +409,7 @@ const FincaDetail = () => {
                           disabled={savingEdit}
                           className="cursor-pointer rounded border border-[#C9A961]/50 px-2 py-1 text-xs font-semibold text-[#722F37] transition hover:bg-[#FFF9F0] disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          {savingEdit ? "Guardando..." : "Guardar cambios"}
+                          {savingEdit ? "Guardando..." : "Guardar"}
                         </button>
                         <button
                           type="button"

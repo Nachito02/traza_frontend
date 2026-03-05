@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   deleteFinca,
   type Finca as FincaDetail,
@@ -14,12 +14,12 @@ const Fincas = () => {
   const fincasLoading = useFincasStore((state) => state.loading);
   const fincasError = useFincasStore((state) => state.error);
   const loadFincas = useFincasStore((state) => state.loadFincas);
+  const navigate = useNavigate();
   const [fincaActionError, setFincaActionError] = useState<string | null>(null);
   const [fincaActionMessage, setFincaActionMessage] = useState<string | null>(
     null,
   );
   const [deletingFincaId, setDeletingFincaId] = useState<string | null>(null);
-  const [expandedFincaId, setExpandedFincaId] = useState<string | null>(null);
 
   const pickDetailValue = (detail: FincaDetail | undefined, keys: string[]) => {
     if (!detail) return "-";
@@ -37,15 +37,6 @@ const Fincas = () => {
     void loadFincas(activeBodegaId);
   }, [activeBodegaId, loadFincas]);
 
-  const onToggleFincaDetail = (fincaId: string) => {
-    if (!fincaId) return;
-    if (expandedFincaId === fincaId) {
-      setExpandedFincaId(null);
-      return;
-    }
-    setExpandedFincaId(fincaId);
-  };
-
   const onDeleteFinca = async (fincaId: string, fincaNombre: string) => {
     if (!fincaId) return;
     const ok = window.confirm(`¿Eliminar la finca "${fincaNombre}"?`);
@@ -56,9 +47,6 @@ const Fincas = () => {
     try {
       await deleteFinca(fincaId);
       setFincaActionMessage("Finca eliminada correctamente.");
-      if (expandedFincaId === fincaId) {
-        setExpandedFincaId(null);
-      }
       await loadFincas(String(activeBodegaId));
     } catch (error) {
       setFincaActionError(getApiErrorMessage(error));
@@ -116,11 +104,13 @@ const Fincas = () => {
                 {fincas.map((finca) => (
                   <article
                     key={finca.finca_id ?? finca.id ?? finca.nombre}
-                    className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4"
+                    className="cursor-pointer rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4 transition hover:bg-white"
+                    onClick={() =>
+                      navigate(`/fincas/${encodeURIComponent(String(finca.finca_id ?? finca.id ?? ""))}`)
+                    }
                   >
                     {(() => {
                       const fincaId = String(finca.finca_id ?? finca.id ?? "");
-                      const isExpanded = expandedFincaId === fincaId;
                       const detail = finca as FincaDetail;
                       const vinculo =
                         finca.vinculo ??
@@ -171,12 +161,15 @@ const Fincas = () => {
                           <div className="mt-2 text-[11px] text-[#8B4049]/80">
                             Ver detalles y gestionar cuarteles
                           </div>
-                          <div className="mt-3 flex flex-wrap gap-2">
+                          <div
+                            className="mt-3 flex flex-wrap gap-2"
+                            onClick={(event) => event.stopPropagation()}
+                          >
                             <Link
-                              to={`/fincas/${finca.finca_id ?? finca.id}`}
+                              to={`/fincas/${encodeURIComponent(fincaId)}`}
                               className="rounded border border-[#C9A961]/40 px-2 py-1 text-xs font-semibold text-[#722F37] transition hover:bg-white"
                             >
-                              Ver cuarteles
+                              Ver detalle
                             </Link>
                             <Link
                               to={`/admin/fincas?edit=${encodeURIComponent(String(finca.finca_id ?? finca.id ?? ""))}`}
@@ -204,73 +197,34 @@ const Fincas = () => {
                                 ? "Eliminando..."
                                 : "Eliminar finca"}
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => void onToggleFincaDetail(fincaId)}
-                              className="cursor-pointer rounded border border-[#C9A961]/40 px-2 py-1 text-xs font-semibold text-[#722F37] transition hover:bg-white"
-                            >
-                              {isExpanded ? "Ocultar detalle" : "Ver detalle"}
-                            </button>
                           </div>
-                          {isExpanded ? (
-                            <div className="mt-3 rounded border border-[#C9A961]/30 bg-white px-3 py-2 text-xs text-[#6B3A3F]">
-                              <div className="grid gap-1">
-                                <div>
-                                  <span className="font-semibold text-[#3D1B1F]">
-                                    RUT:
-                                  </span>{" "}
-                                  {pickDetailValue(detail, [
-                                    "rut",
-                                    "rut_finca",
-                                    "rutFinca",
-                                  ])}
-                                </div>
-                                <div>
-                                  <span className="font-semibold text-[#3D1B1F]">
-                                    RENSPA:
-                                  </span>{" "}
-                                  {pickDetailValue(detail, [
-                                    "renspa",
-                                    "renspa_finca",
-                                    "renspaFinca",
-                                  ])}
-                                </div>
-                                <div>
-                                  <span className="font-semibold text-[#3D1B1F]">
-                                    Catastro:
-                                  </span>{" "}
-                                  {pickDetailValue(detail, [
-                                    "catastro",
-                                    "catastro_finca",
-                                    "catastroFinca",
-                                  ])}
-                                </div>
-                                <div>
-                                  <span className="font-semibold text-[#3D1B1F]">
-                                    Ubicación:
-                                  </span>{" "}
-                                  {pickDetailValue(detail, [
-                                    "ubicacion_texto",
-                                    "ubicacion",
-                                    "ubicacion_finca",
-                                    "ubicacionFinca",
-                                  ])}
-                                </div>
-                                <div>
-                                  <span className="font-semibold text-[#3D1B1F]">
-                                    Tipo de vínculo:
-                                  </span>{" "}
-                                  {tipoVinculo}
-                                </div>
-                                <div>
-                                  <span className="font-semibold text-[#3D1B1F]">
-                                    Vínculo activo:
-                                  </span>{" "}
-                                  {vinculo?.activo === false ? "No" : "Sí"}
-                                </div>
+                          <div className="mt-2 rounded border border-[#C9A961]/30 bg-white px-3 py-2 text-xs text-[#6B3A3F]">
+                            <div className="grid gap-1">
+                              <div>
+                                <span className="font-semibold text-[#3D1B1F]">
+                                  Ubicación:
+                                </span>{" "}
+                                {pickDetailValue(detail, [
+                                  "ubicacion_texto",
+                                  "ubicacion",
+                                  "ubicacion_finca",
+                                  "ubicacionFinca",
+                                ])}
+                              </div>
+                              <div>
+                                <span className="font-semibold text-[#3D1B1F]">
+                                  Tipo de vínculo:
+                                </span>{" "}
+                                {tipoVinculo}
+                              </div>
+                              <div>
+                                <span className="font-semibold text-[#3D1B1F]">
+                                  Vínculo activo:
+                                </span>{" "}
+                                {vinculo?.activo === false ? "No" : "Sí"}
                               </div>
                             </div>
-                          ) : null}
+                          </div>
                         </>
                       );
                     })()}

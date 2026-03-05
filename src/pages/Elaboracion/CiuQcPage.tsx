@@ -36,11 +36,25 @@ function getCiuRecepcionKey(item: ElaboracionEntity) {
   return `${ciuId}::${recepcionBodegaId}`;
 }
 
-export default function CiuQcPage() {
+type CiuQcPageProps = {
+  initialSection?: "ciu" | "vinculo" | "qc";
+  hideSectionSelector?: boolean;
+  hidePrimaryAction?: boolean;
+};
+
+export default function CiuQcPage({
+  initialSection = "ciu",
+  hideSectionSelector = false,
+  hidePrimaryAction = false,
+}: CiuQcPageProps) {
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
-  const [activeSection, setActiveSection] = useState<"ciu" | "vinculo" | "qc">("ciu");
+  const [activeSection, setActiveSection] = useState<"ciu" | "vinculo" | "qc">(initialSection);
   const [ciuOptions, setCiuOptions] = useState<SelectOption[]>([]);
   const [recepcionOptions, setRecepcionOptions] = useState<SelectOption[]>([]);
+
+  useEffect(() => {
+    setActiveSection(initialSection);
+  }, [initialSection]);
 
   useEffect(() => {
     if (!activeBodegaId) return;
@@ -65,15 +79,17 @@ export default function CiuQcPage() {
 
   return (
     <div className="space-y-4">
-      <SectionSelector
-        value={activeSection}
-        onChange={setActiveSection}
-        options={[
-          { key: "ciu", label: "CIU" },
-          { key: "vinculo", label: "CIU-Recepción" },
-          { key: "qc", label: "QC Ingreso Uva" },
-        ]}
-      />
+      {!hideSectionSelector ? (
+        <SectionSelector
+          value={activeSection}
+          onChange={setActiveSection}
+          options={[
+            { key: "ciu", label: "CIU" },
+            { key: "vinculo", label: "CIU-Recepción" },
+            { key: "qc", label: "QC Ingreso Uva" },
+          ]}
+        />
+      ) : null}
 
       {activeSection === "ciu" ? (
         <GenericCrudSection
@@ -81,6 +97,7 @@ export default function CiuQcPage() {
           description="Comprobante de ingreso de uva por bodega."
           resource="cius"
           bodegaId={activeBodegaId}
+          hidePrimaryAction={hidePrimaryAction}
           fields={[
             { name: "codigo_ciu", label: "Código CIU", type: "text", required: true },
             { name: "emitido_at", label: "Emitido", type: "datetime-local", required: true },
@@ -139,6 +156,7 @@ export default function CiuQcPage() {
               sourceKey: "recepcion_bodega_id",
             },
           ]}
+          hidePrimaryAction={hidePrimaryAction}
         />
       ) : null}
 
@@ -148,6 +166,7 @@ export default function CiuQcPage() {
           description="Control de calidad por recepción."
           resource="qc-ingreso-uva"
           bodegaId={activeBodegaId}
+          hidePrimaryAction={hidePrimaryAction}
           fields={[
             {
               name: "recepcionBodegaId",

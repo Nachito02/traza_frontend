@@ -15,6 +15,12 @@ import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
 import { fetchProtocolosExpanded, type ProtocoloExpanded } from "../../features/protocolos/api";
 import { resolveModuleAccess } from "../../lib/permissions";
+import RecepcionPage from "../Elaboracion/RecepcionPage";
+import CiuQcPage from "../Elaboracion/CiuQcPage";
+import VasijasProcesoPage from "../Elaboracion/VasijasProcesoPage";
+import CortesProductoPage from "../Elaboracion/CortesProductoPage";
+import FraccionamientoDespachoPage from "../Elaboracion/FraccionamientoDespachoPage";
+import QrInversaPage from "../Elaboracion/QrInversaPage";
 
 const FINCA_MANAGER_ROLES = [
   "encargado_finca",
@@ -49,6 +55,49 @@ type ProtocoloTaskOption = {
   etapaLabel: string;
   protocoloLabel: string;
 };
+
+type OperacionCategoria =
+  | "recepcion"
+  | "ciu-qc"
+  | "vasijas"
+  | "cortes"
+  | "fraccionamiento"
+  | "qr";
+
+type OperacionTaskTemplate = {
+  id: string;
+  categoria: OperacionCategoria;
+  titulo: string;
+  label: string;
+};
+
+const OPERACION_CATEGORY_OPTIONS: Array<{ value: OperacionCategoria; label: string }> = [
+  { value: "recepcion", label: "Recepción" },
+  { value: "ciu-qc", label: "CIU y QC" },
+  { value: "vasijas", label: "Vasijas y Proceso" },
+  { value: "cortes", label: "Cortes y Producto" },
+  { value: "fraccionamiento", label: "Fraccionamiento y Despacho" },
+  { value: "qr", label: "Producto y Trazabilidad" },
+];
+
+const OPERACION_TASK_TEMPLATES: OperacionTaskTemplate[] = [
+  { id: "remito_uva", categoria: "recepcion", titulo: "Remito Uva", label: "Remito Uva" },
+  { id: "recepcion_bodega", categoria: "recepcion", titulo: "Recepción Bodega", label: "Recepción Bodega" },
+  { id: "analisis_recepcion", categoria: "recepcion", titulo: "Análisis Recepción", label: "Análisis Recepción" },
+  { id: "ciu", categoria: "ciu-qc", titulo: "CIU", label: "CIU" },
+  { id: "ciu_recepcion", categoria: "ciu-qc", titulo: "CIU-Recepción", label: "CIU-Recepción" },
+  { id: "qc_ingreso_uva", categoria: "ciu-qc", titulo: "QC Ingreso Uva", label: "QC Ingreso Uva" },
+  { id: "vasija", categoria: "vasijas", titulo: "Vasija", label: "Vasija" },
+  { id: "operacion_vasija", categoria: "vasijas", titulo: "Operación Vasija", label: "Operación Vasija" },
+  { id: "existencia_vasija", categoria: "vasijas", titulo: "Existencia Vasija", label: "Existencia Vasija" },
+  { id: "control_fermentacion", categoria: "vasijas", titulo: "Control Fermentación", label: "Control Fermentación" },
+  { id: "corte", categoria: "cortes", titulo: "Corte", label: "Corte" },
+  { id: "producto", categoria: "cortes", titulo: "Producto", label: "Producto" },
+  { id: "lote_fraccionamiento", categoria: "fraccionamiento", titulo: "Lote Fraccionamiento", label: "Lote Fraccionamiento" },
+  { id: "codigo_envase", categoria: "fraccionamiento", titulo: "Código de Envase", label: "Código de Envase" },
+  { id: "despacho", categoria: "fraccionamiento", titulo: "Despacho", label: "Despacho" },
+  { id: "producto_trazabilidad", categoria: "qr", titulo: "Producto y Trazabilidad", label: "Producto y Trazabilidad" },
+];
 
 const OPERACION_SCOPE_STORAGE_KEY = "operacion_scope";
 
@@ -127,7 +176,54 @@ function includesAnyRole(currentRoles: string[], expectedRoles: string[]) {
   return currentRoles.some((role) => expected.has(role));
 }
 
-const Tareas = () => {
+function renderEmbeddedOperacionForm(taskId: string) {
+  switch (taskId) {
+    case "remito_uva":
+      return <RecepcionPage initialSection="remito" hideSectionSelector hidePrimaryAction />;
+    case "recepcion_bodega":
+      return <RecepcionPage initialSection="recepcion" hideSectionSelector hidePrimaryAction />;
+    case "analisis_recepcion":
+      return <RecepcionPage initialSection="analisis" hideSectionSelector hidePrimaryAction />;
+    case "ciu":
+      return <CiuQcPage initialSection="ciu" hideSectionSelector hidePrimaryAction />;
+    case "ciu_recepcion":
+      return <CiuQcPage initialSection="vinculo" hideSectionSelector hidePrimaryAction />;
+    case "qc_ingreso_uva":
+      return <CiuQcPage initialSection="qc" hideSectionSelector hidePrimaryAction />;
+    case "vasija":
+      return <VasijasProcesoPage initialSection="vasijas" hideSectionSelector hidePrimaryAction />;
+    case "operacion_vasija":
+      return <VasijasProcesoPage initialSection="operaciones" hideSectionSelector hidePrimaryAction />;
+    case "existencia_vasija":
+      return <VasijasProcesoPage initialSection="existencias" hideSectionSelector hidePrimaryAction />;
+    case "control_fermentacion":
+      return <VasijasProcesoPage initialSection="fermentacion" hideSectionSelector hidePrimaryAction />;
+    case "corte":
+      return <CortesProductoPage initialSection="cortes" hideSectionSelector hidePrimaryAction />;
+    case "producto":
+      return <CortesProductoPage initialSection="productos" hideSectionSelector hidePrimaryAction />;
+    case "lote_fraccionamiento":
+      return <FraccionamientoDespachoPage initialSection="lotes" hideSectionSelector hidePrimaryAction />;
+    case "codigo_envase":
+      return <FraccionamientoDespachoPage initialSection="codigos" hideSectionSelector hidePrimaryAction />;
+    case "despacho":
+      return <FraccionamientoDespachoPage initialSection="despachos" hideSectionSelector hidePrimaryAction />;
+    case "producto_trazabilidad":
+      return <QrInversaPage />;
+    default:
+      return null;
+  }
+}
+
+function getDefaultTaskForCategory(categoria: OperacionCategoria) {
+  return OPERACION_TASK_TEMPLATES.find((task) => task.categoria === categoria) ?? null;
+}
+
+type TareasProps = {
+  mode?: "manager" | "operator";
+};
+
+const Tareas = ({ mode = "operator" }: TareasProps) => {
   const user = useAuthStore((state) => state.user);
   const bodegas = useAuthStore((state) => state.bodegas);
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
@@ -146,6 +242,8 @@ const Tareas = () => {
   const [notice, setNotice] = useState<string | null>(null);
   const [form, setForm] = useState({
     tareaProtocolo: "",
+    tareaCatalogoId: "",
+    categoriaOperacion: "recepcion" as OperacionCategoria,
     titulo: "",
     descripcion: "",
     fechaObjetivo: "",
@@ -229,6 +327,17 @@ const Tareas = () => {
       includesAnyRole(userRoles, GLOBAL_MANAGER_ROLES) || hasFincaManagerRole || hasBodegaManagerRole,
     [hasBodegaManagerRole, hasFincaManagerRole, userRoles],
   );
+  const isManagerMode = mode === "manager";
+  const canRenderManagerFlow = isManagerMode && canManageTasks;
+
+  const catalogTasksForCategory = useMemo(
+    () => OPERACION_TASK_TEMPLATES.filter((task) => task.categoria === form.categoriaOperacion),
+    [form.categoriaOperacion],
+  );
+  const selectedCatalogTask = useMemo(
+    () => OPERACION_TASK_TEMPLATES.find((task) => task.id === form.tareaCatalogoId) ?? null,
+    [form.tareaCatalogoId],
+  );
 
   const refreshTasks = async () => {
     if (!activeBodegaId) return;
@@ -264,17 +373,45 @@ const Tareas = () => {
     void fetchCanManageEncargos().then((canManageFromApi) => {
       if (!mounted) return;
       const resolvedCanManage = Boolean(canManageFromApi || canManageByRole);
+      if (mode === "operator") {
+        setCanManageTasks(false);
+        setForceMineMode(true);
+        return;
+      }
       setCanManageTasks(resolvedCanManage);
       setForceMineMode(!resolvedCanManage);
     });
     return () => {
       mounted = false;
     };
-  }, [canManageByRole]);
+  }, [canManageByRole, mode]);
 
   useEffect(() => {
     const milestoneId = searchParams.get("milestoneId");
     const trazabilidadId = searchParams.get("trazabilidadId");
+    const categoria = searchParams.get("categoria");
+    const tarea = searchParams.get("tarea");
+    if (
+      categoria &&
+      OPERACION_CATEGORY_OPTIONS.some((option) => option.value === categoria) &&
+      managerScope === "bodega"
+    ) {
+      const isValidTaskForCategory = Boolean(
+        tarea &&
+          OPERACION_TASK_TEMPLATES.some(
+            (task) => task.id === tarea && task.categoria === (categoria as OperacionCategoria),
+          ),
+      );
+      const defaultTask = isValidTaskForCategory
+        ? OPERACION_TASK_TEMPLATES.find((task) => task.id === tarea) ?? null
+        : getDefaultTaskForCategory(categoria as OperacionCategoria);
+      setForm((prev) => ({
+        ...prev,
+        categoriaOperacion: categoria as OperacionCategoria,
+        tareaCatalogoId: defaultTask?.id ?? "",
+        titulo: defaultTask?.titulo ?? prev.titulo,
+      }));
+    }
     if (!milestoneId && !trazabilidadId) return;
     setForm((prev) => ({
       ...prev,
@@ -285,7 +422,7 @@ const Tareas = () => {
           ? `Tarea de trazabilidad ${trazabilidadId.slice(0, 8)}`
           : "Tarea de milestone"),
     }));
-  }, [searchParams]);
+  }, [managerScope, searchParams]);
 
   useEffect(() => {
     if (!form.fincaId || cuartelesByFinca[form.fincaId]) return;
@@ -418,12 +555,25 @@ const Tareas = () => {
       setError("Seleccioná una bodega activa.");
       return;
     }
-    if (!form.tareaProtocolo) {
+    if (managerScope === "bodega" && !form.tareaCatalogoId) {
+      setError("Seleccioná una tarea operativa.");
+      return;
+    }
+    if (managerScope === "finca" && !form.tareaProtocolo) {
       setError("Seleccioná una tarea del protocolo.");
       return;
     }
     if (managerScope === "finca" && (!form.fincaId || !form.cuartelId)) {
       setError("Seleccioná finca y cuartel.");
+      return;
+    }
+    const resolvedTitulo =
+      managerScope === "bodega"
+        ? selectedCatalogTask?.titulo ?? form.titulo.trim()
+        : scopedProtocoloTaskOptions.find((option) => option.value === form.tareaProtocolo)?.titulo ??
+          form.titulo.trim();
+    if (!resolvedTitulo) {
+      setError("No se pudo resolver el título de la tarea.");
       return;
     }
     setSaving(true);
@@ -435,7 +585,7 @@ const Tareas = () => {
         fincaId: managerScope === "finca" ? form.fincaId : undefined,
         cuartelId: managerScope === "finca" ? form.cuartelId : undefined,
         milestoneId: form.milestoneId || undefined,
-        titulo: form.titulo.trim(),
+        titulo: resolvedTitulo,
         descripcion: form.descripcion.trim() || undefined,
         fechaObjetivo: form.fechaObjetivo || undefined,
         prioridad: form.prioridad,
@@ -446,19 +596,20 @@ const Tareas = () => {
       if (encargoId && form.operarioUserId) {
         try {
           await assignEncargoToUser(encargoId, form.operarioUserId);
-          setNotice("Tarea creada y asignada correctamente.");
+          setNotice("Registro creado y tarea asignada correctamente.");
         } catch (assignError) {
           setNotice(
-            `Tarea creada, pero no se pudo confirmar la asignación automática: ${getApiErrorMessage(assignError)}`,
+            `Registro creado, pero no se pudo confirmar la asignación automática: ${getApiErrorMessage(assignError)}`,
           );
         }
       } else {
-        setNotice("Tarea creada correctamente.");
+        setNotice("Registro creado correctamente. Se convertirá en tarea al asignar operario.");
       }
 
       setForm((prev) => ({
         ...prev,
         tareaProtocolo: "",
+        tareaCatalogoId: "",
         titulo: "",
         descripcion: "",
         fechaObjetivo: "",
@@ -539,39 +690,84 @@ const Tareas = () => {
         <div>
           <h1 className="text-3xl font-bold text-text">Tareas</h1>
           <p className="mt-2 text-sm text-text-secondary">
-            Encargados de finca o bodega asignan tareas; operarios ven sus pendientes.
+            {isManagerMode
+              ? "Operación para encargados: registro operativo y asignación de tareas."
+              : "Vista operario: gestión de tareas asignadas a tu usuario."}
           </p>
         </div>
 
-        {canManageTasks ? (
+        {canRenderManagerFlow ? (
           <section className="rounded-2xl bg-primary/30 p-5">
-            <h2 className="text-lg font-semibold text-text">Nueva tarea</h2>
+            <h2 className="text-lg font-semibold text-text">Nuevo registro</h2>
             <p className="mt-1 text-xs text-text-secondary">
               Usuario actual: {user?.nombre ?? user?.email ?? "Usuario"}
             </p>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <select
-                value={form.tareaProtocolo}
-                onChange={(e) => {
-                  const selected = e.target.value;
-                  const task = scopedProtocoloTaskOptions.find(
-                    (item) => item.value === selected,
-                  );
-                  setForm((prev) => ({
-                    ...prev,
-                    tareaProtocolo: selected,
-                    titulo: task?.titulo ?? "",
-                  }));
-                }}
-                className="rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
-              >
-                <option value="">Seleccionar tarea del protocolo</option>
-                {scopedProtocoloTaskOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              {managerScope === "bodega" ? (
+                <>
+                  <select
+                    value={form.categoriaOperacion}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        categoriaOperacion: e.target.value as OperacionCategoria,
+                        tareaCatalogoId: "",
+                        titulo: "",
+                      }))
+                    }
+                    className="rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
+                    >
+                      {OPERACION_CATEGORY_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  <select
+                    value={form.tareaCatalogoId}
+                    onChange={(e) => {
+                      const selected = e.target.value;
+                      const task = OPERACION_TASK_TEMPLATES.find((item) => item.id === selected);
+                      setForm((prev) => ({
+                        ...prev,
+                        tareaCatalogoId: selected,
+                        titulo: task?.titulo ?? "",
+                      }));
+                    }}
+                    className="rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
+                  >
+                    <option value="">Seleccionar tarea operativa</option>
+                    {catalogTasksForCategory.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              ) : (
+                <select
+                  value={form.tareaProtocolo}
+                  onChange={(e) => {
+                    const selected = e.target.value;
+                    const task = scopedProtocoloTaskOptions.find(
+                      (item) => item.value === selected,
+                    );
+                    setForm((prev) => ({
+                      ...prev,
+                      tareaProtocolo: selected,
+                      titulo: task?.titulo ?? "",
+                    }));
+                  }}
+                  className="rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F] md:col-span-2"
+                >
+                  <option value="">Seleccionar tarea del protocolo</option>
+                  {scopedProtocoloTaskOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              )}
               <select
                 value={form.prioridad}
                 onChange={(e) =>
@@ -623,11 +819,7 @@ const Tareas = () => {
                     })}
                   </select>
                 </>
-              ) : (
-                <div className="rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-xs text-[#7A4A50] md:col-span-2">
-                  Encargado de bodega: las tareas se crean a nivel bodega (sin finca/cuartel).
-                </div>
-              )}
+              ) : null}
               <select
                 value={form.operarioUserId}
                 onChange={(e) =>
@@ -668,14 +860,26 @@ const Tareas = () => {
                 className="md:col-span-2 rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
               />
             </div>
+            {managerScope === "bodega" && selectedCatalogTask ? (
+              <div className="mt-6 rounded-xl border border-[#C9A961]/40 bg-white/70 p-3">
+                {renderEmbeddedOperacionForm(selectedCatalogTask.id)}
+              </div>
+            ) : null}
             <button
               type="button"
               onClick={() => void onCreate()}
               disabled={saving}
-              className="mt-4 rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-text transition hover:bg-primary disabled:opacity-60"
+              className="mt-6 rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-text transition hover:bg-primary disabled:opacity-60"
             >
-              {saving ? "Guardando..." : "Crear tarea"}
+              {saving ? "Guardando..." : "Registrar tarea"}
             </button>
+          </section>
+        ) : isManagerMode ? (
+          <section className="rounded-2xl bg-primary/30 p-5">
+            <h2 className="text-lg font-semibold text-text">Sin permisos de encargado</h2>
+            <p className="mt-1 text-xs text-text-secondary">
+              Para asignar tareas necesitás rol de encargado de finca o de bodega.
+            </p>
           </section>
         ) : (
           <section className="rounded-2xl bg-primary/30 p-5">
@@ -748,7 +952,7 @@ const Tareas = () => {
                   ) : (
                     <div className="mt-2 text-xs text-[#7A4A50]">Sin milestone vinculado.</div>
                   )}
-                  {canManageTasks && (
+                  {canRenderManagerFlow && (
                     <button
                       type="button"
                       onClick={() => void onDeleteTask(task)}

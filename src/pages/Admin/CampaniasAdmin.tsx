@@ -315,7 +315,7 @@ export default function CampaniasAdmin() {
               <input type="date" value={form.fecha_fin} onChange={(e) => setForm((p) => ({ ...p, fecha_fin: e.target.value }))} className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm" />
             </div>
             <div className="mt-3 flex gap-2">
-              <button type="button" onClick={() => void onSubmit()} disabled={saving || !activeBodegaId} className="cursor-pointer rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:bg-[#FFF9F0] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60">{editingId ? "Guardar cambios" : "Guardar campaña"}</button>
+              <button type="button" onClick={() => void onSubmit()} disabled={saving || !activeBodegaId} className="cursor-pointer rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:bg-[#FFF9F0] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60">{editingId ? "Guardar" : "Crear"}</button>
               <button type="button" onClick={() => { setEditingId(null); setForm(emptyForm); setFormMode("none"); }} className="cursor-pointer rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 active:scale-[0.98]">Cancelar</button>
             </div>
             {error ? <div className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">{error}</div> : null}

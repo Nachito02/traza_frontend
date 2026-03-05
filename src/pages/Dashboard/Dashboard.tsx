@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchCampanias, type Campania } from "../../features/campanias/api";
 import { fetchCuartelesByFinca } from "../../features/cuarteles/api";
+import { fetchPendientesByScope } from "../../features/encargos/api";
+import { listElaboracionResource } from "../../features/elaboracion/api";
 import { useFincasStore } from "../../features/fincas/store";
+import { resolveModuleAccess } from "../../lib/permissions";
 import {
   fetchTrazabilidades,
   type Trazabilidad,
@@ -12,16 +15,20 @@ import { useAuthStore } from "../../store/authStore";
 const Dashboard = () => {
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const bodegas = useAuthStore((state) => state.bodegas);
+  const user = useAuthStore((state) => state.user);
   const fincas = useFincasStore((state) => state.fincas);
   const fincasLoading = useFincasStore((state) => state.loading);
   const loadFincas = useFincasStore((state) => state.loadFincas);
 
   const [cuartelesCount, setCuartelesCount] = useState(0);
+  const [vasijasCount, setVasijasCount] = useState(0);
+  const [tareasCount, setTareasCount] = useState(0);
   const [trazabilidades, setTrazabilidades] = useState<Trazabilidad[]>([]);
   const [campanias, setCampanias] = useState<Campania[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const activeBodega = bodegas.find((bodega) => bodega.bodega_id === String(activeBodegaId));
+  const access = resolveModuleAccess(user, activeBodegaId);
 
   useEffect(() => {
     if (!activeBodegaId) return;
@@ -31,6 +38,8 @@ const Dashboard = () => {
   useEffect(() => {
     if (!activeBodegaId) {
       setCuartelesCount(0);
+      setVasijasCount(0);
+      setTareasCount(0);
       setTrazabilidades([]);
       setCampanias([]);
       return;
@@ -43,6 +52,11 @@ const Dashboard = () => {
     Promise.all([
       fetchTrazabilidades(activeBodegaId),
       fetchCampanias(activeBodegaId),
+      listElaboracionResource("vasijas", { bodegaId: String(activeBodegaId) }).catch(() => []),
+      fetchPendientesByScope({
+        bodegaId: String(activeBodegaId),
+        mode: "mine",
+      }).catch(() => []),
       Promise.all(
         fincas
           .map((finca) => finca.finca_id ?? finca.id)
@@ -50,10 +64,12 @@ const Dashboard = () => {
           .map((fincaId) => fetchCuartelesByFinca(String(fincaId))),
       ),
     ])
-      .then(([trazabilidadesData, campaniasData, cuartelesLists]) => {
+      .then(([trazabilidadesData, campaniasData, vasijasData, tareasData, cuartelesLists]) => {
         if (!mounted) return;
         setTrazabilidades(trazabilidadesData ?? []);
         setCampanias(campaniasData ?? []);
+        setVasijasCount((vasijasData ?? []).length);
+        setTareasCount((tareasData ?? []).length);
         const totalCuarteles = (cuartelesLists ?? []).reduce(
           (acc, list) => acc + (list?.length ?? 0),
           0,
@@ -91,19 +107,19 @@ const Dashboard = () => {
   }, [campanias, trazabilidades]);
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-[#F9F6F2] via-[#F3E7DA] to-[#EAD8C6] px-6 py-10">
+    <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-6xl">
         <div className="mb-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h1 className="text-3xl font-bold text-dark">Resumen operativo</h1>
-              <p className="mt-2 text-sm text-text-dark-secondary ">
+              <h1 className="text-3xl font-bold text-text">Resumen operativo</h1>
+              <p className="mt-2 text-sm text-text-secondary ">
                 Datos del usuario autenticado y su bodega activa.
               </p>
             </div>
             <Link
               to="/trazabilidades"
-              className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-lg border border-[#C9A961]/40 bg-[#FFF9F0] px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:cursor-not-allowed disabled:opacity-60"
             >
               Ver procesos y etapas
             </Link>
@@ -133,7 +149,7 @@ const Dashboard = () => {
                   {fincasLoading ? "…" : fincas.length}
                 </p>
               </Link>
-              <Link to="/admin/cuarteles" className="rounded-2xl border border-white/10 bg-primary p-4 transition hover:bg-secondary">
+              <Link to="/fincas" className="rounded-2xl border border-white/10 bg-primary p-4 transition hover:bg-secondary">
                 <p className="text-xs uppercase tracking-[0.12em] text-text">
                   Cuarteles
                 </p>
@@ -149,6 +165,23 @@ const Dashboard = () => {
                   {loading ? "…" : trazabilidades.length}
                 </p>
               </Link>
+            </section>
+
+            <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Link to="/bodega" className="rounded-2xl border border-white/10 bg-primary p-4 transition hover:bg-secondary">
+                <p className="text-xs uppercase tracking-[0.12em] text-text">Vasijas</p>
+                <p className="mt-2 text-2xl font-semibold text-text">{loading ? "…" : vasijasCount}</p>
+              </Link>
+              <Link to="/tareas" className="rounded-2xl border border-white/10 bg-primary p-4 transition hover:bg-secondary">
+                <p className="text-xs uppercase tracking-[0.12em] text-text">Mis tareas pendientes</p>
+                <p className="mt-2 text-2xl font-semibold text-text">{loading ? "…" : tareasCount}</p>
+              </Link>
+              {access.canAccessOperacion ? (
+                <Link to="/operacion" className="rounded-2xl border border-white/10 bg-primary p-4 transition hover:bg-secondary">
+                  <p className="text-xs uppercase tracking-[0.12em] text-text">Operación</p>
+                  <p className="mt-2 text-2xl font-semibold text-text">Disponible</p>
+                </Link>
+              ) : null}
             </section>
 
             <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

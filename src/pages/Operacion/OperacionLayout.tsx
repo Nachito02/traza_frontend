@@ -1,18 +1,51 @@
 import { useMemo } from "react";
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { resolveModuleAccess } from "../../lib/permissions";
 import { useAuthStore } from "../../store/authStore";
 
 const LINKS_BODEGA = [
-  { to: "/operacion/recepcion", label: "Recepción" },
-  { to: "/operacion/ciu-qc", label: "CIU y QC" },
-  { to: "/operacion/vasijas", label: "Vasijas y Proceso" },
-  { to: "/operacion/cortes", label: "Cortes y Producto" },
-  { to: "/operacion/fraccionamiento", label: "Fraccionamiento y Despacho" },
-  { to: "/operacion/qr", label: "Producto y Trazabilidad" },
+  { to: "/operacion/tareas?categoria=recepcion", label: "Recepción" },
+  { to: "/operacion/tareas?categoria=ciu-qc", label: "CIU y QC" },
+  { to: "/operacion/tareas?categoria=vasijas", label: "Vasijas y Proceso" },
+  { to: "/operacion/tareas?categoria=cortes", label: "Cortes y Producto" },
+  { to: "/operacion/tareas?categoria=fraccionamiento", label: "Fraccionamiento y Despacho" },
+  { to: "/operacion/tareas?categoria=qr", label: "Producto y Trazabilidad" },
 ];
 
 const LINKS_FINCA = [{ to: "/operacion/tareas", label: "Tareas de Finca" }];
+const SUBCATEGORY_LINKS: Record<
+  string,
+  Array<{ to: string; label: string }>
+> = {
+  recepcion: [
+    { to: "/operacion/tareas?categoria=recepcion&tarea=remito_uva", label: "Remito Uva" },
+    { to: "/operacion/tareas?categoria=recepcion&tarea=recepcion_bodega", label: "Recepción Bodega" },
+    { to: "/operacion/tareas?categoria=recepcion&tarea=analisis_recepcion", label: "Análisis Recepción" },
+  ],
+  "ciu-qc": [
+    { to: "/operacion/tareas?categoria=ciu-qc&tarea=ciu", label: "CIU" },
+    { to: "/operacion/tareas?categoria=ciu-qc&tarea=ciu_recepcion", label: "CIU-Recepción" },
+    { to: "/operacion/tareas?categoria=ciu-qc&tarea=qc_ingreso_uva", label: "QC Ingreso Uva" },
+  ],
+  vasijas: [
+    { to: "/operacion/tareas?categoria=vasijas&tarea=vasija", label: "Vasijas" },
+    { to: "/operacion/tareas?categoria=vasijas&tarea=operacion_vasija", label: "Operación Vasija" },
+    { to: "/operacion/tareas?categoria=vasijas&tarea=existencia_vasija", label: "Existencia Vasija" },
+    { to: "/operacion/tareas?categoria=vasijas&tarea=control_fermentacion", label: "Control Fermentación" },
+  ],
+  cortes: [
+    { to: "/operacion/tareas?categoria=cortes&tarea=corte", label: "Cortes" },
+    { to: "/operacion/tareas?categoria=cortes&tarea=producto", label: "Productos" },
+  ],
+  fraccionamiento: [
+    { to: "/operacion/tareas?categoria=fraccionamiento&tarea=lote_fraccionamiento", label: "Lotes" },
+    { to: "/operacion/tareas?categoria=fraccionamiento&tarea=codigo_envase", label: "Códigos Envase" },
+    { to: "/operacion/tareas?categoria=fraccionamiento&tarea=despacho", label: "Despachos" },
+  ],
+  qr: [
+    { to: "/operacion/tareas?categoria=qr&tarea=producto_trazabilidad", label: "Producto y Trazabilidad" },
+  ],
+};
 const OPERACION_SCOPE_STORAGE_KEY = "operacion_scope";
 
 type OperacionScope = "bodega" | "finca";
@@ -33,6 +66,7 @@ export default function OperacionLayout() {
   const user = useAuthStore((state) => state.user);
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const navigate = useNavigate();
+  const location = useLocation();
   const access = resolveModuleAccess(user, activeBodegaId);
   const selectedScope = useMemo<OperacionScope>(() => {
     if (access.canAccessOperacionBodega && !access.canAccessOperacionFinca) return "bodega";
@@ -44,11 +78,35 @@ export default function OperacionLayout() {
 
   const useBodegaOperacion = selectedScope === "bodega";
   const links = useBodegaOperacion ? LINKS_BODEGA : LINKS_FINCA;
+  const currentPathWithSearch = `${location.pathname}${location.search}`;
+  const activeCategory = useMemo(() => {
+    if (!useBodegaOperacion) return "";
+    const params = new URLSearchParams(location.search);
+    const categoryFromQuery = params.get("categoria") ?? "";
+    if (categoryFromQuery) return categoryFromQuery;
+    const found = LINKS_BODEGA.find((link) =>
+      location.pathname === "/operacion/tareas" ? currentPathWithSearch.startsWith(link.to) : false,
+    );
+    if (found?.to.includes("categoria=")) {
+      const parsed = new URL(found.to, "http://localhost");
+      return parsed.searchParams.get("categoria") ?? "";
+    }
+    return "recepcion";
+  }, [currentPathWithSearch, location.pathname, location.search, useBodegaOperacion]);
+  const subcategoryLinks = useMemo(
+    () => (useBodegaOperacion ? SUBCATEGORY_LINKS[activeCategory] ?? [] : []),
+    [activeCategory, useBodegaOperacion],
+  );
+
+  const isLinkActive = (to: string) => {
+    if (to.includes("?")) return currentPathWithSearch === to;
+    return location.pathname === to;
+  };
 
   const onChangeScope = (scope: OperacionScope) => {
     writeOperacionScopePreference(scope);
     if (scope === "bodega") {
-      navigate("/operacion/recepcion", { replace: true });
+      navigate("/operacion/tareas", { replace: true });
       return;
     }
     navigate("/operacion/tareas", { replace: true });
@@ -68,10 +126,10 @@ export default function OperacionLayout() {
               </p>
             </div>
             <Link
-              to={useBodegaOperacion ? "/operacion/recepcion" : "/operacion/tareas"}
+              to="/tareas"
               className="rounded-lg border border-[#C9A961] bg-[#FFF9F0] px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:bg-[#F7EEDB]"
             >
-              Ir a {useBodegaOperacion ? "operación bodega" : "tareas"}
+              Ver tareas en curso
             </Link>
           </div>
           {access.hasBothOperacionScopes ? (
@@ -92,10 +150,10 @@ export default function OperacionLayout() {
               <NavLink
                 key={link.to}
                 to={link.to}
-                className={({ isActive }) =>
+                className={() =>
                   [
                     "rounded-lg border px-3 py-2 text-xs font-semibold transition",
-                    isActive
+                    isLinkActive(link.to)
                       ? "border-[#C9A961] bg-[#FFF9F0] text-[#722F37]"
                       : "border-[#C9A961]/40 bg-white/80 text-[#7A4A50] hover:bg-[#FFF9F0]",
                   ].join(" ")
@@ -105,6 +163,26 @@ export default function OperacionLayout() {
               </NavLink>
             ))}
           </nav>
+          {subcategoryLinks.length > 0 ? (
+            <nav className="mt-3 flex flex-wrap gap-2">
+              {subcategoryLinks.map((link) => (
+                <NavLink
+                  key={link.to}
+                  to={link.to}
+                  className={() =>
+                    [
+                      "rounded-full border px-3 py-1 text-[11px] font-semibold transition",
+                      isLinkActive(link.to)
+                        ? "border-[#722F37] bg-[#722F37] text-[#FFF9F0]"
+                        : "border-[#C9A961]/40 bg-white/85 text-[#7A4A50] hover:bg-[#FFF9F0]",
+                    ].join(" ")
+                  }
+                >
+                  {link.label}
+                </NavLink>
+              ))}
+            </nav>
+          ) : null}
         </header>
 
         <Outlet />

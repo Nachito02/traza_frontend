@@ -3,10 +3,26 @@ import { apiClient, getApiErrorMessage, setAuthFailureHandler } from "../lib/api
 
 export type User = {
   id: string | number;
-  email: string;
+  email: string | null;
   nombre: string;
   bodegaId: string | number | null;
   roles_globales?: string[];
+  rol?: string;
+  role?: string;
+  bodegas?: Array<{
+    bodega_id?: string | number;
+    nombre?: string;
+    roles_en_bodega?: string[];
+    rol_en_bodega?: string;
+    rolesEnBodega?: string[];
+    rolEnBodega?: string;
+  }>;
+  fincas?: Array<{
+    finca_id?: string | number;
+    nombre?: string;
+    roles_en_finca?: string[];
+    rol_en_finca?: string;
+  }>;
 };
 
 export type Bodega = {
@@ -52,6 +68,22 @@ async function fetchMe() {
   return response.data;
 }
 
+async function enrichUser(user: User) {
+  const userId = String(user.id ?? "");
+  if (!userId) return user;
+  try {
+    const response = await apiClient.get<User>(
+      `/auth/users/${encodeURIComponent(userId)}`,
+    );
+    return {
+      ...user,
+      ...response.data,
+    };
+  } catch {
+    return user;
+  }
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: false,
@@ -95,8 +127,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
       const user = "user" in data ? data.user : data;
       const resolvedUser = user?.id ? user : await fetchMe();
+      const enrichedUser = await enrichUser(resolvedUser);
 
-      set({ user: resolvedUser, isAuthenticated: true });
+      set({ user: enrichedUser, isAuthenticated: true });
       const bodegas = await apiClient
         .get<Bodega[]>(ME_BODEGAS_PATH)
         .then((r) => r.data)
@@ -151,11 +184,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const user = await fetchMe();
+      const enrichedUser = await enrichUser(user);
       const bodegas = await apiClient
         .get<Bodega[]>(ME_BODEGAS_PATH)
         .then((r) => r.data)
         .catch(() => []);
-      set({ user, isAuthenticated: true });
+      set({ user: enrichedUser, isAuthenticated: true });
       set({ bodegas });
     } catch {
       set({ user: null, isAuthenticated: false, bodegas: [] });

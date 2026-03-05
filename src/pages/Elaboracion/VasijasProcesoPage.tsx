@@ -31,12 +31,26 @@ function toOptions(items: ElaboracionEntity[], idKeys: string[], labelKeys: stri
     .filter((option): option is SelectOption => option !== null);
 }
 
-export default function VasijasProcesoPage() {
+type VasijasProcesoPageProps = {
+  initialSection?: "vasijas" | "operaciones" | "existencias" | "fermentacion";
+  hideSectionSelector?: boolean;
+  hidePrimaryAction?: boolean;
+};
+
+export default function VasijasProcesoPage({
+  initialSection = "vasijas",
+  hideSectionSelector = false,
+  hidePrimaryAction = false,
+}: VasijasProcesoPageProps) {
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const [activeSection, setActiveSection] = useState<
     "vasijas" | "operaciones" | "existencias" | "fermentacion"
-  >("vasijas");
+  >(initialSection);
   const [vasijaOptions, setVasijaOptions] = useState<SelectOption[]>([]);
+
+  useEffect(() => {
+    setActiveSection(initialSection);
+  }, [initialSection]);
 
   useEffect(() => {
     if (!activeBodegaId) return;
@@ -47,16 +61,18 @@ export default function VasijasProcesoPage() {
 
   return (
     <div className="space-y-4">
-      <SectionSelector
-        value={activeSection}
-        onChange={setActiveSection}
-        options={[
-          { key: "vasijas", label: "Vasijas" },
-          { key: "operaciones", label: "Operaciones Vasija" },
-          { key: "existencias", label: "Existencias Vasija" },
-          { key: "fermentacion", label: "Control Fermentación" },
-        ]}
-      />
+      {!hideSectionSelector ? (
+        <SectionSelector
+          value={activeSection}
+          onChange={setActiveSection}
+          options={[
+            { key: "vasijas", label: "Vasijas" },
+            { key: "operaciones", label: "Operaciones Vasija" },
+            { key: "existencias", label: "Existencias Vasija" },
+            { key: "fermentacion", label: "Control Fermentación" },
+          ]}
+        />
+      ) : null}
 
       {activeSection === "vasijas" ? (
         <GenericCrudSection
@@ -64,6 +80,7 @@ export default function VasijasProcesoPage() {
           description="Registro de vasijas de la bodega."
           resource="vasijas"
           bodegaId={activeBodegaId}
+          hidePrimaryAction={hidePrimaryAction}
           fields={[
             { name: "codigo", label: "Código", type: "text", required: true },
             { name: "tipo", label: "Tipo", type: "text" },
@@ -80,6 +97,7 @@ export default function VasijasProcesoPage() {
           description="Eventos de proceso según enum TipoOperacionVasija."
           resource="operaciones-vasija"
           bodegaId={activeBodegaId}
+          hidePrimaryAction={hidePrimaryAction}
           fields={[
             { name: "id_vasija_origen", label: "Vasija origen", type: "select", options: vasijaOptions },
             { name: "id_vasija_destino", label: "Vasija destino", type: "select", options: vasijaOptions },
@@ -106,6 +124,7 @@ export default function VasijasProcesoPage() {
           resource="existencias-vasija"
           bodegaId={activeBodegaId}
           withBodegaId={false}
+          hidePrimaryAction={hidePrimaryAction}
           fields={[
             { name: "vasijaId", label: "Vasija", type: "select", required: true, options: vasijaOptions, sourceKey: "vasija_id" },
             { name: "fecha_hora", label: "Fecha y hora", type: "datetime-local", required: true },
@@ -124,6 +143,7 @@ export default function VasijasProcesoPage() {
           resource="controles-fermentacion"
           bodegaId={activeBodegaId}
           withBodegaId={false}
+          hidePrimaryAction={hidePrimaryAction}
           fields={[
             { name: "vasijaId", label: "Vasija", type: "select", required: true, options: vasijaOptions, sourceKey: "vasija_id" },
             { name: "fecha_hora", label: "Fecha y hora", type: "datetime-local", required: true },

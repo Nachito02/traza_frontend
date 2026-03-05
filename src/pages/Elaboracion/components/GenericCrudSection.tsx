@@ -47,6 +47,7 @@ type GenericCrudSectionProps = {
     ) => Promise<unknown>;
     remove?: (context: { id: string; item: ElaboracionEntity }) => Promise<unknown>;
   };
+  hidePrimaryAction?: boolean;
 };
 
 const ID_KEYS = [
@@ -111,6 +112,14 @@ function getInitialValues(fields: CrudField[]) {
   return Object.fromEntries(entries) as Record<string, string | boolean>;
 }
 
+function formatItemFieldValue(value: unknown) {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "boolean") return value ? "Sí" : "No";
+  if (typeof value === "number") return String(value);
+  if (typeof value === "string") return value;
+  return String(value);
+}
+
 export default function GenericCrudSection({
   title,
   description,
@@ -122,6 +131,7 @@ export default function GenericCrudSection({
   validate,
   idResolver,
   controller,
+  hidePrimaryAction = false,
 }: GenericCrudSectionProps) {
   const [items, setItems] = useState<ElaboracionEntity[]>([]);
   const [loading, setLoading] = useState(false);
@@ -322,13 +332,6 @@ export default function GenericCrudSection({
           <h3 className="text-base font-semibold text-[#3D1B1F]">{title}</h3>
           <p className="mt-1 text-xs text-[#7A4A50]">{description}</p>
         </div>
-        <button
-          type="button"
-          onClick={() => void load()}
-          className="rounded border border-[#C9A961]/50 px-2 py-1 text-xs font-semibold text-[#722F37]"
-        >
-          Actualizar
-        </button>
       </div>
 
       <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -383,29 +386,31 @@ export default function GenericCrudSection({
         ))}
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => void onSubmit()}
-          disabled={saving}
-          className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37] disabled:opacity-60"
-        >
-          {editingId ? "Guardar cambios" : "Crear"}
-        </button>
-        {editingId ? (
+      {!hidePrimaryAction ? (
+        <div className="mt-3 flex flex-wrap justify-end gap-2">
           <button
             type="button"
-            onClick={() => {
-              setEditingId(null);
-              setEditingItem(null);
-              setValues(getInitialValues(fields));
-            }}
-            className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"
+            onClick={() => void onSubmit()}
+            disabled={saving}
+            className="rounded border border-[#722F37] bg-[#722F37] px-3 py-2 text-xs font-semibold text-[#FFF9F0] shadow-sm transition hover:bg-[#8A3A45] disabled:opacity-60"
           >
-            Cancelar edición
+            {editingId ? "Guardar" : "Crear"}
           </button>
-        ) : null}
-      </div>
+          {editingId ? (
+            <button
+              type="button"
+              onClick={() => {
+                setEditingId(null);
+                setEditingItem(null);
+                setValues(getInitialValues(fields));
+              }}
+              className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"
+            >
+              Cancelar edición
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       {error ? (
         <div className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
@@ -431,12 +436,31 @@ export default function GenericCrudSection({
           items.map((item, index) => {
             const itemId = idResolver ? idResolver(item) : resolveId(item);
             const displayId = itemId || `fila-${index}`;
+            const previewRows = fields
+              .map((field) => {
+                const sourceKey = field.sourceKey ?? field.name;
+                const raw = item[sourceKey];
+                if (raw === undefined || raw === null || raw === "") return null;
+                return {
+                  key: field.name,
+                  label: field.label,
+                  value: formatItemFieldValue(raw),
+                };
+              })
+              .filter((row): row is { key: string; label: string; value: string } => row !== null)
+              .slice(0, 5);
             return (
               <article key={displayId} className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2">
                 <div className="text-xs font-semibold text-[#5A2D32]">ID: {displayId}</div>
-                <pre className="mt-1 max-h-24 overflow-auto rounded bg-white p-2 text-[11px] text-[#3D1B1F]">
-                  {JSON.stringify(item, null, 2)}
-                </pre>
+                {previewRows.length > 0 ? (
+                  <div className="mt-2 grid gap-1 rounded bg-white p-2 text-xs text-[#3D1B1F]">
+                    {previewRows.map((row) => (
+                      <div key={row.key}>
+                        <span className="font-semibold">{row.label}:</span> {row.value}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
                 <div className="mt-2 flex gap-2">
                   <button
                     type="button"

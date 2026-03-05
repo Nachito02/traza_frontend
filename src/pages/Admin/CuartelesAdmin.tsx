@@ -462,7 +462,7 @@ export default function CuartelesAdmin() {
                 disabled={saving || !activeBodegaId}
                 className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text  hover:bg-primary cursor-pointer transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {editingId ? "Guardar cambios" : "Guardar cuartel"}
+                {editingId ? "Guardar" : "Crear"}
               </button>
               <button
                 type="button"

@@ -223,7 +223,7 @@ const SetupFinca = () => {
               onClick={() => void handleSubmit()}
               className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {saving ? "Guardando..." : "Guardar finca"}
+              {saving ? "Guardando..." : "Crear"}
             </button>
           </form>
         )}

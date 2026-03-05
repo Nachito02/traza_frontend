@@ -45,9 +45,19 @@ function resolveBodegaId(item: ElaboracionEntity) {
   return typeof value === "string" || typeof value === "number" ? String(value) : "";
 }
 
-export default function FraccionamientoDespachoPage() {
+type FraccionamientoDespachoPageProps = {
+  initialSection?: "lotes" | "codigos" | "despachos";
+  hideSectionSelector?: boolean;
+  hidePrimaryAction?: boolean;
+};
+
+export default function FraccionamientoDespachoPage({
+  initialSection = "lotes",
+  hideSectionSelector = false,
+  hidePrimaryAction = false,
+}: FraccionamientoDespachoPageProps) {
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
-  const [activeSection, setActiveSection] = useState<"lotes" | "codigos" | "despachos">("lotes");
+  const [activeSection, setActiveSection] = useState<"lotes" | "codigos" | "despachos">(initialSection);
 
   const [cortes, setCortes] = useState<ElaboracionEntity[]>([]);
   const [productos, setProductos] = useState<ElaboracionEntity[]>([]);
@@ -67,6 +77,10 @@ export default function FraccionamientoDespachoPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loteFilterCodigos, setLoteFilterCodigos] = useState("");
+
+  useEffect(() => {
+    setActiveSection(initialSection);
+  }, [initialSection]);
 
   const corteOptions = useMemo(
     () => toOptions(cortes, ["id_corte", "corte_id", "id"], ["objetivo", "fecha", "id_corte"]),
@@ -205,15 +219,17 @@ export default function FraccionamientoDespachoPage() {
 
   return (
     <div className="space-y-4">
-      <SectionSelector
-        value={activeSection}
-        onChange={setActiveSection}
-        options={[
-          { key: "lotes", label: "Lotes Fraccionamiento" },
-          { key: "codigos", label: "Códigos Envase" },
-          { key: "despachos", label: "Despachos" },
-        ]}
-      />
+      {!hideSectionSelector ? (
+        <SectionSelector
+          value={activeSection}
+          onChange={setActiveSection}
+          options={[
+            { key: "lotes", label: "Lotes Fraccionamiento" },
+            { key: "codigos", label: "Códigos Envase" },
+            { key: "despachos", label: "Despachos" },
+          ]}
+        />
+      ) : null}
 
       {activeSection === "lotes" ? (
         <section className="rounded-2xl bg-white p-5 shadow-sm">
@@ -281,42 +297,37 @@ export default function FraccionamientoDespachoPage() {
           />
         </div>
 
-        <div className="mt-3 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => void submitLote()}
-            disabled={saving}
-            className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37] disabled:opacity-60"
-          >
-            {editingId ? "Guardar lote" : "Crear lote"}
-          </button>
-          {editingId ? (
+        {!hidePrimaryAction ? (
+          <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => {
-                setEditingId(null);
-                setForm({
-                  corteId: "",
-                  productoId: "",
-                  fecha: "",
-                  botellas: "",
-                  formato: "",
-                  codigo_lote_impreso: "",
-                });
-              }}
-              className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"
+              onClick={() => void submitLote()}
+              disabled={saving}
+              className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37] disabled:opacity-60"
             >
-              Cancelar
+              {editingId ? "Guardar" : "Crear"}
             </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => void loadData()}
-            className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37]"
-          >
-            Actualizar
-          </button>
-        </div>
+            {editingId ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingId(null);
+                  setForm({
+                    corteId: "",
+                    productoId: "",
+                    fecha: "",
+                    botellas: "",
+                    formato: "",
+                    codigo_lote_impreso: "",
+                  });
+                }}
+                className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"
+              >
+                Cancelar
+              </button>
+            ) : null}
+          </div>
+        ) : null}
 
         {error ? <div className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">{error}</div> : null}
         {success ? <div className="mt-3 rounded border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-700">{success}</div> : null}

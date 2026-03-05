@@ -310,7 +310,7 @@ export default function FincasAdmin() {
               </label>
             </div>
             <div className="mt-3 flex gap-2">
-              <button type="button" onClick={() => void onSubmit()} disabled={disabled} className="cursor-pointer rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:bg-[#FFF9F0] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60">{editingId ? "Guardar cambios" : "Guardar finca"}</button>
+              <button type="button" onClick={() => void onSubmit()} disabled={disabled} className="cursor-pointer rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:bg-[#FFF9F0] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60">{editingId ? "Guardar" : "Crear"}</button>
               <button
                 type="button"
                 onClick={() => {
