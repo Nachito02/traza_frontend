@@ -22,6 +22,7 @@ import TrazabilidadesActivas from "./pages/Trazabilidad/TrazabilidadesActivas";
 import FincaDetail from "./pages/Fincas/FincaDetail";
 import Fincas from "./pages/Fincas/Fincas";
 import Usuarios from "./pages/Usuarios/Usuarios";
+import Integraciones from "./pages/Integraciones/Integraciones";
 import Tareas from "./pages/Tareas/Tareas";
 import RecepcionPage from "./pages/Elaboracion/RecepcionPage";
 import CiuQcPage from "./pages/Elaboracion/CiuQcPage";
@@ -141,6 +142,7 @@ export default function App() {
         <Route path="/elaboracion/*" element={<LegacyElaboracionRedirect />} />
         <Route path="/tareas" element={<Tareas mode="operator" />} />
         <Route path="/usuarios" element={<Usuarios />} />
+        <Route path="/integraciones" element={<Integraciones />} />
         <Route path="/fincas/:id" element={<FincaDetail />} />
         <Route path="/setup" element={<SetupHome />} />
         <Route path="/setup/finca" element={<SetupFinca />} />

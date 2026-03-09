@@ -1,8 +1,9 @@
 import { Formik, type FormikHelpers } from "formik";
-import { Grape, Lock, Mail } from "lucide-react";
+import { Lock, Mail } from "lucide-react";
 import * as Yup from "yup";
 import { useAuthStore } from "../../store/authStore";
 import { Link, useNavigate } from "react-router-dom";
+import trazaLogo from "../../assets/traza.png";
 
 const LoginSchema = Yup.object({
   email: Yup.string().email("Email inválido").required("El email es requerido"),
@@ -44,13 +45,17 @@ const Login = () => {
       <div className="w-full max-w-md">
 
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-[#C9A961] rounded-full mb-4">
-            <Grape className="w-8 h-8 text-[#3D1B1F]" />
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-[#3D1B1F] rounded-full mb-4">
+            <img src={trazaLogo} alt="Traza" className="h-10 w-auto object-contain" />
           </div>
-          <h1 className="text-white font-bold text-3xl mb-2">Traza</h1>
+          
           <p className="text-[#F5E6D3] text-sm">
-            Trazabilidad Vitivinícola con Blockchain
+            Plataforma de trazabilidad vitivinícola
           </p>
+          <div className="mt-2 inline-flex items-center gap-1 rounded-full border border-[#C9A961]/40 bg-[#3D1B1F]/70 px-3 py-1 text-xs text-[#F5E6D3]">
+            <Lock className="h-3.5 w-3.5" />
+            Asegurada en blockchain
+          </div>
         </div>
 
         {/* Formulario de login */}

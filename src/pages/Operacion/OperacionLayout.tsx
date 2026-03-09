@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { resolveModuleAccess } from "../../lib/permissions";
 import { useAuthStore } from "../../store/authStore";
@@ -68,12 +68,25 @@ export default function OperacionLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const access = resolveModuleAccess(user, activeBodegaId);
-  const selectedScope = useMemo<OperacionScope>(() => {
+  const [selectedScope, setSelectedScope] = useState<OperacionScope>(() => {
     if (access.canAccessOperacionBodega && !access.canAccessOperacionFinca) return "bodega";
     if (!access.canAccessOperacionBodega && access.canAccessOperacionFinca) return "finca";
     const preferred = readOperacionScopePreference();
     if (preferred) return preferred;
     return "bodega";
+  });
+
+  useEffect(() => {
+    if (access.canAccessOperacionBodega && !access.canAccessOperacionFinca) {
+      setSelectedScope("bodega");
+      return;
+    }
+    if (!access.canAccessOperacionBodega && access.canAccessOperacionFinca) {
+      setSelectedScope("finca");
+      return;
+    }
+    const preferred = readOperacionScopePreference();
+    setSelectedScope(preferred ?? "bodega");
   }, [access.canAccessOperacionBodega, access.canAccessOperacionFinca]);
 
   const useBodegaOperacion = selectedScope === "bodega";
@@ -104,6 +117,7 @@ export default function OperacionLayout() {
   };
 
   const onChangeScope = (scope: OperacionScope) => {
+    setSelectedScope(scope);
     writeOperacionScopePreference(scope);
     if (scope === "bodega") {
       navigate("/operacion/tareas", { replace: true });

@@ -22,6 +22,7 @@ export type AuthUser = {
   roles_globales: string[];
   bodegas: AuthUserBodega[];
   fincas?: AuthUserFinca[];
+  whatsapp_e164?: string | null;
 };
 
 export type CreateUserPayload = {
@@ -30,6 +31,7 @@ export type CreateUserPayload = {
   password: string;
   bodegaId: string;
   rolesEnBodega?: string[];
+  whatsapp?: string;
 };
 
 export type UpdateUserPayload = {
@@ -37,6 +39,7 @@ export type UpdateUserPayload = {
   email?: string;
   password?: string;
   is_active?: boolean;
+  whatsapp?: string | null;
 };
 
 export type BodegaFincaVinculo = {
@@ -90,28 +93,12 @@ export async function deleteAuthUser(userId: string) {
 export async function updateUserBodegaRoleByName(params: {
   userId: string;
   bodegaName?: string;
-  bodegaId?: string;
+  bodegaId: string;
   rolesEnBodega: string[];
 }) {
-  if (params.bodegaId?.trim()) {
-    try {
-      const response = await apiClient.patch(
-        `/auth/users/${encodeURIComponent(params.userId)}/bodegas/id/${encodeURIComponent(params.bodegaId.trim())}/role`,
-        {
-          rolesEnBodega: params.rolesEnBodega,
-        },
-      );
-      return response.data;
-    } catch {
-      // Fallback al endpoint legacy por nombre
-    }
-  }
-
   const response = await apiClient.patch(
-    `/auth/users/${encodeURIComponent(params.userId)}/bodegas/${encodeURIComponent(params.bodegaName ?? "")}/role`,
-    {
-      rolesEnBodega: params.rolesEnBodega,
-    },
+    `/auth/users/${encodeURIComponent(params.userId)}/bodegas/id/${encodeURIComponent(params.bodegaId.trim())}/role`,
+    { rolesEnBodega: params.rolesEnBodega },
   );
   return response.data;
 }
@@ -165,5 +152,22 @@ export async function updateUserGlobalRole(params: {
       enabled: params.enabled,
     },
   );
+  return response.data;
+}
+
+export type CreateBotPayload = {
+  email: string;
+  password: string;
+  nombre: string;
+};
+
+export type BotUser = {
+  id: string;
+  email: string;
+  nombre: string;
+};
+
+export async function registerBot(payload: CreateBotPayload) {
+  const response = await apiClient.post<BotUser>("/ia/auth/register", payload);
   return response.data;
 }

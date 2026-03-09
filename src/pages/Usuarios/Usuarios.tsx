@@ -6,6 +6,7 @@ import {
   fetchAuthUserById,
   fetchAuthUsers,
   patchAuthUser,
+  registerBot,
   updateUserBodegaRoleByName,
   updateUserFincaRoles,
   updateUserGlobalRole,
@@ -42,6 +43,7 @@ type CrudForm = {
   nombre: string;
   email: string;
   password: string;
+  whatsapp: string;
   is_active: boolean;
   bodegaId: string;
   rolesEnBodega: string[];
@@ -147,10 +149,15 @@ const Usuarios = () => {
     nombre: "",
     email: "",
     password: "",
+    whatsapp: "",
     is_active: true,
     bodegaId: "",
     rolesEnBodega: ["productor"],
   });
+
+  const [botForm, setBotForm] = useState({ nombre: "", email: "", password: "" });
+  const [botSaving, setBotSaving] = useState(false);
+  const [botSectionOpen, setBotSectionOpen] = useState(false);
 
   const [fincas, setFincas] = useState<Finca[]>([]);
   const [fincaNameById, setFincaNameById] = useState<Record<string, string>>({});
@@ -409,6 +416,7 @@ const Usuarios = () => {
       nombre: "",
       email: "",
       password: "",
+      whatsapp: "",
       is_active: true,
       bodegaId: activeBodegaId ? String(activeBodegaId) : "",
       rolesEnBodega: ["productor"],
@@ -424,6 +432,7 @@ const Usuarios = () => {
       nombre: "",
       email: "",
       password: "",
+      whatsapp: "",
       is_active: true,
       bodegaId: activeBodegaId ? String(activeBodegaId) : "",
       rolesEnBodega: ["productor"],
@@ -440,6 +449,7 @@ const Usuarios = () => {
       nombre: target.nombre ?? "",
       email: target.email ?? "",
       password: "",
+      whatsapp: target.whatsapp_e164 ?? "",
       is_active: target.is_active,
       bodegaId: String(firstBodega?.bodega_id ?? activeBodegaId ?? ""),
       rolesEnBodega: extractBodegaRoles(firstBodega ?? ({} as AuthUser["bodegas"][number])),
@@ -482,6 +492,7 @@ const Usuarios = () => {
           password: crudForm.password,
           bodegaId,
           rolesEnBodega: crudForm.rolesEnBodega,
+          ...(crudForm.whatsapp.trim() ? { whatsapp: crudForm.whatsapp.trim() } : {}),
         });
         setNotice("Usuario creado.");
       } else if (crudMode === "edit" && editingUserId) {
@@ -490,10 +501,12 @@ const Usuarios = () => {
           email?: string;
           password?: string;
           is_active?: boolean;
+          whatsapp?: string | null;
         } = {
           nombre: crudForm.nombre.trim(),
           email: crudForm.email.trim(),
           is_active: crudForm.is_active,
+          whatsapp: crudForm.whatsapp.trim() || null,
         };
         if (crudForm.password.trim()) payload.password = crudForm.password;
         await patchAuthUser(editingUserId, payload);
@@ -682,6 +695,30 @@ const Usuarios = () => {
     }
   };
 
+  const onRegisterBot = async () => {
+    if (!botForm.nombre.trim()) { setError("Nombre del bot obligatorio."); return; }
+    if (!botForm.email.trim()) { setError("Email del bot obligatorio."); return; }
+    if (!botForm.password.trim()) { setError("Password del bot obligatoria."); return; }
+    setBotSaving(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await registerBot({
+        nombre: botForm.nombre.trim(),
+        email: botForm.email.trim(),
+        password: botForm.password,
+      });
+      setNotice(`Bot "${botForm.nombre.trim()}" creado correctamente.`);
+      setBotForm({ nombre: "", email: "", password: "" });
+      setBotSectionOpen(false);
+      await loadUsers(queryName || undefined);
+    } catch (e) {
+      setError(getApiErrorMessage(e));
+    } finally {
+      setBotSaving(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-7xl space-y-6">
@@ -692,6 +729,7 @@ const Usuarios = () => {
           </p>
         </div>
 
+        {crudMode === "none" ? (
         <section className="rounded-2xl bg-primary/30 p-5">
           <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
             <input
@@ -723,6 +761,7 @@ const Usuarios = () => {
             </button>
           </div>
         </section>
+        ) : null}
 
         <section className="rounded-2xl bg-primary/20 p-5">
             <div className="mb-3 flex items-center justify-between gap-3">
@@ -763,6 +802,13 @@ const Usuarios = () => {
                   value={crudForm.password}
                   onChange={(e) => setCrudForm((prev) => ({ ...prev, password: e.target.value }))}
                   placeholder={crudMode === "create" ? "Password" : "Password (opcional)"}
+                  className="rounded border border-[#C9A961]/40 px-2 py-2 text-sm text-[#3D1B1F]"
+                />
+                <input
+                  type="tel"
+                  value={crudForm.whatsapp}
+                  onChange={(e) => setCrudForm((prev) => ({ ...prev, whatsapp: e.target.value }))}
+                  placeholder="WhatsApp E.164 (ej: +5491112345678)"
                   className="rounded border border-[#C9A961]/40 px-2 py-2 text-sm text-[#3D1B1F]"
                 />
                 {isAdminSistema ? (
@@ -835,7 +881,7 @@ const Usuarios = () => {
                     onClick={resetCrud}
                     className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60"
                   >
-                    Cancelar
+                    Volver
                   </button>
                 </div>
               </div>
@@ -845,6 +891,71 @@ const Usuarios = () => {
               </div>
             )}
           </section>
+
+        {isAdminSistema && crudMode === "none" ? (
+          <section className="rounded-2xl bg-primary/20 p-5">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-text">Gestión de Bots</h2>
+                <p className="text-xs text-text-secondary">Solo visible para admin_sistema. Crea agentes bot con acceso por API key.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBotSectionOpen((prev) => !prev)}
+                className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
+              >
+                {botSectionOpen ? "Cancelar" : "Registrar bot"}
+              </button>
+            </div>
+
+            {botSectionOpen ? (
+              <div className="grid gap-2 rounded-lg border border-[#C9A961]/30 bg-[#FFF9F0] p-3 md:grid-cols-2">
+                <input
+                  value={botForm.nombre}
+                  onChange={(e) => setBotForm((prev) => ({ ...prev, nombre: e.target.value }))}
+                  placeholder="Nombre del bot"
+                  className="rounded border border-[#C9A961]/40 px-2 py-2 text-sm text-[#3D1B1F]"
+                />
+                <input
+                  value={botForm.email}
+                  onChange={(e) => setBotForm((prev) => ({ ...prev, email: e.target.value }))}
+                  placeholder="Email del bot"
+                  type="email"
+                  className="rounded border border-[#C9A961]/40 px-2 py-2 text-sm text-[#3D1B1F]"
+                />
+                <input
+                  value={botForm.password}
+                  onChange={(e) => setBotForm((prev) => ({ ...prev, password: e.target.value }))}
+                  placeholder="Password del bot"
+                  type="password"
+                  className="rounded border border-[#C9A961]/40 px-2 py-2 text-sm text-[#3D1B1F]"
+                />
+                <div className="md:col-span-2 flex gap-2">
+                  <button
+                    type="button"
+                    disabled={botSaving}
+                    onClick={() => void onRegisterBot()}
+                    className="rounded border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] disabled:opacity-60"
+                  >
+                    {botSaving ? "Registrando..." : "Registrar bot"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={botSaving}
+                    onClick={() => { setBotSectionOpen(false); setBotForm({ nombre: "", email: "", password: "" }); }}
+                    className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-xs text-text-secondary">
+                Los bots registrados aparecen en la lista de usuarios con el badge <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700">Bot</span> y el rol global <code>bot_agent</code>.
+              </div>
+            )}
+          </section>
+        ) : null}
 
         {error && (
           <div className="rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -857,6 +968,7 @@ const Usuarios = () => {
           </div>
         )}
 
+        {crudMode === "none" ? (
         <section className="rounded-2xl bg-primary/20 p-5">
           {loading ? (
             <div className="text-sm text-text-secondary">Cargando usuarios…</div>
@@ -891,8 +1003,16 @@ const Usuarios = () => {
                         <div className="text-xs text-[#7A4A50]">
                           {user.email ?? "Sin email"} · ID: {user.id}
                         </div>
+                        {user.whatsapp_e164 ? (
+                          <div className="text-xs text-[#7A4A50]">WhatsApp: {user.whatsapp_e164}</div>
+                        ) : null}
                       </div>
                       <div className="flex items-center gap-2">
+                        {user.roles_globales.includes("bot_agent") ? (
+                          <div className="rounded-full bg-violet-100 px-2 py-1 text-xs font-semibold text-violet-700">
+                            Bot
+                          </div>
+                        ) : null}
                         <div
                           className={[
                             "rounded-full px-2 py-1 text-xs font-semibold",
@@ -1185,6 +1305,7 @@ const Usuarios = () => {
             </div>
           )}
         </section>
+        ) : null}
       </div>
     </div>
   );

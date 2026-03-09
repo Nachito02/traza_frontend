@@ -6,7 +6,7 @@ import {
   ListTodo,
   Warehouse,
   ClipboardPenLine,
-  Grape,
+  Bot,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
@@ -34,15 +34,14 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
       : []),
     { to: "/tareas", label: "Tareas", icon: <ListTodo /> },
     { to: "/usuarios", label: "Usuarios", icon: <Users /> },
+    { to: "/integraciones", label: "Bots", icon: <Bot /> },
     { to: "/setup", label: "Trazabilidad", icon: <GitPullRequest /> },
   ];
 
   return (
     <aside className={`bg-secondary p-4 shadow-sm ${className}`}>
       <div className="mb-4 flex items-center gap-2 rounded-lg bg-[#3D1B1F] px-2 py-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#C9A961] text-[#3D1B1F]">
-          <Grape size={16} />
-        </div>
+        
         <img src={trazaLogo} alt="Traza" className="h-7 w-auto object-contain" />
       </div>
       <nav className="space-y-2">
