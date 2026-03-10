@@ -1,9 +1,9 @@
-import { Formik, type FormikHelpers } from "formik";
+import { Formik } from "formik";
 import { Lock, Mail } from "lucide-react";
 import * as Yup from "yup";
-import { useAuthStore } from "../../store/authStore";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import trazaLogo from "../../assets/traza.png";
+import { useLogin, type LoginValues } from "../../hooks/useLogin";
 
 const LoginSchema = Yup.object({
   email: Yup.string().email("Email inválido").required("El email es requerido"),
@@ -12,60 +12,37 @@ const LoginSchema = Yup.object({
     .required("La contraseña es requerida"),
 });
 
+const INITIAL_VALUES: LoginValues = { email: "", password: "" };
+
 const Login = () => {
-  const login = useAuthStore((state) => state.login);
-  const authError = useAuthStore((state) => state.error);
-
-  const navigate = useNavigate();
-
-  const handleSubmit = async (
-    values: { email: string; password: string },
-    { setSubmitting, setStatus }: FormikHelpers<{
-      email: string;
-      password: string;
-    }>
-  ) => {
-    try {
-      setStatus(null);
-      await login(values.email, values.password);
-      setSubmitting(false);
-
-      navigate("/dashboard");
-    } catch (e) {
-      const message =
-        e instanceof Error ? e.message : "Usuario o contraseña incorrectos";
-      setStatus(message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const { handleSubmit, authError } = useLogin();
 
   return (
-    <div className="min-h-screen flex items-center justify-center  bg-primary p-4">
+    <div className="min-h-screen flex items-center justify-center bg-primary p-4">
       <div className="w-full max-w-md">
 
+        {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-[#3D1B1F] rounded-full mb-4">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-dark rounded-full mb-4">
             <img src={trazaLogo} alt="Traza" className="h-10 w-auto object-contain" />
           </div>
-          
-          <p className="text-[#F5E6D3] text-sm">
+          <p className="text-cream text-sm">
             Plataforma de trazabilidad vitivinícola
           </p>
-          <div className="mt-2 inline-flex items-center gap-1 rounded-full border border-[#C9A961]/40 bg-[#3D1B1F]/70 px-3 py-1 text-xs text-[#F5E6D3]">
-            <Lock className="h-3.5 w-3.5" />
+          <div className="mt-2 inline-flex items-center gap-1 rounded-full border border-gold/40 bg-dark/70 px-3 py-1 text-xs text-cream">
+            <Lock className="h-3.5 w-3.5" aria-hidden="true" />
             Asegurada en blockchain
           </div>
         </div>
 
-        {/* Formulario de login */}
-        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8">
-          <h2 className="text-[#3D1B1F] text-2xl mb-6 text-center">
+        {/* Formulario */}
+        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-8">
+          <h2 className="text-wine text-xl sm:text-2xl mb-6 text-center">
             Iniciar Sesión
           </h2>
 
           <Formik
-            initialValues={{ email: "", password: "" }}
+            initialValues={INITIAL_VALUES}
             validationSchema={LoginSchema}
             onSubmit={handleSubmit}
           >
@@ -82,22 +59,21 @@ const Login = () => {
               <form onSubmit={handleSubmit} className="space-y-5">
                 {/* Error de autenticación */}
                 {(status || authError) && (
-                  <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-center text-sm font-medium text-red-700">
+                  <div
+                    role="alert"
+                    className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-center text-sm font-medium text-red-700"
+                  >
                     {status || authError}
                   </div>
                 )}
 
                 {/* Email */}
                 <div>
-                  <label
-                    htmlFor="email"
-                    className="block text-sm text-[#722F37] mb-2"
-                  >
+                  <label htmlFor="email" className="block text-sm text-wine mb-2">
                     Correo Electrónico
                   </label>
-
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#8B4049]" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-wine-light" aria-hidden="true" />
                     <input
                       id="email"
                       name="email"
@@ -106,16 +82,15 @@ const Login = () => {
                       onChange={handleChange}
                       onBlur={handleBlur}
                       className={[
-                        "text-[#8B4049] w-full pl-10 pr-4 py-3 border-2 rounded-lg outline-none transition-colors",
+                        "text-wine-light w-full pl-10 pr-4 py-3 border-2 rounded-lg outline-none transition-colors",
                         touched.email && errors.email
                           ? "border-red-300 focus:border-red-500"
-                          : "border-[#C9A961]/30 focus:border-[#722F37]",
+                          : "border-gold/30 focus:border-wine",
                       ].join(" ")}
                       placeholder="tu@email.com"
                       autoComplete="email"
                     />
                   </div>
-
                   {touched.email && errors.email && (
                     <p className="mt-2 text-xs font-medium text-red-600">
                       {errors.email}
@@ -125,15 +100,11 @@ const Login = () => {
 
                 {/* Contraseña */}
                 <div>
-                  <label
-                    htmlFor="password"
-                    className="block text-sm text-[#722F37] mb-2"
-                  >
+                  <label htmlFor="password" className="block text-sm text-wine mb-2">
                     Contraseña
                   </label>
-
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#8B4049]" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-wine-light" aria-hidden="true" />
                     <input
                       id="password"
                       name="password"
@@ -142,16 +113,15 @@ const Login = () => {
                       onChange={handleChange}
                       onBlur={handleBlur}
                       className={[
-                        " text-[#8B4049] w-full pl-10 pr-4 py-3 border-2 rounded-lg outline-none transition-colors",
+                        "text-wine-light w-full pl-10 pr-4 py-3 border-2 rounded-lg outline-none transition-colors",
                         touched.password && errors.password
                           ? "border-red-300 focus:border-red-500"
-                          : "border-[#C9A961]/30 focus:border-[#722F37]",
+                          : "border-gold/30 focus:border-wine",
                       ].join(" ")}
                       placeholder="••••••••"
                       autoComplete="current-password"
                     />
                   </div>
-
                   {touched.password && errors.password && (
                     <p className="mt-2 text-xs font-medium text-red-600">
                       {errors.password}
@@ -159,29 +129,15 @@ const Login = () => {
                   )}
                 </div>
 
-                {/* Olvidé mi contraseña */}
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    className="text-sm text-[#8B4049] hover:text-[#722F37] transition-colors"
-                    onClick={() => {
-                      // TODO: navegar a /forgot-password o abrir modal
-                    }}
-                  >
-                    {/* ¿Olvidaste tu contraseña? */}
-                  </button>
-                </div>
-
                 {/* Botón de submit */}
                 <button
                   type="submit"
                   disabled={isSubmitting}
                   className={[
-                    "w-full text-white py-3 rounded-lg transition-all duration-200",
-                    "bg-primary",
+                    "w-full text-white py-3 rounded-lg transition-all duration-200 bg-primary",
                     isSubmitting
                       ? "opacity-70 cursor-not-allowed"
-                      : "hover:shadow-lg transform hover:scale-[1.02]",
+                      : "hover:shadow-lg hover:scale-[1.02]",
                   ].join(" ")}
                 >
                   {isSubmitting ? "Ingresando…" : "Iniciar Sesión"}
@@ -190,19 +146,12 @@ const Login = () => {
             )}
           </Formik>
 
-          {/* Separador */}
-          {/* <div className="flex items-center my-6">
-            <div className="flex-1 border-t border-[#C9A961]/30" />
-            <span className="px-4 text-sm text-gray-500">o</span>
-            <div className="flex-1 border-t border-[#C9A961]/30" />
-          </div> */}
-
           <div className="text-center mt-6">
             <p className="text-gray-600 text-sm">
               ¿No tenés una cuenta?{" "}
               <Link
                 to="/registro"
-                className="text-[#722F37] hover:text-[#8B4049] transition-colors font-medium"
+                className="text-wine hover:text-wine-light transition-colors font-medium"
               >
                 Registrate acá
               </Link>
@@ -212,7 +161,7 @@ const Login = () => {
 
         {/* Footer */}
         <div className="text-center mt-6">
-          <p className="text-[#F5E6D3] text-xs">
+          <p className="text-cream text-xs">
             © 2026 Traza. Todos los derechos reservados.
           </p>
         </div>
