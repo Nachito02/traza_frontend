@@ -28,7 +28,7 @@ const AppLayout = () => {
         <main className="min-w-0">
           <Topbar onOpenMenu={() => setMobileMenuOpen(true)} />
           {showBackButton ? (
-            <div className="bg-secondary px-6 pt-1 -mb-4">
+            <div className="relative h-0 overflow-visible">
               <button
                 type="button"
                 onClick={() => {
@@ -38,10 +38,11 @@ const AppLayout = () => {
                   }
                   navigate("/dashboard");
                 }}
-                className="inline-flex items-center rounded-md px-3 py-2 text-white transition hover:bg-white/10"
+                className="absolute left-4 top-3 z-10 inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-wine transition hover:bg-wine/8"
                 aria-label="Volver"
               >
-                <ArrowLeft className="h-6 w-6" strokeWidth={4} />
+                <ArrowLeft className="h-4 w-4" strokeWidth={2} />
+                <span>Volver</span>
               </button>
             </div>
           ) : null}
