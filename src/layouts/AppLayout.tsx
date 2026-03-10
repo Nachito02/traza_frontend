@@ -38,7 +38,7 @@ const AppLayout = () => {
                   }
                   navigate("/dashboard");
                 }}
-                className="absolute left-4 top-3 z-10 inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-wine transition hover:bg-wine/8"
+                className="absolute left-4 top-1 z-10 inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-wine transition hover:bg-wine/8"
                 aria-label="Volver"
               >
                 <ArrowLeft className="h-4 w-4" strokeWidth={2} />
