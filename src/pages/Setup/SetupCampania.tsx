@@ -7,10 +7,13 @@ import {
 } from "../../features/campanias/api";
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
+import { useCampaniaStore } from "../../store/campaniaStore";
 
 const SetupCampania = () => {
   const navigate = useNavigate();
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
+  const setActiveCampania = useCampaniaStore((state) => state.setActiveCampania);
+  const loadCampanias = useCampaniaStore((state) => state.loadCampanias);
   const [mode, setMode] = useState<"existing" | "new">("existing");
   const [campanias, setCampanias] = useState<Campania[]>([]);
   const [selectedCampaniaId, setSelectedCampaniaId] = useState("");
@@ -94,11 +97,13 @@ const SetupCampania = () => {
       });
       const createdCampaniaId = String(created.campania_id ?? created.id ?? "");
       if (createdCampaniaId) {
-        sessionStorage.setItem("activeCampaniaId", createdCampaniaId);
-        sessionStorage.setItem(
-          "activeCampaniaNombre",
+        setActiveCampania(
+          createdCampaniaId,
           created.nombre ?? form.nombre.trim() ?? createdCampaniaId,
         );
+        if (activeBodegaId) {
+          await loadCampanias(activeBodegaId);
+        }
       }
       navigate("/setup/cuarteles");
     } catch (e) {
@@ -122,11 +127,7 @@ const SetupCampania = () => {
       (item) => String(item.campania_id ?? item.id) === selectedCampaniaId,
     );
     if (selected) {
-      sessionStorage.setItem("activeCampaniaId", selectedCampaniaId);
-      sessionStorage.setItem(
-        "activeCampaniaNombre",
-        selected.nombre ?? selectedCampaniaId,
-      );
+      setActiveCampania(selectedCampaniaId, selected.nombre ?? selectedCampaniaId);
     }
     navigate("/setup/cuarteles");
   };

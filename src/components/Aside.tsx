@@ -40,7 +40,7 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
 
   return (
     <aside className={`bg-secondary p-4 shadow-sm ${className}`}>
-      <div className="mb-4 flex items-center gap-2 rounded-lg bg-[#3D1B1F] px-2 py-2">
+      <div className="mb-4 flex items-center gap-2 rounded-lg bg-dark px-2 py-2">
         
         <img src={trazaLogo} alt="Traza" className="h-7 w-auto object-contain" />
       </div>

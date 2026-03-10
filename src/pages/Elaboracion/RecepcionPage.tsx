@@ -49,12 +49,16 @@ export default function RecepcionPage({
     Promise.all([
       listElaboracionResource("remitos-uva", { bodegaId: String(activeBodegaId) }),
       listElaboracionResource("recepciones-bodega", { bodegaId: String(activeBodegaId) }),
-    ]).then(([remitos, recepciones]) => {
-      setRemitoOptions(toOptions(remitos, ["id_remito", "remito_id", "id"], ["patente", "transportista", "id_remito"]));
-      setRecepcionOptions(
-        toOptions(recepciones, ["id_recepcion", "recepcion_id", "id"], ["fecha_hora", "clasificacion", "id_recepcion"]),
-      );
-    });
+    ])
+      .then(([remitos, recepciones]) => {
+        setRemitoOptions(toOptions(remitos, ["id_remito", "remito_id", "id"], ["patente", "transportista", "id_remito"]));
+        setRecepcionOptions(
+          toOptions(recepciones, ["id_recepcion", "recepcion_id", "id"], ["fecha_hora", "clasificacion", "id_recepcion"]),
+        );
+      })
+      .catch(() => {
+        // opciones quedan vacías, el usuario puede continuar sin filtrar por select
+      });
   }, [activeBodegaId]);
 
   return (

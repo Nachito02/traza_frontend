@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { LogOut, Menu } from "lucide-react";
-import { fetchCampanias, type Campania } from "../features/campanias/api";
 import { useAuthStore } from "../store/authStore";
+import { useCampaniaStore } from "../store/campaniaStore";
 
 type TopbarProps = {
   onOpenMenu?: () => void;
@@ -14,8 +14,13 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
   const setActiveBodega = useAuthStore((state) => state.setActiveBodega);
   const logout = useAuthStore((state) => state.logout);
   const isLoading = useAuthStore((state) => state.isLoading);
-  const [campanias, setCampanias] = useState<Campania[]>([]);
-  const [activeCampaniaId, setActiveCampaniaId] = useState<string>("");
+
+  const campanias = useCampaniaStore((state) => state.campanias);
+  const activeCampaniaId = useCampaniaStore((state) => state.activeCampaniaId);
+  const setActiveCampania = useCampaniaStore((state) => state.setActiveCampania);
+  const clearCampanias = useCampaniaStore((state) => state.clearCampanias);
+  const loadCampanias = useCampaniaStore((state) => state.loadCampanias);
+
   const activeBodega = bodegas.find((bodega) => bodega.bodega_id === String(activeBodegaId));
   const defaultCampania = useMemo(() => {
     if (campanias.length === 0) return null;
@@ -44,51 +49,11 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
 
   useEffect(() => {
     if (!activeBodegaId) {
-      setCampanias([]);
-      setActiveCampaniaId("");
+      clearCampanias();
       return;
     }
-    let mounted = true;
-    fetchCampanias(activeBodegaId)
-      .then((data) => {
-        if (!mounted) return;
-        const next = data ?? [];
-        setCampanias(next);
-        const storageKey = `activeCampaniaId:${String(activeBodegaId)}`;
-        const savedCampaniaId = sessionStorage.getItem(storageKey) ?? "";
-        const exists = next.some(
-          (item) => String(item.campania_id ?? item.id ?? "") === String(savedCampaniaId),
-        );
-        const fallback = (() => {
-          if (next.length === 0) return "";
-          const abiertas = next.filter((item) => item.estado === "abierta");
-          const candidate = (abiertas.length > 0 ? abiertas : next).sort((a, b) =>
-            b.fecha_inicio.localeCompare(a.fecha_inicio),
-          )[0];
-          return String(candidate.campania_id ?? candidate.id ?? "");
-        })();
-        const selectedId = exists ? savedCampaniaId : fallback;
-        setActiveCampaniaId(selectedId);
-        if (selectedId) {
-          sessionStorage.setItem(storageKey, selectedId);
-          const selectedCampania = next.find(
-            (item) => String(item.campania_id ?? item.id ?? "") === String(selectedId),
-          );
-          if (selectedCampania) {
-            sessionStorage.setItem("activeCampaniaId", selectedId);
-            sessionStorage.setItem("activeCampaniaNombre", selectedCampania.nombre);
-          }
-        }
-      })
-      .catch(() => {
-        if (!mounted) return;
-        setCampanias([]);
-        setActiveCampaniaId("");
-      });
-
-    return () => {
-      mounted = false;
-    };
+    clearCampanias();
+    void loadCampanias(activeBodegaId);
   }, [activeBodegaId]);
 
   return (
@@ -103,7 +68,6 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
           >
             <Menu className="h-5 w-5" />
           </button>
-          {/* <div className="text-lg font-semibold text-text">Traza</div> */}
         </div>
 
         <div className="flex items-center gap-3">
@@ -136,23 +100,18 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
                   value={activeCampaniaId}
                   onChange={(event) => {
                     const selectedId = event.target.value;
-                    setActiveCampaniaId(selectedId);
                     if (!activeBodegaId) return;
                     const storageKey = `activeCampaniaId:${String(activeBodegaId)}`;
                     if (selectedId) {
-                      sessionStorage.setItem(storageKey, selectedId);
                       const selectedCampania = campanias.find(
                         (item) =>
                           String(item.campania_id ?? item.id ?? "") === String(selectedId),
                       );
-                      if (selectedCampania) {
-                        sessionStorage.setItem("activeCampaniaId", selectedId);
-                        sessionStorage.setItem("activeCampaniaNombre", selectedCampania.nombre);
-                      }
+                      sessionStorage.setItem(storageKey, selectedId);
+                      setActiveCampania(selectedId, selectedCampania?.nombre ?? "");
                     } else {
                       sessionStorage.removeItem(storageKey);
-                      sessionStorage.removeItem("activeCampaniaId");
-                      sessionStorage.removeItem("activeCampaniaNombre");
+                      setActiveCampania("", "");
                     }
                   }}
                   className="rounded border border-[#C9A961]/40 bg-white px-2 py-1 text-xs text-[#3D1B1F]"

@@ -1,0 +1,323 @@
+export type FieldType = "date" | "text" | "number" | "textarea";
+
+export type FieldDef = {
+  name: string;
+  label: string;
+  type: FieldType;
+  required?: boolean;
+  step?: string;
+  placeholder?: string;
+  defaultValue?: string;
+};
+
+export type EventoConfig = {
+  label: string;
+  fields: FieldDef[];
+};
+
+export const EVENTO_CONFIG: Record<string, EventoConfig> = {
+  riego: {
+    label: "Riego",
+    fields: [
+      { name: "fecha", label: "Fecha", type: "date", required: true },
+      {
+        name: "volumen",
+        label: "Volumen",
+        type: "number",
+        required: true,
+        step: "0.01",
+      },
+      {
+        name: "unidad",
+        label: "Unidad",
+        type: "text",
+        required: true,
+        defaultValue: "m3",
+      },
+      {
+        name: "sistema_riego",
+        label: "Sistema de riego",
+        type: "text",
+        defaultValue: "goteo",
+      },
+    ],
+  },
+  cosecha: {
+    label: "Cosecha",
+    fields: [
+      {
+        name: "fecha_cosecha",
+        label: "Fecha de cosecha",
+        type: "date",
+        required: true,
+      },
+      {
+        name: "cantidad",
+        label: "Cantidad",
+        type: "number",
+        required: true,
+        step: "0.01",
+      },
+      {
+        name: "unidad",
+        label: "Unidad",
+        type: "text",
+        required: true,
+        defaultValue: "kg",
+      },
+      { name: "destino", label: "Destino", type: "text", defaultValue: "bodega" },
+    ],
+  },
+  fenologia: {
+    label: "Fenología",
+    fields: [
+      { name: "fecha", label: "Fecha", type: "date", required: true },
+      {
+        name: "estado_fenologico",
+        label: "Estado fenológico",
+        type: "text",
+        required: true,
+      },
+      {
+        name: "porcentaje_avance",
+        label: "Porcentaje de avance",
+        type: "number",
+        step: "0.01",
+      },
+    ],
+  },
+  fertilizacion: {
+    label: "Fertilización",
+    fields: [
+      { name: "fecha", label: "Fecha", type: "date", required: true },
+      { name: "dosis", label: "Dosis", type: "number", required: true },
+      { name: "unidad", label: "Unidad", type: "text", required: true },
+      { name: "cantidad_total", label: "Cantidad total", type: "number" },
+      { name: "insumo_id", label: "Insumo (ID)", type: "text" },
+    ],
+  },
+  labor_suelo: {
+    label: "Labor de suelo",
+    fields: [
+      { name: "fecha", label: "Fecha", type: "date", required: true },
+      { name: "tipo_labor", label: "Tipo de labor", type: "text", required: true },
+      { name: "horas", label: "Horas", type: "number", step: "0.01" },
+      { name: "hs_por_ha", label: "Hs por ha", type: "number", step: "0.01" },
+      {
+        name: "total_horas_cuartel",
+        label: "Total horas cuartel",
+        type: "number",
+        step: "0.01",
+      },
+    ],
+  },
+  canopia: {
+    label: "Canopia",
+    fields: [
+      { name: "fecha", label: "Fecha", type: "date", required: true },
+      { name: "tipo_practica", label: "Tipo de práctica", type: "text", required: true },
+      { name: "intensidad", label: "Intensidad", type: "text" },
+      { name: "jornales", label: "Jornales", type: "number", step: "0.01" },
+      {
+        name: "observaciones",
+        label: "Observaciones",
+        type: "textarea",
+      },
+    ],
+  },
+  aplicacion_fitosanitaria: {
+    label: "Aplicación fitosanitaria",
+    fields: [
+      { name: "fecha", label: "Fecha", type: "date", required: true },
+      { name: "dosis", label: "Dosis", type: "number", required: true },
+      { name: "unidad", label: "Unidad", type: "text", required: true },
+      {
+        name: "carencia_dias",
+        label: "Carencia (días)",
+        type: "number",
+        required: true,
+      },
+      { name: "insumo_lote_id", label: "Insumo lote (ID)", type: "text" },
+      { name: "motivo", label: "Motivo", type: "text" },
+    ],
+  },
+  monitoreo_enfermedad: {
+    label: "Monitoreo de enfermedad",
+    fields: [
+      { name: "fecha", label: "Fecha", type: "date", required: true },
+      { name: "enfermedad", label: "Enfermedad", type: "text", required: true },
+      { name: "incidencia", label: "Incidencia", type: "text" },
+    ],
+  },
+  monitoreo_plaga: {
+    label: "Monitoreo de plaga",
+    fields: [
+      { name: "fecha", label: "Fecha", type: "date", required: true },
+      { name: "plaga", label: "Plaga", type: "text", required: true },
+      { name: "nivel", label: "Nivel", type: "text" },
+    ],
+  },
+  analisis_suelo: {
+    label: "Análisis de suelo",
+    fields: [
+      { name: "fecha", label: "Fecha", type: "date", required: true },
+      {
+        name: "unidad_muestreada",
+        label: "Unidad muestreada",
+        type: "text",
+        required: true,
+      },
+      { name: "laboratorio", label: "Laboratorio", type: "text" },
+      {
+        name: "parametros",
+        label: "Parámetros (JSON)",
+        type: "textarea",
+        placeholder: "{\"ph\": 6.8}",
+      },
+    ],
+  },
+  precipitacion: {
+    label: "Precipitación",
+    fields: [
+      { name: "fecha", label: "Fecha", type: "date", required: true },
+      {
+        name: "milimetros",
+        label: "Milímetros",
+        type: "number",
+        required: true,
+        step: "0.01",
+      },
+    ],
+  },
+  energia: {
+    label: "Energía",
+    fields: [
+      { name: "periodo", label: "Periodo", type: "text", required: true },
+      { name: "tipo_energia", label: "Tipo", type: "text", required: true },
+      {
+        name: "consumo",
+        label: "Consumo",
+        type: "number",
+        required: true,
+      },
+      { name: "unidad", label: "Unidad", type: "text", required: true },
+    ],
+  },
+  accidente: {
+    label: "Accidente",
+    fields: [
+      { name: "fecha", label: "Fecha", type: "date", required: true },
+      { name: "persona_id", label: "Persona (ID)", type: "text", required: true },
+      {
+        name: "accion_correctiva",
+        label: "Acción correctiva",
+        type: "textarea",
+      },
+    ],
+  },
+  capacitacion: {
+    label: "Capacitación",
+    fields: [
+      { name: "fecha", label: "Fecha", type: "date", required: true },
+      { name: "tema", label: "Tema", type: "text", required: true },
+    ],
+  },
+  entrega_epp: {
+    label: "Entrega EPP",
+    fields: [
+      { name: "fecha", label: "Fecha", type: "date", required: true },
+      { name: "persona_id", label: "Persona (ID)", type: "text", required: true },
+      { name: "epp", label: "EPP", type: "text", required: true },
+    ],
+  },
+  limpieza_cosecha: {
+    label: "Limpieza de cosecha",
+    fields: [
+      { name: "fecha", label: "Fecha", type: "date", required: true },
+      { name: "elemento", label: "Elemento", type: "text", required: true },
+      { name: "metodo", label: "Método", type: "text" },
+      {
+        name: "responsable_persona_id",
+        label: "Responsable (ID)",
+        type: "text",
+      },
+    ],
+  },
+  mantenimiento: {
+    label: "Mantenimiento",
+    fields: [
+      { name: "fecha", label: "Fecha", type: "date", required: true },
+      { name: "equipo", label: "Equipo", type: "text", required: true },
+      { name: "tipo_mantenimiento", label: "Tipo", type: "text", required: true },
+      {
+        name: "responsable_persona_id",
+        label: "Responsable (ID)",
+        type: "text",
+      },
+    ],
+  },
+  no_conforme: {
+    label: "No conforme",
+    fields: [
+      { name: "fecha", label: "Fecha", type: "date", required: true },
+      { name: "descripcion", label: "Descripción", type: "textarea", required: true },
+      { name: "estado", label: "Estado", type: "text", defaultValue: "abierta" },
+    ],
+  },
+  reclamo: {
+    label: "Reclamo",
+    fields: [
+      { name: "fecha", label: "Fecha", type: "date", required: true },
+      { name: "origen", label: "Origen", type: "text", required: true },
+      { name: "descripcion", label: "Descripción", type: "textarea" },
+      { name: "estado", label: "Estado", type: "text", defaultValue: "abierto" },
+    ],
+  },
+  residuo: {
+    label: "Residuo",
+    fields: [
+      { name: "fecha", label: "Fecha", type: "date", required: true },
+      { name: "tipo_residuo", label: "Tipo de residuo", type: "text", required: true },
+      { name: "cantidad", label: "Cantidad", type: "number", step: "0.01" },
+      { name: "unidad", label: "Unidad", type: "text" },
+      { name: "destino", label: "Destino", type: "text", required: true },
+      {
+        name: "responsable_persona_id",
+        label: "Responsable (ID)",
+        type: "text",
+      },
+    ],
+  },
+  sanitizacion_banos: {
+    label: "Sanitización de baños",
+    fields: [
+      { name: "fecha", label: "Fecha", type: "date", required: true },
+      { name: "tipo_bano", label: "Tipo de baño", type: "text", required: true },
+      {
+        name: "checklist",
+        label: "Checklist (JSON)",
+        type: "textarea",
+        placeholder: "{\"lavado\": true}",
+      },
+      {
+        name: "responsable_persona_id",
+        label: "Responsable (ID)",
+        type: "text",
+      },
+    ],
+  },
+  sobrante_lavado: {
+    label: "Sobrante de lavado",
+    fields: [
+      { name: "fecha", label: "Fecha", type: "date", required: true },
+      { name: "tipo_sobrante", label: "Tipo", type: "text", required: true },
+      { name: "volumen", label: "Volumen", type: "number", step: "0.01" },
+      { name: "disposicion", label: "Disposición", type: "text" },
+      {
+        name: "responsable_persona_id",
+        label: "Responsable (ID)",
+        type: "text",
+      },
+    ],
+  },
+};

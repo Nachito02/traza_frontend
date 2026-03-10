@@ -685,7 +685,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-secondary px-6 py-10">
+    <div className={isManagerMode ? "w-full" : "min-h-screen bg-secondary px-6 py-10"}>
       <div className="mx-auto w-full max-w-6xl space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-text">Tareas</h1>
@@ -715,7 +715,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                         titulo: "",
                       }))
                     }
-                    className="rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
+                    className="w-full rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
                     >
                       {OPERACION_CATEGORY_OPTIONS.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -734,7 +734,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                         titulo: task?.titulo ?? "",
                       }));
                     }}
-                    className="rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
+                    className="w-full rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
                   >
                     <option value="">Seleccionar tarea operativa</option>
                     {catalogTasksForCategory.map((option) => (
@@ -758,7 +758,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                       titulo: task?.titulo ?? "",
                     }));
                   }}
-                  className="rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F] md:col-span-2"
+                  className="w-full rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F] md:col-span-2"
                 >
                   <option value="">Seleccionar tarea del protocolo</option>
                   {scopedProtocoloTaskOptions.map((option) => (
@@ -776,7 +776,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                     prioridad: e.target.value as "baja" | "media" | "alta",
                   }))
                 }
-                className="rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
+                className="w-full rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
               >
                 <option value="baja">baja</option>
                 <option value="media">media</option>
@@ -789,7 +789,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, fincaId: e.target.value, cuartelId: "" }))
                     }
-                    className="rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
+                    className="w-full rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
                   >
                     <option value="">Seleccionar finca</option>
                     {fincas.map((finca) => {
@@ -805,7 +805,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                   <select
                     value={form.cuartelId}
                     onChange={(e) => setForm((prev) => ({ ...prev, cuartelId: e.target.value }))}
-                    className="rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
+                    className="w-full rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
                     disabled={!form.fincaId}
                   >
                     <option value="">Seleccionar cuartel</option>
@@ -825,7 +825,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                 onChange={(e) =>
                   setForm((prev) => ({ ...prev, operarioUserId: e.target.value }))
                 }
-                className="rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
+                className="w-full rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
               >
                 <option value="">Asignar operario (opcional)</option>
                 {operarios.map((op) => (
@@ -840,7 +840,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                 onChange={(e) =>
                   setForm((prev) => ({ ...prev, fechaObjetivo: e.target.value }))
                 }
-                className="rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
+                className="w-full rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
               />
               <textarea
                 value={form.descripcion}
@@ -848,7 +848,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                   setForm((prev) => ({ ...prev, descripcion: e.target.value }))
                 }
                 placeholder="Descripción (opcional)"
-                className="md:col-span-2 min-h-24 rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
+                className="w-full md:col-span-2 min-h-24 rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
               />
               <input
                 type="text"
@@ -857,7 +857,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                   setForm((prev) => ({ ...prev, milestoneId: e.target.value }))
                 }
                 placeholder="Milestone ID (opcional)"
-                className="md:col-span-2 rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
+                className="w-full md:col-span-2 rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
               />
             </div>
             {managerScope === "bodega" && selectedCatalogTask ? (
@@ -902,8 +902,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
             <button
               type="button"
               onClick={() => void refreshTasks()}
-              className="cursor-pointer Sin permisos de encargado
-rounded-lg border text-red-500 border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE]"
+              className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE]"
             >
               Refrescar
             </button>

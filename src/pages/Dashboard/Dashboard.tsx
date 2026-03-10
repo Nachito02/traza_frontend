@@ -1,16 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { fetchCampanias, type Campania } from "../../features/campanias/api";
-import { fetchCuartelesByFinca } from "../../features/cuarteles/api";
-import { fetchPendientesByScope } from "../../features/encargos/api";
-import { listElaboracionResource } from "../../features/elaboracion/api";
+import { useEffect, useMemo } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useFincasStore } from "../../features/fincas/store";
 import { resolveModuleAccess } from "../../lib/permissions";
-import {
-  fetchTrazabilidades,
-  type Trazabilidad,
-} from "../../features/trazabilidades/api";
 import { useAuthStore } from "../../store/authStore";
+import { useDashboardData } from "./useDashboardData";
 
 const Dashboard = () => {
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
@@ -20,13 +13,7 @@ const Dashboard = () => {
   const fincasLoading = useFincasStore((state) => state.loading);
   const loadFincas = useFincasStore((state) => state.loadFincas);
 
-  const [cuartelesCount, setCuartelesCount] = useState(0);
-  const [vasijasCount, setVasijasCount] = useState(0);
-  const [tareasCount, setTareasCount] = useState(0);
-  const [trazabilidades, setTrazabilidades] = useState<Trazabilidad[]>([]);
-  const [campanias, setCampanias] = useState<Campania[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
   const activeBodega = bodegas.find((bodega) => bodega.bodega_id === String(activeBodegaId));
   const access = resolveModuleAccess(user, activeBodegaId);
 
@@ -35,60 +22,8 @@ const Dashboard = () => {
     void loadFincas(activeBodegaId);
   }, [activeBodegaId, loadFincas]);
 
-  useEffect(() => {
-    if (!activeBodegaId) {
-      setCuartelesCount(0);
-      setVasijasCount(0);
-      setTareasCount(0);
-      setTrazabilidades([]);
-      setCampanias([]);
-      return;
-    }
-
-    let mounted = true;
-    setLoading(true);
-    setError(null);
-
-    Promise.all([
-      fetchTrazabilidades(activeBodegaId),
-      fetchCampanias(activeBodegaId),
-      listElaboracionResource("vasijas", { bodegaId: String(activeBodegaId) }).catch(() => []),
-      fetchPendientesByScope({
-        bodegaId: String(activeBodegaId),
-        mode: "mine",
-      }).catch(() => []),
-      Promise.all(
-        fincas
-          .map((finca) => finca.finca_id ?? finca.id)
-          .filter(Boolean)
-          .map((fincaId) => fetchCuartelesByFinca(String(fincaId))),
-      ),
-    ])
-      .then(([trazabilidadesData, campaniasData, vasijasData, tareasData, cuartelesLists]) => {
-        if (!mounted) return;
-        setTrazabilidades(trazabilidadesData ?? []);
-        setCampanias(campaniasData ?? []);
-        setVasijasCount((vasijasData ?? []).length);
-        setTareasCount((tareasData ?? []).length);
-        const totalCuarteles = (cuartelesLists ?? []).reduce(
-          (acc, list) => acc + (list?.length ?? 0),
-          0,
-        );
-        setCuartelesCount(totalCuarteles);
-      })
-      .catch(() => {
-        if (!mounted) return;
-        setError("No se pudieron cargar todos los indicadores.");
-      })
-      .finally(() => {
-        if (!mounted) return;
-        setLoading(false);
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, [activeBodegaId, fincas]);
+  const { cuartelesCount, vasijasCount, tareasCount, trazabilidades, campanias, loading, error } =
+    useDashboardData(activeBodegaId, fincas);
 
   const stats = useMemo(() => {
     const enCurso = trazabilidades.filter((item) => item.estado === "en_curso").length;
@@ -117,12 +52,13 @@ const Dashboard = () => {
                 Datos del usuario autenticado y su bodega activa.
               </p>
             </div>
-            <Link
-              to="/trazabilidades"
-              className="rounded-lg border border-[#C9A961]/40 bg-[#FFF9F0] px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:cursor-not-allowed disabled:opacity-60"
+            <button
+              type="button"
+              onClick={() => navigate("/trazabilidades")}
+              className="rounded-lg border border-gold/40 bg-cream px-4 py-2 text-sm font-semibold text-wine transition hover:border-gold hover:bg-[#F8F3EE]"
             >
               Ver procesos y etapas
-            </Link>
+            </button>
           </div>
         </div>
 

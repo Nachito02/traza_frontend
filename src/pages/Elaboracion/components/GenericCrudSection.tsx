@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createElaboracionResource,
   deleteElaboracionResource,
@@ -141,6 +141,7 @@ export default function GenericCrudSection({
   const [values, setValues] = useState<Record<string, string | boolean>>(() => getInitialValues(fields));
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<ElaboracionEntity | null>(null);
 
   const mergedParams = useMemo(() => {
     const params: Record<string, string | number | undefined> = {
@@ -152,7 +153,10 @@ export default function GenericCrudSection({
     return params;
   }, [bodegaId, listParams]);
 
-  const load = async () => {
+  const mergedParamsRef = useRef(mergedParams);
+  mergedParamsRef.current = mergedParams;
+
+  const load = useCallback(async () => {
     if (!bodegaId && withBodegaId) {
       setItems([]);
       return;
@@ -162,20 +166,19 @@ export default function GenericCrudSection({
     setError(null);
     try {
       const data = controller?.list
-        ? await controller.list(mergedParams)
-        : await listElaboracionResource(resource, mergedParams);
+        ? await controller.list(mergedParamsRef.current)
+        : await listElaboracionResource(resource, mergedParamsRef.current);
       setItems(data);
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
     } finally {
       setLoading(false);
     }
-  };
+  }, [bodegaId, controller, resource, withBodegaId]);
 
   useEffect(() => {
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resource, bodegaId, JSON.stringify(mergedParams)]);
+  }, [load]);
 
   useEffect(() => {
     setValues(getInitialValues(fields));
@@ -299,13 +302,11 @@ export default function GenericCrudSection({
     setSuccess(null);
   };
 
-  const onDelete = async (item: ElaboracionEntity) => {
+  const onDeleteConfirm = async () => {
+    if (!confirmDelete) return;
+    const item = confirmDelete;
     const recordId = idResolver ? idResolver(item) : resolveId(item);
-    if (!recordId) {
-      setError("No se pudo resolver el identificador del registro.");
-      return;
-    }
-    if (!window.confirm(`¿Eliminar ${title} (${recordId})?`)) return;
+    setConfirmDelete(null);
 
     setSaving(true);
     setError(null);
@@ -323,6 +324,15 @@ export default function GenericCrudSection({
     } finally {
       setSaving(false);
     }
+  };
+
+  const onDelete = (item: ElaboracionEntity) => {
+    const recordId = idResolver ? idResolver(item) : resolveId(item);
+    if (!recordId) {
+      setError("No se pudo resolver el identificador del registro.");
+      return;
+    }
+    setConfirmDelete(item);
   };
 
   return (
@@ -423,6 +433,33 @@ export default function GenericCrudSection({
         </div>
       ) : null}
 
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <h3 className="text-base font-semibold text-[#3D1B1F]">¿Eliminar registro?</h3>
+            <p className="mt-2 text-xs text-[#7A4A50]">
+              Esta acción no se puede deshacer.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(null)}
+                className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => void onDeleteConfirm()}
+                className="rounded border border-red-500 bg-red-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-600"
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mt-3 max-h-72 space-y-2 overflow-auto">
         {loading ? (
           <div className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2 text-xs text-[#7A4A50]">
@@ -471,7 +508,7 @@ export default function GenericCrudSection({
                   </button>
                   <button
                     type="button"
-                    onClick={() => void onDelete(item)}
+                    onClick={() => onDelete(item)}
                     className="rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700"
                   >
                     Eliminar

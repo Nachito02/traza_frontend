@@ -8,10 +8,12 @@ import {
 import { createTrazabilidad } from "../../features/trazabilidades/api";
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
+import { useCampaniaStore } from "../../store/campaniaStore";
 
 const SetupProtocolos = () => {
   const navigate = useNavigate();
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
+  const activeCampaniaId = useCampaniaStore((state) => state.activeCampaniaId);
   const [protocolos, setProtocolos] = useState<Protocolo[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,7 +55,7 @@ const SetupProtocolos = () => {
     }
     const fincaId = sessionStorage.getItem("setupFincaId") ?? "";
     const cuartelId = sessionStorage.getItem("setupCuartelId") ?? "";
-    const campaniaId = sessionStorage.getItem("activeCampaniaId") ?? "";
+    const campaniaId = activeCampaniaId;
     const cuartelCodigo = sessionStorage.getItem("setupCuartelCodigo") ?? "";
 
     if (!activeBodegaId || !fincaId || !cuartelId || !campaniaId) {

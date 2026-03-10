@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   createFinca,
@@ -66,8 +66,9 @@ export default function FincasAdmin() {
   );
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [confirmDeleteItem, setConfirmDeleteItem] = useState<Finca | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!activeBodegaId) {
       setItems([]);
       return;
@@ -93,12 +94,11 @@ export default function FincasAdmin() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeBodegaId]);
 
   useEffect(() => {
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeBodegaId]);
+  }, [load]);
 
   useEffect(() => {
     const editId = searchParams.get("edit");
@@ -109,7 +109,6 @@ export default function FincasAdmin() {
       next.delete("edit");
       return next;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, setSearchParams]);
 
   const disabled = useMemo(() => !activeBodegaId || saving, [activeBodegaId, saving]);
@@ -192,10 +191,16 @@ export default function FincasAdmin() {
     }
   };
 
-  const onDelete = async (item: Finca) => {
+  const onDelete = (item: Finca) => {
     const id = String(item.finca_id ?? item.id ?? "");
     if (!id) return;
-    if (!window.confirm(`¿Eliminar finca ${id}?`)) return;
+    setConfirmDeleteItem(item);
+  };
+
+  const onDeleteConfirm = async () => {
+    if (!confirmDeleteItem) return;
+    const id = String(confirmDeleteItem.finca_id ?? confirmDeleteItem.id ?? "");
+    setConfirmDeleteItem(null);
     try {
       await deleteFinca(id);
       setSuccess("Finca eliminada.");
@@ -329,6 +334,20 @@ export default function FincasAdmin() {
           </section>
         ) : null}
       </div>
+      {confirmDeleteItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <h3 className="text-base font-semibold text-[#3D1B1F]">¿Eliminar finca?</h3>
+            <p className="mt-2 text-xs text-[#7A4A50]">
+              {confirmDeleteItem.nombre ?? confirmDeleteItem.nombre_finca ?? "Esta finca"} — esta acción no se puede deshacer.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => setConfirmDeleteItem(null)} className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700">Cancelar</button>
+              <button type="button" onClick={() => void onDeleteConfirm()} className="rounded border border-red-500 bg-red-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-600">Eliminar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
