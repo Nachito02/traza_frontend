@@ -81,7 +81,7 @@ const SetupCuarteles = () => {
     setSaving(true);
     setError(null);
     try {
-      const createdCuartel = await createCuartel({
+      await createCuartel({
         fincaId: form.fincaId,
         codigo_cuartel: form.codigo_cuartel.trim(),
         superficie_ha: Number(form.superficie_ha),
