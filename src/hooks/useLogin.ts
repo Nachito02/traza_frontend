@@ -6,6 +6,7 @@ export type LoginValues = { email: string; password: string };
 
 export const useLogin = () => {
   const login = useAuthStore((state) => state.login);
+  const mustChangePasswordUserId = useAuthStore((state) => state.mustChangePasswordUserId);
   const authError = useAuthStore((state) => state.error);
   const navigate = useNavigate();
 
@@ -16,7 +17,11 @@ export const useLogin = () => {
     try {
       setStatus(null);
       await login(values.email, values.password);
-      navigate("/dashboard");
+      if (useAuthStore.getState().mustChangePasswordUserId) {
+        navigate("/cambiar-password");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (e) {
       const message =
         e instanceof Error ? e.message : "Usuario o contraseña incorrectos";
@@ -26,5 +31,5 @@ export const useLogin = () => {
     }
   };
 
-  return { handleSubmit, authError };
+  return { handleSubmit, authError, mustChangePasswordUserId };
 };

@@ -1008,6 +1008,11 @@ const Usuarios = () => {
                         ) : null}
                       </div>
                       <div className="flex items-center gap-2">
+                        {user.must_change_password ? (
+                          <div className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">
+                            Pendiente de activación
+                          </div>
+                        ) : null}
                         {user.roles_globales.includes("bot_agent") ? (
                           <div className="rounded-full bg-violet-100 px-2 py-1 text-xs font-semibold text-violet-700">
                             Bot

@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { fetchCuartelesByFinca, type Cuartel } from "../../features/cuarteles/api";
 import { useFincasStore } from "../../features/fincas/store";
 import {
-  assignEncargoToUser,
-  createEncargo,
-  deleteEncargo,
-  fetchCanManageEncargos,
+  assignTareaToUser,
+  createTarea,
+  deleteTarea,
+  fetchCanManageTareas,
   fetchPendientesByScope,
-  type Encargo,
+  type Tarea,
 } from "../../features/encargos/api";
 import { fetchAuthUsers, type AuthUser } from "../../features/users/api";
 import { getApiErrorMessage } from "../../lib/api";
@@ -231,7 +231,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
   const fincas = useFincasStore((state) => state.fincas);
   const [cuartelesByFinca, setCuartelesByFinca] = useState<Record<string, Cuartel[]>>({});
   const [operarios, setOperarios] = useState<AuthUser[]>([]);
-  const [tasks, setTasks] = useState<Encargo[]>([]);
+  const [tasks, setTasks] = useState<Tarea[]>([]);
   const [protocoloTaskOptions, setProtocoloTaskOptions] = useState<ProtocoloTaskOption[]>([]);
   const [canManageTasks, setCanManageTasks] = useState(false);
   const [forceMineMode, setForceMineMode] = useState(true);
@@ -246,15 +246,13 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
     categoriaOperacion: "recepcion" as OperacionCategoria,
     titulo: "",
     descripcion: "",
-    fechaObjetivo: "",
+    fechaFin: "",
     prioridad: "media" as "baja" | "media" | "alta",
-    milestoneId: "",
     fincaId: "",
     cuartelId: "",
     operarioUserId: "",
   });
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const activeBodega = useMemo(
     () => bodegas.find((item) => String(item.bodega_id) === String(activeBodegaId)),
     [activeBodegaId, bodegas],
@@ -370,7 +368,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
 
   useEffect(() => {
     let mounted = true;
-    void fetchCanManageEncargos().then((canManageFromApi) => {
+    void fetchCanManageTareas().then((canManageFromApi) => {
       if (!mounted) return;
       const resolvedCanManage = Boolean(canManageFromApi || canManageByRole);
       if (mode === "operator") {
@@ -387,8 +385,6 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
   }, [canManageByRole, mode]);
 
   useEffect(() => {
-    const milestoneId = searchParams.get("milestoneId");
-    const trazabilidadId = searchParams.get("trazabilidadId");
     const categoria = searchParams.get("categoria");
     const tarea = searchParams.get("tarea");
     if (
@@ -412,16 +408,6 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
         titulo: defaultTask?.titulo ?? prev.titulo,
       }));
     }
-    if (!milestoneId && !trazabilidadId) return;
-    setForm((prev) => ({
-      ...prev,
-      milestoneId: milestoneId ?? prev.milestoneId,
-      titulo:
-        prev.titulo ||
-        (trazabilidadId
-          ? `Tarea de trazabilidad ${trazabilidadId.slice(0, 8)}`
-          : "Tarea de milestone"),
-    }));
   }, [managerScope, searchParams]);
 
   useEffect(() => {
@@ -567,35 +553,29 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
       setError("Seleccioná finca y cuartel.");
       return;
     }
-    const resolvedTitulo =
-      managerScope === "bodega"
-        ? selectedCatalogTask?.titulo ?? form.titulo.trim()
-        : scopedProtocoloTaskOptions.find((option) => option.value === form.tareaProtocolo)?.titulo ??
-          form.titulo.trim();
-    if (!resolvedTitulo) {
-      setError("No se pudo resolver el título de la tarea.");
-      return;
-    }
+    const procesoId =
+      managerScope === "finca"
+        ? form.tareaProtocolo.split(":")[2] || undefined
+        : undefined;
     setSaving(true);
     setError(null);
     setNotice(null);
     try {
-      const created = await createEncargo({
+      const created = await createTarea({
         bodegaId: String(activeBodegaId),
+        procesoId,
         fincaId: managerScope === "finca" ? form.fincaId : undefined,
         cuartelId: managerScope === "finca" ? form.cuartelId : undefined,
-        milestoneId: form.milestoneId || undefined,
-        titulo: resolvedTitulo,
         descripcion: form.descripcion.trim() || undefined,
-        fechaObjetivo: form.fechaObjetivo || undefined,
+        fechaFin: form.fechaFin || undefined,
         prioridad: form.prioridad,
         operarioUserId: form.operarioUserId || undefined,
       });
 
-      const encargoId = String(created.encargo_id ?? created.id ?? "");
-      if (encargoId && form.operarioUserId) {
+      const tareaId = String(created.tarea_id ?? created.id ?? "");
+      if (tareaId && form.operarioUserId) {
         try {
-          await assignEncargoToUser(encargoId, form.operarioUserId);
+          await assignTareaToUser(tareaId, form.operarioUserId);
           setNotice("Registro creado y tarea asignada correctamente.");
         } catch (assignError) {
           setNotice(
@@ -612,8 +592,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
         tareaCatalogoId: "",
         titulo: "",
         descripcion: "",
-        fechaObjetivo: "",
-        milestoneId: "",
+        fechaFin: "",
         fincaId: managerScope === "finca" ? prev.fincaId : "",
         cuartelId: managerScope === "finca" ? prev.cuartelId : "",
         operarioUserId: "",
@@ -626,55 +605,20 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
     }
   };
 
-  const getTrazabilidadIdFromTask = (task: Encargo) => {
-    const anyTask = task as Encargo & {
-      trazabilidadId?: string;
-      productoId?: string;
-    };
-    return (
-      task.trazabilidad_id ??
-      anyTask.trazabilidadId ??
-      anyTask.productoId ??
-      task.trazabilidad?.trazabilidad_id ??
-      task.milestone?.trazabilidad_id ??
-      null
-    );
-  };
-
-  const onOpenTaskMilestone = (task: Encargo) => {
-    const milestoneId = task.milestone_id ?? task.milestone?.milestone_id;
-    const trazabilidadId = getTrazabilidadIdFromTask(task);
-    if (!milestoneId) {
-      setError("Esta tarea no tiene milestone asociado.");
-      return;
-    }
-    if (!trazabilidadId) {
-      setError(
-        "No se pudo determinar la trazabilidad de la tarea. Verificá que el backend incluya trazabilidad_id en el encargo.",
-      );
-      return;
-    }
-    navigate(
-      `/trazabilidades/${encodeURIComponent(trazabilidadId)}/plan?milestoneId=${encodeURIComponent(
-        milestoneId,
-      )}`,
-    );
-  };
-
-  const onDeleteTask = async (task: Encargo) => {
-    const encargoId = String(task.encargo_id ?? task.id ?? "");
-    if (!encargoId) {
+  const onDeleteTask = async (task: Tarea) => {
+    const tareaId = String(task.tarea_id ?? task.id ?? "");
+    if (!tareaId) {
       setError("No se pudo determinar el ID de la tarea.");
       return;
     }
     const ok = window.confirm(`¿Eliminar/cancelar la tarea "${task.titulo}"?`);
     if (!ok) return;
 
-    setDeletingTaskId(encargoId);
+    setDeletingTaskId(tareaId);
     setError(null);
     setNotice(null);
     try {
-      await deleteEncargo(encargoId);
+      await deleteTarea(tareaId);
       setNotice("Tarea eliminada/cancelada correctamente.");
       await refreshTasks();
     } catch (e) {
@@ -835,10 +779,10 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                 ))}
               </select>
               <input
-                type="date"
-                value={form.fechaObjetivo}
+                type="datetime-local"
+                value={form.fechaFin}
                 onChange={(e) =>
-                  setForm((prev) => ({ ...prev, fechaObjetivo: e.target.value }))
+                  setForm((prev) => ({ ...prev, fechaFin: e.target.value }))
                 }
                 className="w-full rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
               />
@@ -849,15 +793,6 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                 }
                 placeholder="Descripción (opcional)"
                 className="w-full md:col-span-2 min-h-24 rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
-              />
-              <input
-                type="text"
-                value={form.milestoneId}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, milestoneId: e.target.value }))
-                }
-                placeholder="Milestone ID (opcional)"
-                className="w-full md:col-span-2 rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
               />
             </div>
             {managerScope === "bodega" && selectedCatalogTask ? (
@@ -916,13 +851,11 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
             <div className="space-y-2">
               {tasks.map((task) => (
                 <article
-                  key={String(task.encargo_id ?? task.id)}
+                  key={String(task.tarea_id ?? task.id)}
                   className="rounded-lg border border-[#C9A961]/30 bg-[#FFF9F0] px-3 py-2"
                 >
                   {(() => {
-                    const milestoneId = task.milestone_id ?? task.milestone?.milestone_id;
-                    const trazabilidadId = getTrazabilidadIdFromTask(task);
-                    const taskId = String(task.encargo_id ?? task.id ?? "");
+                    const taskId = String(task.tarea_id ?? task.id ?? "");
                     return (
                       <>
                   <div className="text-sm font-semibold text-[#3D1B1F]">{task.titulo}</div>
@@ -932,27 +865,15 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                   {task.descripcion && (
                     <div className="mt-1 text-xs text-[#6B3A3F]">{task.descripcion}</div>
                   )}
-                  {milestoneId && trazabilidadId ? (
-                    <button
-                      type="button"
-                      onClick={() => onOpenTaskMilestone(task)}
-                      className="mt-2 rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:bg-[#F8F3EE]"
-                    >
-                      Cargar milestone
-                    </button>
-                  ) : milestoneId ? (
-                    <div className="mt-2 text-xs text-[#7A4A50]">
-                      Milestone vinculado, pero falta trazabilidad asociada.
-                    </div>
-                  ) : (
-                    <div className="mt-2 text-xs text-[#7A4A50]">Sin milestone vinculado.</div>
+                  {task.fecha_fin && (
+                    <div className="mt-1 text-xs text-[#7A4A50]">Vence: {task.fecha_fin}</div>
                   )}
                   {canRenderManagerFlow && (
                     <button
                       type="button"
                       onClick={() => void onDeleteTask(task)}
                       disabled={deletingTaskId === taskId}
-                      className="ml-2 mt-2 rounded-lg border border-red-300 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60"
+                      className="mt-2 rounded-lg border border-red-300 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60"
                     >
                       {deletingTaskId === taskId ? "Eliminando..." : "Eliminar tarea"}
                     </button>

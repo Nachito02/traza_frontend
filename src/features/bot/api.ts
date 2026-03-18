@@ -1,19 +1,23 @@
 import { apiClient } from "../../lib/api";
 
 export const BOT_SCOPES = [
-  "encargos.ver",
-  "encargos.contactar",
-  "encargos.cargar_datos",
-  "encargos.resolver",
+  "tareas.crear",
+  "tareas.actualizar_estado",
+  "tareas.contactar",
+  "tareas.cargar_datos",
+  "cuarteles.crear",
+  "vasijas.crear",
 ] as const;
 
 export type BotScope = (typeof BOT_SCOPES)[number];
 
 export const BOT_SCOPE_LABELS: Record<BotScope, string> = {
-  "encargos.ver": "Ver trabajos asignados",
-  "encargos.contactar": "Marcar contacto vía WhatsApp",
-  "encargos.cargar_datos": "Ayudar con carga de datos",
-  "encargos.resolver": "Enviar resultado final",
+  "tareas.crear": "Crear tareas",
+  "tareas.actualizar_estado": "Actualizar estado de tareas",
+  "tareas.contactar": "Marcar contacto vía WhatsApp",
+  "tareas.cargar_datos": "Ayudar con carga de datos",
+  "cuarteles.crear": "Crear cuarteles",
+  "vasijas.crear": "Crear vasijas",
 };
 
 export type Delegation = {

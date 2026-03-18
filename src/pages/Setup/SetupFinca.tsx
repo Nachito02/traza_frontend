@@ -26,6 +26,8 @@ const SetupFinca = () => {
   });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [createdFincaId, setCreatedFincaId] = useState<string | null>(null);
+  const [createdFincaNombre, setCreatedFincaNombre] = useState<string>("");
 
   const onChange = (key: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -83,7 +85,8 @@ const SetupFinca = () => {
       sessionStorage.setItem("setupFincaNombre", fincaNombre || form.nombre_finca.trim());
       setActiveBodega(selectedBodegaId);
       await loadFincas(selectedBodegaId);
-      navigate("/setup/campania");
+      setCreatedFincaId(fincaId);
+      setCreatedFincaNombre(fincaNombre || form.nombre_finca.trim());
     } catch (e) {
       setError("No se pudo crear la finca.");
     } finally {
@@ -91,13 +94,39 @@ const SetupFinca = () => {
     }
   };
 
+  if (createdFincaId) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#F9F6F2] via-[#F3E7DA] to-[#EAD8C6] px-6 py-10">
+        <div className="mx-auto w-full max-w-3xl rounded-2xl bg-white/90 p-8 shadow-lg">
+          <h1 className="text-2xl text-[#3D1B1F]">Finca creada</h1>
+          <p className="mt-2 text-sm text-[#6B3A3F]">
+            <strong>{createdFincaNombre}</strong> fue creada correctamente.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => navigate(`/setup/cuarteles?fincaId=${encodeURIComponent(createdFincaId)}`)}
+              className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE]"
+            >
+              Crear un cuartel para esta finca
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/fincas")}
+              className="rounded-lg border border-transparent px-4 py-2 text-sm text-[#7A4A50] transition hover:text-[#3D1B1F]"
+            >
+              Finalizar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F9F6F2] via-[#F3E7DA] to-[#EAD8C6] px-6 py-10">
       <div className="mx-auto w-full max-w-3xl rounded-2xl bg-white/90 p-8 shadow-lg">
         <h1 className="text-2xl text-[#3D1B1F]">Crear finca</h1>
-        <p className="mt-2 text-sm text-[#6B3A3F]">
-          Paso 1 de 4 del setup guiado.
-        </p>
 
         {bodegas.length === 0 ? (
           <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

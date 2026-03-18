@@ -19,6 +19,7 @@ export type AuthUser = {
   email: string | null;
   nombre: string;
   is_active: boolean;
+  must_change_password?: boolean;
   roles_globales: string[];
   bodegas: AuthUserBodega[];
   fincas?: AuthUserFinca[];

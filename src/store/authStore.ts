@@ -44,9 +44,11 @@ type AuthState = {
   bodegas: Bodega[];
   bodegasLoading: boolean;
   activeBodegaId: string | number | null;
+  mustChangePasswordUserId: string | null;
   setActiveBodega: (bodegaId: string | number) => void;
   fetchBodegas: () => Promise<Bodega[]>;
   login: (email: string, password: string) => Promise<void>;
+  changePassword: (userId: string, currentPassword: string, newPassword: string) => Promise<void>;
   register: (payload: {
     nombre: string;
     email: string;
@@ -62,6 +64,7 @@ const REGISTER_PATH = "/auth/register";
 const ME_PATH = "/auth/me";
 const ME_BODEGAS_PATH = "/auth/me/bodegas";
 const LOGOUT_PATH = "/auth/logout";
+const CHANGE_PASSWORD_PATH = "/auth/change-password";
 
 async function fetchMe() {
   const response = await apiClient.get<User>(ME_PATH);
@@ -92,6 +95,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   bodegas: [],
   bodegasLoading: false,
   activeBodegaId: null,
+  mustChangePasswordUserId: null,
   setActiveBodega: (bodegaId) => set({ activeBodegaId: bodegaId }),
   fetchBodegas: async () => {
     set({ bodegasLoading: true });
@@ -103,6 +107,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ bodegasLoading: false });
     }
   },
+  changePassword: async (userId, currentPassword, newPassword) => {
+    set({ isLoading: true, error: null });
+    try {
+      await apiClient.post(CHANGE_PASSWORD_PATH, { userId, currentPassword, newPassword });
+      const user = await fetchMe();
+      const enrichedUser = await enrichUser(user);
+      const bodegas = await apiClient
+        .get<Bodega[]>(ME_BODEGAS_PATH)
+        .then((r) => r.data)
+        .catch(() => []);
+      set({ user: enrichedUser, isAuthenticated: true, mustChangePasswordUserId: null, bodegas });
+    } catch (error) {
+      const message = getApiErrorMessage(error);
+      set({ error: message });
+      throw new Error(message);
+    } finally {
+      set({ isLoading: false });
+    }
+  },
   login: async (email, password) => {
     set({ isLoading: true, error: null });
     try {
@@ -112,6 +135,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
 
       const data = response.data;
+      if (
+        data &&
+        typeof data === "object" &&
+        "must_change_password" in data &&
+        data.must_change_password === true
+      ) {
+        const userId = String((data as { userId?: string }).userId ?? "");
+        set({ mustChangePasswordUserId: userId });
+        return;
+      }
       if (
         data &&
         typeof data === "object" &&
@@ -129,7 +162,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const resolvedUser = user?.id ? user : await fetchMe();
       const enrichedUser = await enrichUser(resolvedUser);
 
-      set({ user: enrichedUser, isAuthenticated: true });
+      set({ user: enrichedUser, isAuthenticated: true, mustChangePasswordUserId: null });
       const bodegas = await apiClient
         .get<Bodega[]>(ME_BODEGAS_PATH)
         .then((r) => r.data)

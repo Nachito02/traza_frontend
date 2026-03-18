@@ -14,8 +14,9 @@ const SetupCampania = () => {
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const setActiveCampania = useCampaniaStore((state) => state.setActiveCampania);
   const loadCampanias = useCampaniaStore((state) => state.loadCampanias);
-  const [mode, setMode] = useState<"existing" | "new">("existing");
+  const [mode, setMode] = useState<"active" | "existing" | "new">("active");
   const [campanias, setCampanias] = useState<Campania[]>([]);
+  const [activeCampania, setActiveCampaniaLocal] = useState<Campania | null>(null);
   const [selectedCampaniaId, setSelectedCampaniaId] = useState("");
   const [loadingCampanias, setLoadingCampanias] = useState(true);
   const [form, setForm] = useState({
@@ -39,9 +40,16 @@ const SetupCampania = () => {
         if (!mounted) return;
         const loaded = data ?? [];
         setCampanias(loaded);
-        const firstId = String(loaded[0]?.campania_id ?? loaded[0]?.id ?? "");
-        if (firstId) {
-          setSelectedCampaniaId(firstId);
+        const active = loaded.find((c) => c.estado === "abierta") ?? null;
+        setActiveCampaniaLocal(active);
+        if (active) {
+          const activeId = String(active.campania_id ?? active.id ?? "");
+          setSelectedCampaniaId(activeId);
+          setMode("active");
+        } else {
+          const firstId = String(loaded[0]?.campania_id ?? loaded[0]?.id ?? "");
+          if (firstId) setSelectedCampaniaId(firstId);
+          setMode(loaded.length > 0 ? "existing" : "new");
         }
       })
       .catch(() => {
@@ -105,7 +113,7 @@ const SetupCampania = () => {
           await loadCampanias(activeBodegaId);
         }
       }
-      navigate("/setup/cuarteles");
+      navigate("/admin/campanias");
     } catch (e) {
       const message = getApiErrorMessage(e);
       if (message.toLowerCase().includes("unique")) {
@@ -129,90 +137,83 @@ const SetupCampania = () => {
     if (selected) {
       setActiveCampania(selectedCampaniaId, selected.nombre ?? selectedCampaniaId);
     }
-    navigate("/setup/cuarteles");
+    navigate("/admin/campanias");
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F9F6F2] via-[#F3E7DA] to-[#EAD8C6] px-6 py-10">
       <div className="mx-auto w-full max-w-3xl rounded-2xl bg-white/90 p-8 shadow-lg">
-        <h1 className="text-2xl text-[#3D1B1F]">Crear campaña</h1>
-        <p className="mt-2 text-sm text-[#6B3A3F]">
-          Paso 2 de 4 del setup guiado.
-        </p>
+        <h1 className="text-2xl text-[#3D1B1F]">Campaña</h1>
+
         {!activeBodegaId ? (
           <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             Seleccioná una bodega activa para crear o usar campañas.
           </div>
         ) : null}
 
-        <div className="mt-6 grid grid-cols-2 rounded-lg border border-[#C9A961]/30 bg-[#FFF9F0] p-1">
-          <button
-            type="button"
-            onClick={() => {
-              setMode("existing");
-              setError(null);
-            }}
-            className={[
-              "rounded-md px-3 py-2 text-sm font-medium transition",
-              mode === "existing"
-                ? "bg-white text-[#3D1B1F] shadow"
-                : "text-[#722F37]",
-            ].join(" ")}
-          >
-            Usar existente
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode("new");
-              setError(null);
-            }}
-            className={[
-              "rounded-md px-3 py-2 text-sm font-medium transition",
-              mode === "new" ? "bg-white text-[#3D1B1F] shadow" : "text-[#722F37]",
-            ].join(" ")}
-          >
-            Crear nueva
-          </button>
-        </div>
-
-        {mode === "existing" ? (
+        {loadingCampanias ? (
+          <div className="mt-6 text-sm text-[#6B3A3F]">Cargando campañas…</div>
+        ) : mode === "active" && activeCampania ? (
+          <div className="mt-6 space-y-4">
+            <div className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+              Campaña activa: <strong>{activeCampania.nombre}</strong>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                disabled={!activeBodegaId}
+                onClick={handleContinueWithExisting}
+                className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:opacity-60"
+              >
+                Continuar con esta campaña
+              </button>
+              <button
+                type="button"
+                onClick={() => { setMode("new"); setError(null); }}
+                className="rounded-lg border border-transparent px-4 py-2 text-sm text-[#7A4A50] transition hover:text-[#3D1B1F]"
+              >
+                Crear nueva campaña
+              </button>
+            </div>
+          </div>
+        ) : mode === "existing" && campanias.length > 0 ? (
           <div className="mt-6 space-y-4">
             <div>
               <label className="block text-sm text-[#722F37] mb-2">
                 Campaña existente
               </label>
-              {loadingCampanias ? (
-                <div className="text-sm text-[#6B3A3F]">Cargando campañas…</div>
-              ) : campanias.length === 0 ? (
-                <div className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] px-3 py-2 text-sm text-[#6B3A3F]">
-                  No hay campañas cargadas. Creá una nueva para continuar.
-                </div>
-              ) : (
-                <select
-                  className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
-                  value={selectedCampaniaId}
-                  onChange={(e) => setSelectedCampaniaId(e.target.value)}
-                >
-                  {campanias.map((campania) => {
-                    const id = String(campania.campania_id ?? campania.id ?? "");
-                    return (
-                      <option key={id} value={id}>
-                        {campania.nombre}
-                      </option>
-                    );
-                  })}
-                </select>
-              )}
+              <select
+                className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                value={selectedCampaniaId}
+                onChange={(e) => setSelectedCampaniaId(e.target.value)}
+              >
+                {campanias.map((campania) => {
+                  const id = String(campania.campania_id ?? campania.id ?? "");
+                  return (
+                    <option key={id} value={id}>
+                      {campania.nombre}
+                    </option>
+                  );
+                })}
+              </select>
             </div>
-            <button
-              type="button"
-              disabled={!canUseExisting || !activeBodegaId}
-              onClick={handleContinueWithExisting}
-              className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Continuar con campaña seleccionada
-            </button>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                disabled={!canUseExisting || !activeBodegaId}
+                onClick={handleContinueWithExisting}
+                className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Continuar con campaña seleccionada
+              </button>
+              <button
+                type="button"
+                onClick={() => { setMode("new"); setError(null); }}
+                className="rounded-lg border border-transparent px-4 py-2 text-sm text-[#7A4A50] transition hover:text-[#3D1B1F]"
+              >
+                Crear nueva campaña
+              </button>
+            </div>
           </div>
         ) : (
           <form className="mt-6 space-y-4">
@@ -253,14 +254,23 @@ const SetupCampania = () => {
               </div>
             </div>
 
-            <button
-              type="button"
-              disabled={saving || !activeBodegaId}
-              onClick={() => void handleSubmit()}
-              className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {saving ? "Guardando..." : "Crear"}
-            </button>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                disabled={saving || !activeBodegaId}
+                onClick={() => void handleSubmit()}
+                className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {saving ? "Guardando..." : "Crear campaña"}
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/admin/campanias")}
+                className="rounded-lg border border-transparent px-4 py-2 text-sm text-[#7A4A50] transition hover:text-[#3D1B1F]"
+              >
+                Omitir
+              </button>
+            </div>
           </form>
         )}
 

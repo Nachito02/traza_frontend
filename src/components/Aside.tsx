@@ -35,13 +35,12 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
     { to: "/tareas", label: "Tareas", icon: <ListTodo /> },
     { to: "/usuarios", label: "Usuarios", icon: <Users /> },
     { to: "/integraciones", label: "Bots", icon: <Bot /> },
-    { to: "/setup", label: "Trazabilidad", icon: <GitPullRequest /> },
   ];
 
   return (
     <aside className={`bg-secondary p-4 shadow-sm ${className}`}>
       <div className="mb-4 flex items-center gap-2 rounded-lg bg-dark px-2 py-2">
-        
+
         <img src={trazaLogo} alt="Traza" className="h-7 w-auto object-contain" />
       </div>
       <nav className="space-y-2">
@@ -57,6 +56,13 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
             <div className="flex items-center gap-2">{link.icon}{link.label}</div>
           </NavLink>
         ))}
+        <div
+          title="Próximamente"
+          className="flex cursor-not-allowed items-center gap-2 rounded-lg px-3 py-2 text-sm text-text/40 select-none"
+        >
+          <GitPullRequest />
+          Trazabilidad
+        </div>
       </nav>
     </aside>
   );

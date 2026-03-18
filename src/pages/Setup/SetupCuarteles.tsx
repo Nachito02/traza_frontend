@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { createCuartel } from "../../features/cuarteles/api";
 import { useFincasStore } from "../../features/fincas/store";
 import { useAuthStore } from "../../store/authStore";
@@ -7,14 +7,17 @@ import { getApiErrorMessage } from "../../lib/api";
 
 const SetupCuarteles = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const urlFincaId = searchParams.get("fincaId") ?? "";
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const fincas = useFincasStore((state) => state.fincas);
   const fincasLoading = useFincasStore((state) => state.loading);
   const fincasError = useFincasStore((state) => state.error);
   const loadFincas = useFincasStore((state) => state.loadFincas);
+  const [createdCodigo, setCreatedCodigo] = useState<string | null>(null);
 
   const [form, setForm] = useState({
-    fincaId: "",
+    fincaId: urlFincaId,
     codigo_cuartel: "",
     superficie_ha: "",
     cultivo: "Vid",
@@ -33,16 +36,16 @@ const SetupCuarteles = () => {
 
   useEffect(() => {
     if (!form.fincaId && fincas.length > 0) {
-      const preferredFincaId = sessionStorage.getItem("setupFincaId");
+      const preferredFincaId = urlFincaId || sessionStorage.getItem("setupFincaId") || "";
       const exists = fincas.some(
         (finca) => String(finca.finca_id ?? finca.id ?? "") === preferredFincaId,
       );
       const firstId = exists
-        ? String(preferredFincaId ?? "")
+        ? preferredFincaId
         : String(fincas[0].finca_id ?? fincas[0].id ?? "");
       setForm((prev) => ({ ...prev, fincaId: firstId }));
     }
-  }, [fincas, form.fincaId]);
+  }, [fincas, form.fincaId, urlFincaId]);
 
   const fincaOptions = useMemo(
     () =>
@@ -87,11 +90,16 @@ const SetupCuarteles = () => {
         sistema_productivo: form.sistema_productivo.trim() || null,
         sistema_conduccion: form.sistema_conduccion.trim() || null,
       });
-      const cuartelId = String(createdCuartel.cuartel_id ?? createdCuartel.id ?? "");
       sessionStorage.setItem("setupFincaId", form.fincaId);
-      sessionStorage.setItem("setupCuartelId", cuartelId);
-      sessionStorage.setItem("setupCuartelCodigo", form.codigo_cuartel.trim());
-      navigate("/setup/protocolos");
+      setCreatedCodigo(form.codigo_cuartel.trim());
+      setForm((prev) => ({
+        ...prev,
+        codigo_cuartel: "",
+        superficie_ha: "",
+        variedad: "",
+        sistema_productivo: "",
+        sistema_conduccion: "",
+      }));
     } catch (e) {
       setError(getApiErrorMessage(e));
     } finally {
@@ -113,9 +121,13 @@ const SetupCuarteles = () => {
     <div className="min-h-screen bg-gradient-to-br from-[#F9F6F2] via-[#F3E7DA] to-[#EAD8C6] px-6 py-10">
       <div className="mx-auto w-full max-w-3xl rounded-2xl bg-white/90 p-8 shadow-lg">
         <h1 className="text-2xl text-[#3D1B1F]">Crear cuartel</h1>
-        <p className="mt-2 text-sm text-[#6B3A3F]">
-          Paso 3 de 4 del setup guiado.
-        </p>
+
+        {createdCodigo && (
+          <div className="mt-4 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            Cuartel <strong>{createdCodigo}</strong> creado correctamente.{" "}
+            Podés crear otro o finalizar.
+          </div>
+        )}
 
         <form className="mt-6 space-y-4">
           <div>
@@ -226,14 +238,23 @@ const SetupCuarteles = () => {
               {error}
             </div>
           )}
-          <button
-            type="button"
-            disabled={saving}
-            onClick={() => void handleSubmit()}
-            className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {saving ? "Guardando..." : "Crear"}
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => void handleSubmit()}
+              className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? "Guardando..." : "Crear cuartel"}
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/fincas")}
+              className="rounded-lg border border-transparent px-4 py-2 text-sm text-[#7A4A50] transition hover:text-[#3D1B1F]"
+            >
+              Finalizar
+            </button>
+          </div>
         </form>
       </div>
     </div>

@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import GenericCrudSection from "../Elaboracion/components/GenericCrudSection";
 import { useAuthStore } from "../../store/authStore";
 
 const RESOURCES = [
@@ -15,11 +14,15 @@ const RESOURCES = [
     to: "/admin/campanias",
     action: "Administrar campañas",
   },
+  {
+    title: "Vasijas",
+    description: "Alta, edición y baja de vasijas de la bodega activa.",
+    to: "/bodega/vasijas",
+    action: "Administrar vasijas",
+  },
 ];
 
 export default function BodegaHome() {
-  const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
-
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-7xl space-y-6">
@@ -31,7 +34,7 @@ export default function BodegaHome() {
         </header>
 
         <section className="rounded-2xl bg-white p-5 shadow-sm">
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-3">
             {RESOURCES.map((resource) => (
               <article
                 key={resource.title}
@@ -47,28 +50,6 @@ export default function BodegaHome() {
                 </Link>
               </article>
             ))}
-          </div>
-        </section>
-
-        <section className="rounded-2xl bg-white p-5 shadow-sm">
-          <h2 className="text-base font-semibold text-[#3D1B1F]">Vasijas de bodega</h2>
-          <p className="mt-1 text-xs text-[#7A4A50]">
-            Alta, edición y baja de vasijas dentro de la misma pestaña Bodega.
-          </p>
-          <div className="mt-4">
-            <GenericCrudSection
-              title="Vasijas"
-              description="Registro y administración de vasijas de la bodega activa."
-              resource="vasijas"
-              bodegaId={activeBodegaId}
-              fields={[
-                { name: "codigo", label: "Código", type: "text", required: true },
-                { name: "tipo", label: "Tipo", type: "text" },
-                { name: "capacidad_litros", label: "Capacidad litros", type: "number" },
-                { name: "estado", label: "Estado", type: "text" },
-                { name: "ubicacion", label: "Ubicación", type: "text" },
-              ]}
-            />
           </div>
         </section>
 
