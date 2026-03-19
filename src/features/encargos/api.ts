@@ -146,3 +146,74 @@ export async function assignTareaToUser(tareaId: string, userId: string) {
   });
   return response.data;
 }
+
+export type TareaDocumentoPayload = {
+  cid?: string;
+  url?: string;
+  nombre?: string;
+  mimeType?: string;
+};
+
+export type TareaPlantillaPayload = {
+  schemaDisponible?: boolean;
+  camposObligatorios?: Array<{ campo: string; type?: string; unit?: string }>;
+  camposOpcionales?: Array<{ campo: string; type?: string; unit?: string }>;
+};
+
+export type SaveTareaProgresoPayload = {
+  draft?: Record<string, unknown>;
+  notas?: string;
+  descripcion?: string;
+  plantilla?: TareaPlantillaPayload;
+  documentos?: TareaDocumentoPayload[];
+  adjuntos?: TareaDocumentoPayload[];
+};
+
+export type SaveTareaProgresoResponse = {
+  validation?: {
+    canClose?: boolean;
+    missingRequired?: string[];
+    invalidFields?: string[];
+  };
+  [key: string]: unknown;
+};
+
+function buildLegacyCompatiblePayload(payload: SaveTareaProgresoPayload) {
+  return {
+    ...payload,
+    notas: payload.notas ?? payload.descripcion ?? null,
+    descripcion: payload.descripcion ?? payload.notas ?? null,
+    documentos: payload.documentos ?? payload.adjuntos ?? [],
+    adjuntos: payload.adjuntos ?? payload.documentos ?? [],
+  };
+}
+
+export async function saveTareaProgreso(
+  tareaAsignacionId: string,
+  payload: SaveTareaProgresoPayload,
+) {
+  const response = await apiClient.post<SaveTareaProgresoResponse>(
+    `/ia/tareas/${encodeURIComponent(tareaAsignacionId)}/guardar-progreso`,
+    buildLegacyCompatiblePayload(payload),
+  );
+  return response.data;
+}
+
+export async function createTareaEntrada(
+  tareaAsignacionId: string,
+  payload: SaveTareaProgresoPayload,
+) {
+  const response = await apiClient.post(
+    `/ia/tareas/${encodeURIComponent(tareaAsignacionId)}/entradas`,
+    buildLegacyCompatiblePayload(payload),
+  );
+  return response.data;
+}
+
+export async function finalizarTareaAsignacion(tareaAsignacionId: string) {
+  const response = await apiClient.post(
+    `/ia/tareas/${encodeURIComponent(tareaAsignacionId)}/finalizar`,
+    {},
+  );
+  return response.data;
+}

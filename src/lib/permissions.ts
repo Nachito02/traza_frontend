@@ -6,7 +6,7 @@ type UserLike = {
   role?: unknown;
 } | null;
 
-const GLOBAL_ADMIN_ROLES = ["admin_sistema"];
+const GLOBAL_ADMIN_ROLES = ["admin_sistema", "super_user", "superuser"];
 const BODEGA_ROLES = [
   "admin_bodega",
   "encargado_bodega",
@@ -153,7 +153,9 @@ export function resolveModuleAccess(user: UserLike, activeBodegaId: string | num
   const fincaRoles = getUserFincaRoles(user);
   const deepRoles = collectRoleStringsDeep(user);
 
-  const isAdminSistema = includesAnyRole(globalRoles, GLOBAL_ADMIN_ROLES);
+  const isAdminSistema =
+    includesAnyRole(globalRoles, GLOBAL_ADMIN_ROLES) ||
+    includesAnyRole(deepRoles, GLOBAL_ADMIN_ROLES);
   const hasBodegaRole =
     includesAnyRole(globalRoles, BODEGA_ROLES) ||
     includesAnyRole(bodegaRoles, BODEGA_ROLES) ||
@@ -170,6 +172,7 @@ export function resolveModuleAccess(user: UserLike, activeBodegaId: string | num
   );
 
   return {
+    isAdminSistema,
     canAccessBodega: isAdminSistema || hasBodegaRole,
     canAccessOperacionBodega: isAdminSistema || hasBodegaRole,
     canAccessOperacionFinca: isAdminSistema || hasFincaRole,

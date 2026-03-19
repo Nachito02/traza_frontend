@@ -34,6 +34,7 @@ import QrInversaPage from "./pages/Elaboracion/QrInversaPage";
 import FincasAdmin from "./pages/Admin/FincasAdmin";
 import CuartelesAdmin from "./pages/Admin/CuartelesAdmin";
 import CampaniasAdmin from "./pages/Admin/CampaniasAdmin";
+import ProtocolosAdmin from "./pages/Admin/ProtocolosAdmin";
 import BodegaHome from "./pages/Bodega/BodegaHome";
 import BodegaVasijasPage from "./pages/Bodega/BodegaVasijasPage";
 import OperacionLayout from "./pages/Operacion/OperacionLayout";
@@ -115,6 +116,10 @@ export default function App() {
         <Route path="/admin/fincas" element={<FincasAdmin />} />
         <Route path="/admin/cuarteles" element={<CuartelesAdmin />} />
         <Route path="/admin/campanias" element={<CampaniasAdmin />} />
+        <Route
+          path="/admin/protocolos"
+          element={access.isAdminSistema ? <ProtocolosAdmin /> : <Navigate to="/dashboard" replace />}
+        />
         <Route path="/bodega" element={access.canAccessBodega ? <BodegaHome /> : <Navigate to="/fincas" replace />} />
         <Route path="/bodega/vasijas" element={access.canAccessBodega ? <BodegaVasijasPage /> : <Navigate to="/fincas" replace />} />
         <Route path="/bodega/recepcion" element={canUseOperacionBodega ? <Navigate to="/operacion/recepcion" replace /> : <Navigate to="/fincas" replace />} />

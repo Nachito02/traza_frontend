@@ -11,6 +11,7 @@ import {
   type Tarea,
 } from "../../features/encargos/api";
 import { fetchAuthUsers, type AuthUser } from "../../features/users/api";
+import { fetchOperariosByBodega, type Operario } from "../../features/operarios/api";
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
 import { fetchProtocolosExpanded, type ProtocoloExpanded } from "../../features/protocolos/api";
@@ -231,6 +232,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
   const fincas = useFincasStore((state) => state.fincas);
   const [cuartelesByFinca, setCuartelesByFinca] = useState<Record<string, Cuartel[]>>({});
   const [operarios, setOperarios] = useState<AuthUser[]>([]);
+  const [operariosCampo, setOperariosCampo] = useState<Operario[]>([]);
   const [tasks, setTasks] = useState<Tarea[]>([]);
   const [protocoloTaskOptions, setProtocoloTaskOptions] = useState<ProtocoloTaskOption[]>([]);
   const [canManageTasks, setCanManageTasks] = useState(false);
@@ -250,7 +252,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
     prioridad: "media" as "baja" | "media" | "alta",
     fincaId: "",
     cuartelId: "",
-    operarioUserId: "",
+    assigneeKey: "",
   });
   const [searchParams] = useSearchParams();
   const activeBodega = useMemo(
@@ -457,6 +459,16 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
   }, [activeBodega?.nombre, activeBodegaId, canManageTasks, managerScope]);
 
   useEffect(() => {
+    if (!canManageTasks || !activeBodegaId) {
+      setOperariosCampo([]);
+      return;
+    }
+    fetchOperariosByBodega(activeBodegaId)
+      .then((data) => setOperariosCampo((data ?? []).filter((p) => p.is_active !== false)))
+      .catch(() => setOperariosCampo([]));
+  }, [activeBodegaId, canManageTasks]);
+
+  useEffect(() => {
     if (!activeBodegaId) return;
     void refreshTasks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -466,6 +478,30 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
     () => cuartelesByFinca[form.fincaId] ?? [],
     [cuartelesByFinca, form.fincaId],
   );
+
+  type AssigneeOption = { key: string; label: string; userId: string; hasAccount: boolean };
+  const assigneeOptions = useMemo<AssigneeOption[]>(() => {
+    // Operarios from /operarios/bodega (all have user_id; email===null means no credentials)
+    const fromOperarios: AssigneeOption[] = operariosCampo.map((op) => ({
+      key: `op:${op.user_id}`,
+      label: op.email
+        ? `${op.nombre} (${op.email})`
+        : `${op.nombre}${op.whatsapp_e164 ? ` · ${op.whatsapp_e164}` : ""}`,
+      userId: op.user_id,
+      hasAccount: op.email !== null,
+    }));
+    // System users with operator roles not already covered
+    const opUserIds = new Set(operariosCampo.map((op) => op.user_id));
+    const fromUsers: AssigneeOption[] = operarios
+      .filter((u) => !opUserIds.has(u.id))
+      .map((u) => ({
+        key: `usr:${u.id}`,
+        label: `${u.nombre} (${u.email ?? u.id})`,
+        userId: u.id,
+        hasAccount: true,
+      }));
+    return [...fromOperarios, ...fromUsers];
+  }, [operariosCampo, operarios]);
 
   useEffect(() => {
     let mounted = true;
@@ -557,6 +593,10 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
       managerScope === "finca"
         ? form.tareaProtocolo.split(":")[2] || undefined
         : undefined;
+    const selectedAssignee = assigneeOptions.find((o) => o.key === form.assigneeKey) ?? null;
+    const assigneeUserId = selectedAssignee?.userId ?? null;
+    const assigneeHasAccount = selectedAssignee?.hasAccount ?? true;
+
     setSaving(true);
     setError(null);
     setNotice(null);
@@ -569,17 +609,21 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
         descripcion: form.descripcion.trim() || undefined,
         fechaFin: form.fechaFin || undefined,
         prioridad: form.prioridad,
-        operarioUserId: form.operarioUserId || undefined,
+        operarioUserId: assigneeUserId ?? undefined,
       });
 
       const tareaId = String(created.tarea_id ?? created.id ?? "");
-      if (tareaId && form.operarioUserId) {
+      if (tareaId && assigneeUserId) {
         try {
-          await assignTareaToUser(tareaId, form.operarioUserId);
-          setNotice("Registro creado y tarea asignada correctamente.");
+          await assignTareaToUser(tareaId, assigneeUserId);
+          setNotice(
+            assigneeHasAccount
+              ? "Registro creado y tarea asignada correctamente."
+              : `Registro creado y asignado a ${selectedAssignee?.label ?? "operario"}. Sin cuenta — no recibirá notificación en la app.`,
+          );
         } catch (assignError) {
           setNotice(
-            `Registro creado, pero no se pudo confirmar la asignación automática: ${getApiErrorMessage(assignError)}`,
+            `Registro creado, pero no se pudo confirmar la asignación: ${getApiErrorMessage(assignError)}`,
           );
         }
       } else {
@@ -595,7 +639,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
         fechaFin: "",
         fincaId: managerScope === "finca" ? prev.fincaId : "",
         cuartelId: managerScope === "finca" ? prev.cuartelId : "",
-        operarioUserId: "",
+        assigneeKey: "",
       }));
       await refreshTasks();
     } catch (e) {
@@ -765,18 +809,27 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                 </>
               ) : null}
               <select
-                value={form.operarioUserId}
+                value={form.assigneeKey}
                 onChange={(e) =>
-                  setForm((prev) => ({ ...prev, operarioUserId: e.target.value }))
+                  setForm((prev) => ({ ...prev, assigneeKey: e.target.value }))
                 }
                 className="w-full rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
               >
-                <option value="">Asignar operario (opcional)</option>
-                {operarios.map((op) => (
-                  <option key={op.id} value={op.id}>
-                    {op.nombre} ({op.email ?? op.id})
-                  </option>
-                ))}
+                <option value="">Asignar a... (opcional)</option>
+                {assigneeOptions.length > 0 ? (
+                  <>
+                    <optgroup label="Con cuenta">
+                      {assigneeOptions.filter((o) => o.hasAccount).map((o) => (
+                        <option key={o.key} value={o.key}>{o.label}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Sin cuenta (operarios de campo)">
+                      {assigneeOptions.filter((o) => !o.hasAccount).map((o) => (
+                        <option key={o.key} value={o.key}>{o.label}</option>
+                      ))}
+                    </optgroup>
+                  </>
+                ) : null}
               </select>
               <input
                 type="datetime-local"

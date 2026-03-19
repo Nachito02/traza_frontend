@@ -1,8 +1,10 @@
 import type { Milestone } from "../../../features/milestones/api";
+import type { Operario } from "../../../features/operarios/api";
 import { EVENTO_CONFIG } from "../eventoConfig";
 
 type Props = {
   milestone: Milestone;
+  operarios: Operario[];
   form: Record<string, string>;
   formError: string | null;
   saving: boolean;
@@ -13,6 +15,7 @@ type Props = {
 
 const EventoModal = ({
   milestone,
+  operarios,
   form,
   formError,
   saving,
@@ -46,6 +49,38 @@ const EventoModal = ({
                     onChange={(e) => onChange(field.name, e.target.value)}
                     placeholder={field.placeholder}
                   />
+                ) : field.type === "select" ? (
+                  <select
+                    className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                    value={form[field.name] ?? ""}
+                    onChange={(e) => onChange(field.name, e.target.value)}
+                  >
+                    <option value="">
+                      {field.required ? "Seleccionar..." : "Sin especificar"}
+                    </option>
+                    {(field.options ?? []).map((option) => (
+                      <option key={`${field.name}-${option.value}`} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : field.type === "user_select" ? (
+                  <select
+                    className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                    value={form[field.name] ?? ""}
+                    onChange={(e) => onChange(field.name, e.target.value)}
+                  >
+                    <option value="">
+                      {field.required ? "Seleccionar usuario..." : "Sin especificar"}
+                    </option>
+                    {operarios.map((op) => (
+                      <option key={`${field.name}-${op.user_id}`} value={op.user_id}>
+                        {op.email
+                          ? `${op.nombre} (${op.email})`
+                          : `${op.nombre}${op.whatsapp_e164 ? ` · ${op.whatsapp_e164}` : ""}`}
+                      </option>
+                    ))}
+                  </select>
                 ) : (
                   <input
                     type={field.type}

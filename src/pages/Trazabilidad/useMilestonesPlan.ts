@@ -7,6 +7,7 @@ import {
   type Milestone,
 } from "../../features/milestones/api";
 import { createEvento } from "../../features/eventos/api";
+import { fetchOperariosByBodega, type Operario } from "../../features/operarios/api";
 import { fetchTrazabilidad, type Trazabilidad } from "../../features/trazabilidades/api";
 import { EVENTO_CONFIG } from "./eventoConfig";
 
@@ -39,6 +40,7 @@ export const useMilestonesPlan = () => {
   const [uploading, setUploading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [trazabilidad, setTrazabilidad] = useState<Trazabilidad | null>(null);
+  const [operarios, setOperarios] = useState<Operario[]>([]);
   const [fileToUpload, setFileToUpload] = useState<File | null>(null);
   const [selectedStageName, setSelectedStageName] = useState<string>("");
   const [form, setForm] = useState<Record<string, string>>({});
@@ -51,7 +53,7 @@ export const useMilestonesPlan = () => {
     setLoading(true);
     setError(null);
     Promise.all([fetchMilestones(id), fetchTrazabilidad(id)])
-      .then(([milestonesData, trazabilidadData]) => {
+      .then(async ([milestonesData, trazabilidadData]) => {
         if (!mounted) return;
         setMilestones(
           [...(milestonesData ?? [])].sort(
@@ -59,10 +61,19 @@ export const useMilestonesPlan = () => {
           )
         );
         setTrazabilidad(trazabilidadData);
+        try {
+          const fetchedOperarios = await fetchOperariosByBodega(trazabilidadData.bodega_id);
+          if (!mounted) return;
+          setOperarios((fetchedOperarios ?? []).filter((item) => item.is_active !== false));
+        } catch {
+          if (!mounted) return;
+          setOperarios([]);
+        }
       })
       .catch(() => {
         if (!mounted) return;
         setError("No se pudieron cargar los milestones.");
+        setOperarios([]);
       })
       .finally(() => {
         if (!mounted) return;
@@ -231,13 +242,20 @@ export const useMilestonesPlan = () => {
       };
 
       config.fields.forEach((field) => {
-        payload[field.name] = form[field.name];
+        const rawValue = form[field.name];
+        if (!rawValue) return;
+        if (field.type === "number") {
+          const parsed = Number(rawValue);
+          if (!Number.isNaN(parsed)) payload[field.name] = parsed;
+          return;
+        }
+        payload[field.name] = rawValue;
       });
 
       const TIPOS_CUARTEL = new Set([
         "riego", "cosecha", "fenologia", "fertilizacion", "labor_suelo",
         "canopia", "aplicacion_fitosanitaria", "monitoreo_enfermedad",
-        "monitoreo_plaga", "analisis_suelo", "energia",
+        "monitoreo_plaga", "enmienda", "cobertura_erosion",
       ]);
       const TIPOS_BODEGA = new Set([
         "accidente", "capacitacion", "entrega_epp", "limpieza_cosecha",
@@ -247,9 +265,6 @@ export const useMilestonesPlan = () => {
 
       if (TIPOS_CUARTEL.has(tipo)) {
         payload.cuartelId = trazabilidad.cuartel_id;
-        payload.campaniaId = trazabilidad.campania_id;
-      } else if (tipo === "precipitacion") {
-        payload.fincaId = trazabilidad.finca_id;
         payload.campaniaId = trazabilidad.campania_id;
       } else if (TIPOS_BODEGA.has(tipo)) {
         payload.bodegaId = trazabilidad.bodega_id;
@@ -291,6 +306,7 @@ export const useMilestonesPlan = () => {
     formError,
     fileToUpload,
     form,
+    operarios,
     // derived
     milestonesByStage,
     selectedStage,

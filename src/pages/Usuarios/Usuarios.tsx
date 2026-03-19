@@ -6,12 +6,17 @@ import {
   fetchAuthUserById,
   fetchAuthUsers,
   patchAuthUser,
-  registerBot,
   updateUserBodegaRoleByName,
   updateUserFincaRoles,
   updateUserGlobalRole,
   type AuthUser,
 } from "../../features/users/api";
+import {
+  createOperario,
+  deleteOperario,
+  fetchOperariosByBodega,
+  type Operario,
+} from "../../features/operarios/api";
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
 
@@ -155,9 +160,12 @@ const Usuarios = () => {
     rolesEnBodega: ["productor"],
   });
 
-  const [botForm, setBotForm] = useState({ nombre: "", email: "", password: "" });
-  const [botSaving, setBotSaving] = useState(false);
-  const [botSectionOpen, setBotSectionOpen] = useState(false);
+  const [operarios, setOperarios] = useState<Operario[]>([]);
+  const [operariosSaving, setOperariosSaving] = useState(false);
+  const [operariosOpen, setOperariosOpen] = useState(false);
+  const [operariosForm, setOperariosForm] = useState({ nombre: "", whatsapp_e164: "" });
+  const [operariosNotice, setOperariosNotice] = useState<string | null>(null);
+  const [operariosError, setOperariosError] = useState<string | null>(null);
 
   const [fincas, setFincas] = useState<Finca[]>([]);
   const [fincaNameById, setFincaNameById] = useState<Record<string, string>>({});
@@ -269,6 +277,11 @@ const Usuarios = () => {
     fetchFincas(String(activeBodegaId))
       .then((data) => setFincas(data ?? []))
       .catch(() => setFincas([]));
+  }, [activeBodegaId]);
+
+  useEffect(() => {
+    void loadOperarios();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeBodegaId]);
 
   useEffect(() => {
@@ -423,6 +436,54 @@ const Usuarios = () => {
     });
   };
 
+  const loadOperarios = async () => {
+    if (!activeBodegaId) { setOperarios([]); return; }
+    try {
+      setOperarios(await fetchOperariosByBodega(activeBodegaId));
+    } catch {
+      setOperarios([]);
+    }
+  };
+
+  const onCreateOperario = async () => {
+    if (!activeBodegaId) return;
+    if (!operariosForm.nombre.trim()) {
+      setOperariosError("El nombre es obligatorio.");
+      return;
+    }
+    setOperariosSaving(true);
+    setOperariosNotice(null);
+    setOperariosError(null);
+    try {
+      await createOperario(activeBodegaId, {
+        nombre: operariosForm.nombre.trim(),
+        ...(operariosForm.whatsapp_e164.trim() ? { whatsapp_e164: operariosForm.whatsapp_e164.trim() } : {}),
+      });
+      setOperariosNotice("Operario creado.");
+      setOperariosForm({ nombre: "", whatsapp_e164: "" });
+      setOperariosOpen(false);
+      await loadOperarios();
+    } catch (e) {
+      setOperariosError(getApiErrorMessage(e));
+    } finally {
+      setOperariosSaving(false);
+    }
+  };
+
+  const onDeleteOperario = async (op: Operario) => {
+    const ok = window.confirm(`¿Desactivar a "${op.nombre}"?`);
+    if (!ok) return;
+    setOperariosError(null);
+    setOperariosNotice(null);
+    try {
+      await deleteOperario(op.user_id);
+      setOperariosNotice("Operario desactivado.");
+      await loadOperarios();
+    } catch (e) {
+      setOperariosError(getApiErrorMessage(e));
+    }
+  };
+
   const onStartCreate = () => {
     setError(null);
     setNotice(null);
@@ -441,6 +502,7 @@ const Usuarios = () => {
 
   const onStartEditUser = (target: AuthUser) => {
     const firstBodega = target.bodegas[0];
+    const resolvedBodegaId = firstBodega?.bodega_id ?? activeBodegaId ?? "";
     setError(null);
     setNotice(null);
     setCrudMode("edit");
@@ -451,7 +513,7 @@ const Usuarios = () => {
       password: "",
       whatsapp: target.whatsapp_e164 ?? "",
       is_active: target.is_active,
-      bodegaId: String(firstBodega?.bodega_id ?? activeBodegaId ?? ""),
+      bodegaId: String(resolvedBodegaId),
       rolesEnBodega: extractBodegaRoles(firstBodega ?? ({} as AuthUser["bodegas"][number])),
     });
   };
@@ -695,30 +757,6 @@ const Usuarios = () => {
     }
   };
 
-  const onRegisterBot = async () => {
-    if (!botForm.nombre.trim()) { setError("Nombre del bot obligatorio."); return; }
-    if (!botForm.email.trim()) { setError("Email del bot obligatorio."); return; }
-    if (!botForm.password.trim()) { setError("Password del bot obligatoria."); return; }
-    setBotSaving(true);
-    setError(null);
-    setNotice(null);
-    try {
-      await registerBot({
-        nombre: botForm.nombre.trim(),
-        email: botForm.email.trim(),
-        password: botForm.password,
-      });
-      setNotice(`Bot "${botForm.nombre.trim()}" creado correctamente.`);
-      setBotForm({ nombre: "", email: "", password: "" });
-      setBotSectionOpen(false);
-      await loadUsers(queryName || undefined);
-    } catch (e) {
-      setError(getApiErrorMessage(e));
-    } finally {
-      setBotSaving(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-7xl space-y-6">
@@ -884,6 +922,7 @@ const Usuarios = () => {
                     Volver
                   </button>
                 </div>
+
               </div>
             ) : (
               <div className="text-xs text-text-secondary">
@@ -892,68 +931,86 @@ const Usuarios = () => {
             )}
           </section>
 
-        {isAdminSistema && crudMode === "none" ? (
+        {canManageBodegaRoles && crudMode === "none" ? (
           <section className="rounded-2xl bg-primary/20 p-5">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold text-text">Gestión de Bots</h2>
-                <p className="text-xs text-text-secondary">Solo visible para admin_sistema. Crea agentes bot con acceso por API key.</p>
+                <h2 className="text-lg font-semibold text-text">Operarios de campo</h2>
+                <p className="text-xs text-text-secondary">Personas sin cuenta en el sistema que pueden ser asignadas a tareas.</p>
               </div>
               <button
                 type="button"
-                onClick={() => setBotSectionOpen((prev) => !prev)}
+                onClick={() => { setOperariosOpen((prev) => !prev); setOperariosError(null); setOperariosNotice(null); }}
                 className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
               >
-                {botSectionOpen ? "Cancelar" : "Registrar bot"}
+                {operariosOpen ? "Cancelar" : "Nuevo operario"}
               </button>
             </div>
 
-            {botSectionOpen ? (
+            {operariosOpen ? (
               <div className="grid gap-2 rounded-lg border border-[#C9A961]/30 bg-[#FFF9F0] p-3 md:grid-cols-2">
                 <input
-                  value={botForm.nombre}
-                  onChange={(e) => setBotForm((prev) => ({ ...prev, nombre: e.target.value }))}
-                  placeholder="Nombre del bot"
+                  value={operariosForm.nombre}
+                  onChange={(e) => setOperariosForm((prev) => ({ ...prev, nombre: e.target.value }))}
+                  placeholder="Nombre y apellido *"
                   className="rounded border border-[#C9A961]/40 px-2 py-2 text-sm text-[#3D1B1F]"
                 />
                 <input
-                  value={botForm.email}
-                  onChange={(e) => setBotForm((prev) => ({ ...prev, email: e.target.value }))}
-                  placeholder="Email del bot"
-                  type="email"
-                  className="rounded border border-[#C9A961]/40 px-2 py-2 text-sm text-[#3D1B1F]"
-                />
-                <input
-                  value={botForm.password}
-                  onChange={(e) => setBotForm((prev) => ({ ...prev, password: e.target.value }))}
-                  placeholder="Password del bot"
-                  type="password"
+                  type="tel"
+                  value={operariosForm.whatsapp_e164}
+                  onChange={(e) => setOperariosForm((prev) => ({ ...prev, whatsapp_e164: e.target.value }))}
+                  placeholder="WhatsApp E.164 (ej: +5491112345678)"
                   className="rounded border border-[#C9A961]/40 px-2 py-2 text-sm text-[#3D1B1F]"
                 />
                 <div className="md:col-span-2 flex gap-2">
                   <button
                     type="button"
-                    disabled={botSaving}
-                    onClick={() => void onRegisterBot()}
+                    disabled={operariosSaving}
+                    onClick={() => void onCreateOperario()}
                     className="rounded border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] disabled:opacity-60"
                   >
-                    {botSaving ? "Registrando..." : "Registrar bot"}
+                    {operariosSaving ? "Creando..." : "Crear operario"}
                   </button>
                   <button
                     type="button"
-                    disabled={botSaving}
-                    onClick={() => { setBotSectionOpen(false); setBotForm({ nombre: "", email: "", password: "" }); }}
-                    className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60"
+                    onClick={() => { setOperariosOpen(false); setOperariosForm({ nombre: "", whatsapp_e164: "" }); }}
+                    className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"
                   >
                     Cancelar
                   </button>
                 </div>
               </div>
-            ) : (
-              <div className="text-xs text-text-secondary">
-                Los bots registrados aparecen en la lista de usuarios con el badge <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700">Bot</span> y el rol global <code>bot_agent</code>.
-              </div>
-            )}
+            ) : null}
+
+            {operariosError ? <div className="mt-2 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">{operariosError}</div> : null}
+            {operariosNotice ? <div className="mt-2 rounded border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-700">{operariosNotice}</div> : null}
+
+            <div className="mt-3 space-y-2">
+              {operarios.length === 0 ? (
+                <div className="text-xs text-text-secondary">Sin operarios de campo registrados para esta bodega.</div>
+              ) : (
+                operarios.map((op) => (
+                  <div key={op.user_id} className="flex items-center justify-between rounded-lg border border-[#C9A961]/30 bg-white px-3 py-2">
+                    <div>
+                      <span className="text-sm font-semibold text-[#3D1B1F]">{op.nombre}</span>
+                      {op.whatsapp_e164 ? (
+                        <span className="ml-2 text-xs text-[#7A4A50]">{op.whatsapp_e164}</span>
+                      ) : null}
+                      {!op.is_active ? (
+                        <span className="ml-2 rounded-full bg-slate-200 px-2 py-0.5 text-xs text-slate-600">Inactivo</span>
+                      ) : null}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void onDeleteOperario(op)}
+                      className="rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700"
+                    >
+                      Desactivar
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
           </section>
         ) : null}
 

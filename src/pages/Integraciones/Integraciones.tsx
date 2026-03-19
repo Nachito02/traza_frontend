@@ -185,9 +185,9 @@ const Integraciones = () => {
     <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-5xl space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-text">Integraciones IA</h1>
+          <h1 className="text-3xl font-bold text-text">Bots</h1>
           <p className="mt-2 text-sm text-text-secondary">
-            Gestioná el bot de IA y las delegaciones de acceso que le otorgás.
+            Gestioná bots y delegaciones de acceso.
           </p>
         </div>
 
@@ -207,7 +207,7 @@ const Integraciones = () => {
                   onClick={() => setShowBotForm(true)}
                   className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
                 >
-                  Registrar bot
+                  Nuevo bot
                 </button>
               ) : null}
             </div>
@@ -249,7 +249,7 @@ const Integraciones = () => {
                     onClick={() => void onRegisterBot()}
                     className="rounded border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] disabled:opacity-60"
                   >
-                    {botSaving ? "Registrando..." : "Registrar"}
+                    {botSaving ? "Creando..." : "Crear bot"}
                   </button>
                   <button
                     type="button"

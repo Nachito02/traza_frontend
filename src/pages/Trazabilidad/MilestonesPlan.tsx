@@ -19,6 +19,7 @@ const MilestonesPlan = () => {
     formError,
     fileToUpload,
     form,
+    operarios,
     milestonesByStage,
     selectedStage,
     globalSummary,
@@ -130,6 +131,7 @@ const MilestonesPlan = () => {
       {active && (
         <EventoModal
           milestone={active}
+          operarios={operarios}
           form={form}
           formError={formError}
           saving={saving}

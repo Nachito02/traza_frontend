@@ -7,6 +7,7 @@ import {
   Warehouse,
   ClipboardPenLine,
   Bot,
+  ScrollText,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
@@ -35,6 +36,9 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
     { to: "/tareas", label: "Tareas", icon: <ListTodo /> },
     { to: "/usuarios", label: "Usuarios", icon: <Users /> },
     { to: "/integraciones", label: "Bots", icon: <Bot /> },
+    ...(access.isAdminSistema
+      ? [{ to: "/admin/protocolos", label: "Protocolos", icon: <ScrollText /> }]
+      : []),
   ];
 
   return (
