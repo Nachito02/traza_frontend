@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   createCuartel,
   deleteCuartel,
@@ -34,9 +35,13 @@ const emptyForm: FormState = {
 type CuartelRow = Cuartel & { fincaId: string };
 
 export default function CuartelesAdmin() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const fincas = useFincasStore((state) => state.fincas);
   const loadFincas = useFincasStore((state) => state.loadFincas);
+  const editParam = searchParams.get("edit") ?? "";
+  const fincaIdParam = searchParams.get("fincaId") ?? "";
+  const createParam = searchParams.get("create");
 
   const [items, setItems] = useState<CuartelRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -63,10 +68,10 @@ export default function CuartelesAdmin() {
     if (!form.fincaId && fincas.length > 0) {
       setForm((prev) => ({
         ...prev,
-        fincaId: String(fincas[0].finca_id ?? fincas[0].id ?? ""),
+        fincaId: fincaIdParam || String(fincas[0].finca_id ?? fincas[0].id ?? ""),
       }));
     }
-  }, [fincas, form.fincaId]);
+  }, [fincaIdParam, fincas, form.fincaId]);
 
   const fincaById = useMemo(
     () =>
@@ -78,6 +83,10 @@ export default function CuartelesAdmin() {
       ),
     [fincas],
   );
+
+  const selectedFincaLabel = fincaIdParam
+    ? fincaById[fincaIdParam] ?? "Finca seleccionada"
+    : "Todas las fincas";
 
   const load = async () => {
     if (!activeBodegaId) {
@@ -108,6 +117,33 @@ export default function CuartelesAdmin() {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeBodegaId, fincas.length]);
+
+  useEffect(() => {
+    if (!editParam && createParam !== "1") return;
+    if (editParam) {
+      const fallbackFincaId =
+        fincaIdParam || items.find((item) => String(item.cuartel_id ?? item.id ?? "") === editParam)?.fincaId || "";
+      void onEditById(editParam, fallbackFincaId);
+      return;
+    }
+
+    setEditingId(null);
+    setFormMode("create");
+    setError(null);
+    setSuccess(null);
+    setForm({
+      ...emptyForm,
+      fincaId: fincaIdParam || form.fincaId || "",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createParam, editParam, fincaIdParam, items]);
+
+  const clearFormQueryState = () => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("edit");
+    nextParams.delete("create");
+    setSearchParams(nextParams, { replace: true });
+  };
 
   const onSubmit = async () => {
     if (!form.fincaId || !form.codigo_cuartel.trim() || !form.variedad.trim()) {
@@ -149,6 +185,7 @@ export default function CuartelesAdmin() {
       setForm(emptyForm);
       setEditingId(null);
       setFormMode("none");
+      clearFormQueryState();
       await load();
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
@@ -223,28 +260,55 @@ export default function CuartelesAdmin() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-[#F9F6F2] via-[#F3E7DA] to-[#EAD8C6] px-6 py-10">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-dark">
-          Administracion de cuarteles
-        </h1>
-        <p className="mt-2 text-sm text-text-dark-secondary">
-          Supervisa y gestiona tus cuarteles.
-        </p>
-      </div>
+    <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-6xl space-y-6">
-        {formMode === "none" ? (
-          <section className="rounded-2xl bg-primary p-6 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-text">Cuarteles</h2>
-              <div className="flex gap-2">
+        <section className="rounded-2xl bg-primary p-6 shadow-lg">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#8B5E34]">
+                  Administración
+                </p>
+                <h1 className="text-3xl font-bold text-text">Cuarteles</h1>
+                <p className="mt-2 max-w-3xl text-sm text-text-secondary">
+                  Revisá el listado por finca y seguí con altas o ediciones desde un flujo separado,
+                  manteniendo la misma lógica visual que usamos en fincas.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <div className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] px-4 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8B5E34]">
+                    Contexto
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-[#3D1B1F]">{selectedFincaLabel}</div>
+                </div>
+                <div className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] px-4 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8B5E34]">
+                    Cuarteles
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-[#3D1B1F]">
+                    {loading ? "Cargando..." : `${items.length} registrados`}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {formMode === "none" ? (
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => {
                     setEditingId(null);
-                    setForm(emptyForm);
+                    setForm({ ...emptyForm, fincaId: fincaIdParam || "" });
                     setFormMode("create");
                     setError(null);
+                    setSuccess(null);
+                    setSearchParams((prev) => {
+                      const next = new URLSearchParams(prev);
+                      next.set("create", "1");
+                      if (fincaIdParam) next.set("fincaId", fincaIdParam);
+                      return next;
+                    });
                   }}
                   className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary cursor-pointer"
                 >
@@ -258,13 +322,28 @@ export default function CuartelesAdmin() {
                   Actualizar listado
                 </button>
               </div>
+            ) : null}
+          </div>
+        </section>
+
+        {formMode === "none" ? (
+          <section className="rounded-2xl bg-primary p-6 shadow-lg">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-text">Listado de cuarteles</h2>
+                <p className="text-xs text-text-secondary">
+                  Entrá al detalle o editá cada cuartel sin mezclar el formulario con el listado.
+                </p>
+              </div>
             </div>
 
-            <div className="mt-3 space-y-2">
+            <div className="mt-4 space-y-3">
               {loading ? (
                 <div className="text-sm text-[#7A4A50]">Cargando...</div>
               ) : items.length === 0 ? (
-                <div className="text-sm text-[#7A4A50]">Sin cuarteles.</div>
+                <div className="rounded-xl border border-dashed border-[#C9A961]/40 bg-[#FFF9F0] px-4 py-5 text-sm text-[#7A4A50]">
+                  Sin cuarteles para este contexto.
+                </div>
               ) : (
                 items.map((item, index) => {
                   const id = String(item.cuartel_id ?? item.id ?? `i-${index}`);
@@ -275,16 +354,34 @@ export default function CuartelesAdmin() {
                   return (
                     <article
                       key={id}
-                      className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-3"
+                      className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4 shadow-sm"
                     >
-                      <div className="text-sm font-semibold text-[#3D1B1F]">
-                        {item.codigo_cuartel}
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-semibold text-[#3D1B1F]">
+                            {item.codigo_cuartel}
+                          </div>
+                          <div className="mt-1 text-xs text-[#6B3A3F]">
+                            {fincaById[item.fincaId] ?? item.fincaId}
+                          </div>
+                        </div>
+                        <div className="rounded-full border border-[#C9A961]/40 px-2.5 py-1 text-[11px] font-semibold text-[#722F37]">
+                          {item.cultivo ?? "vid"}
+                        </div>
                       </div>
-                      <div className="text-xs text-[#6B3A3F]">
-                        {fincaById[item.fincaId] ?? item.fincaId} ·{" "}
-                        {item.variedad} · {item.superficie_ha} ha
+
+                      <div className="mt-3 grid gap-2 text-xs text-[#6B3A3F] md:grid-cols-2">
+                        <div className="rounded-lg border border-[#C9A961]/20 bg-white/70 px-3 py-2">
+                          <span className="font-semibold text-[#3D1B1F]">Variedad:</span>{" "}
+                          {item.variedad || "-"}
+                        </div>
+                        <div className="rounded-lg border border-[#C9A961]/20 bg-white/70 px-3 py-2">
+                          <span className="font-semibold text-[#3D1B1F]">Superficie:</span>{" "}
+                          {item.superficie_ha ?? "-"} ha
+                        </div>
                       </div>
-                      <div className="mt-2 flex flex-wrap gap-2">
+
+                      <div className="mt-3 flex flex-wrap gap-2">
                         <button
                           type="button"
                           onClick={() => void onEditById(id, item.fincaId)}
@@ -309,13 +406,13 @@ export default function CuartelesAdmin() {
                       </div>
 
                       {isExpanded ? (
-                        <div className="mt-3 rounded border border-[#C9A961]/30 bg-[#FFF9F0] px-3 py-2 text-xs text-[#6B3A3F]">
+                        <div className="mt-3 rounded-xl border border-[#C9A961]/30 bg-white px-3 py-3 text-xs text-[#6B3A3F]">
                           {isLoadingDetail ? (
                             <div>Cargando detalle...</div>
                           ) : detailError ? (
                             <div className="text-red-700">{detailError}</div>
                           ) : (
-                            <div className="grid gap-1">
+                            <div className="grid gap-2 md:grid-cols-2">
                               <div>
                                 <span className="font-semibold text-[#3D1B1F]">
                                   Código:
@@ -363,12 +460,12 @@ export default function CuartelesAdmin() {
             </div>
 
             {error ? (
-              <div className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                 {error}
               </div>
             ) : null}
             {success ? (
-              <div className="mt-3 rounded border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-700">
+              <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
                 {success}
               </div>
             ) : null}
@@ -376,91 +473,137 @@ export default function CuartelesAdmin() {
         ) : null}
 
         {formMode !== "none" ? (
-          <section className="rounded-2xl bg-primary p-6 shadow-sm">
-            <h1 className="text-2xl font-bold text-text">
-              {formMode === "edit" ? "Editar cuartel" : "Nuevo cuartel"}
-            </h1>
+          <section className="rounded-2xl bg-primary p-6 shadow-lg">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#8B5E34]">
+                  Formulario
+                </p>
+                <h1 className="text-2xl font-bold text-text">
+                  {formMode === "edit" ? "Editar cuartel" : "Nuevo cuartel"}
+                </h1>
+                <p className="mt-2 text-sm text-text-secondary">
+                  Completá los datos base del cuartel para dejarlo listo dentro de la finca
+                  seleccionada.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingId(null);
+                  setForm(emptyForm);
+                  setFormMode("none");
+                  clearFormQueryState();
+                }}
+                className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary cursor-pointer"
+              >
+                Volver al listado
+              </button>
+            </div>
             {loadingEdit ? (
-              <div className="mt-3 rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2 text-xs text-[#7A4A50]">
+              <div className="mt-4 rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] px-3 py-2 text-xs text-[#7A4A50]">
                 Cargando datos completos del cuartel...
               </div>
             ) : null}
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <select
-                value={form.fincaId}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, fincaId: event.target.value }))
-                }
-                className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm bg-[#FFF9F0]"
-                disabled={formMode === "edit"}
-              >
-                <option value="">Seleccionar finca</option>
-                {fincas.map((finca) => {
-                  const id = String(finca.finca_id ?? finca.id ?? "");
-                  return (
-                    <option key={id} value={id}>
-                      {finca.nombre ?? finca.nombre_finca ?? finca.name ?? id}
-                    </option>
-                  );
-                })}
-              </select>
-              <input
-                value={form.codigo_cuartel}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, codigo_cuartel: e.target.value }))
-                }
-                placeholder="Código cuartel"
-                className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm bg-[#FFF9F0]"
-              />
-              <input
-                type="number"
-                step="0.01"
-                value={form.superficie_ha}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, superficie_ha: e.target.value }))
-                }
-                placeholder="Superficie ha"
-                className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm bg-[#FFF9F0]"
-              />
-              <input
-                value={form.cultivo}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, cultivo: e.target.value }))
-                }
-                placeholder="Cultivo"
-                className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm bg-[#FFF9F0]"
-              />
-              <input
-                value={form.variedad}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, variedad: e.target.value }))
-                }
-                placeholder="Variedad"
-                className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm bg-[#FFF9F0]"
-              />
-              <input
-                value={form.sistema_productivo}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, sistema_productivo: e.target.value }))
-                }
-                placeholder="Sistema productivo"
-                className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm bg-[#FFF9F0]"
-              />
-              <input
-                value={form.sistema_conduccion}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, sistema_conduccion: e.target.value }))
-                }
-                placeholder="Sistema conducción"
-                className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm bg-[#FFF9F0]"
-              />
+            <div className="mt-4 rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="space-y-2 text-sm text-[#6B3A3F]">
+                  <span className="font-semibold text-[#3D1B1F]">Finca</span>
+                  <select
+                    value={form.fincaId}
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, fincaId: event.target.value }))
+                    }
+                    className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F]"
+                    disabled={formMode === "edit"}
+                  >
+                    <option value="">Seleccionar finca</option>
+                    {fincas.map((finca) => {
+                      const id = String(finca.finca_id ?? finca.id ?? "");
+                      return (
+                        <option key={id} value={id}>
+                          {finca.nombre ?? finca.nombre_finca ?? finca.name ?? id}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </label>
+                <label className="space-y-2 text-sm text-[#6B3A3F]">
+                  <span className="font-semibold text-[#3D1B1F]">Código de cuartel</span>
+                  <input
+                    value={form.codigo_cuartel}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, codigo_cuartel: e.target.value }))
+                    }
+                    placeholder="Ej. C-01"
+                    className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F]"
+                  />
+                </label>
+                <label className="space-y-2 text-sm text-[#6B3A3F]">
+                  <span className="font-semibold text-[#3D1B1F]">Superficie (ha)</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={form.superficie_ha}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, superficie_ha: e.target.value }))
+                    }
+                    placeholder="0.00"
+                    className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F]"
+                  />
+                </label>
+                <label className="space-y-2 text-sm text-[#6B3A3F]">
+                  <span className="font-semibold text-[#3D1B1F]">Cultivo</span>
+                  <input
+                    value={form.cultivo}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, cultivo: e.target.value }))
+                    }
+                    placeholder="vid"
+                    className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F]"
+                  />
+                </label>
+                <label className="space-y-2 text-sm text-[#6B3A3F]">
+                  <span className="font-semibold text-[#3D1B1F]">Variedad</span>
+                  <input
+                    value={form.variedad}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, variedad: e.target.value }))
+                    }
+                    placeholder="Malbec"
+                    className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F]"
+                  />
+                </label>
+                <label className="space-y-2 text-sm text-[#6B3A3F]">
+                  <span className="font-semibold text-[#3D1B1F]">Sistema productivo</span>
+                  <input
+                    value={form.sistema_productivo}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, sistema_productivo: e.target.value }))
+                    }
+                    placeholder="Convencional, orgánico..."
+                    className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F]"
+                  />
+                </label>
+                <label className="space-y-2 text-sm text-[#6B3A3F] md:col-span-2">
+                  <span className="font-semibold text-[#3D1B1F]">Sistema de conducción</span>
+                  <input
+                    value={form.sistema_conduccion}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, sistema_conduccion: e.target.value }))
+                    }
+                    placeholder="Espaldera, parral..."
+                    className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F]"
+                  />
+                </label>
+              </div>
             </div>
-            <div className="mt-3 flex gap-2">
+            <div className="mt-4 flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => void onSubmit()}
                 disabled={saving || !activeBodegaId}
-                className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text  hover:bg-primary cursor-pointer transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text hover:bg-primary cursor-pointer transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {editingId ? "Guardar" : "Crear"}
               </button>
@@ -470,19 +613,20 @@ export default function CuartelesAdmin() {
                   setEditingId(null);
                   setForm(emptyForm);
                   setFormMode("none");
+                  clearFormQueryState();
                 }}
-                className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-red-500  hover:bg-primary cursor-pointer transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-primary cursor-pointer transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Cancelar
               </button>
             </div>
             {error ? (
-              <div className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                 {error}
               </div>
             ) : null}
             {success ? (
-              <div className="mt-3 rounded border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-700">
+              <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
                 {success}
               </div>
             ) : null}

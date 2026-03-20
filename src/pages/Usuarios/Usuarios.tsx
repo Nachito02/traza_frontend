@@ -759,7 +759,7 @@ const Usuarios = () => {
 
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
-      <div className="mx-auto w-full max-w-7xl space-y-6">
+      <div className="mx-auto w-full max-w-6xl space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-text">Usuarios y roles</h1>
           <p className="mt-2 text-sm text-text-secondary">
@@ -768,7 +768,7 @@ const Usuarios = () => {
         </div>
 
         {crudMode === "none" ? (
-        <section className="rounded-2xl bg-primary/30 p-5">
+        <section className="rounded-2xl bg-primary p-5 shadow-lg">
           <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
             <input
               type="text"
@@ -788,24 +788,31 @@ const Usuarios = () => {
               onClick={() => void onSubmitFilter()}
               className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-text transition hover:bg-primary"
             >
-              Buscar
-            </button>
+                Buscar
+              </button>
             <button
               type="button"
               onClick={() => void onClearFilter()}
               className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-text transition hover:bg-primary"
             >
-              Limpiar
-            </button>
+                Limpiar
+              </button>
           </div>
         </section>
         ) : null}
 
-        <section className="rounded-2xl bg-primary/20 p-5">
+        <section className="rounded-2xl bg-primary p-5 shadow-lg">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-text">
-                {crudMode === "edit" ? "Editar usuario" : "Crear usuario"}
-              </h2>
+              <div>
+                <h2 className="text-lg font-semibold text-text">
+                  {crudMode === "edit" ? "Editar usuario" : "Administración de usuarios"}
+                </h2>
+                <p className="mt-1 text-xs text-text-secondary">
+                  {crudMode === "none"
+                    ? "Primero revisás el listado y después seguís con alta, edición o baja."
+                    : "Completá el formulario y luego volvés al listado."}
+                </p>
+              </div>
               {crudMode === "none" && canManageUserCrud ? (
                 <button
                   type="button"
@@ -932,7 +939,7 @@ const Usuarios = () => {
           </section>
 
         {canManageBodegaRoles && crudMode === "none" ? (
-          <section className="rounded-2xl bg-primary/20 p-5">
+          <section className="rounded-2xl bg-primary p-5 shadow-lg">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold text-text">Operarios de campo</h2>
@@ -1026,7 +1033,17 @@ const Usuarios = () => {
         )}
 
         {crudMode === "none" ? (
-        <section className="rounded-2xl bg-primary/20 p-5">
+        <section className="rounded-2xl bg-primary p-5 shadow-lg">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-text">Listado de usuarios</h2>
+              <p className="text-xs text-text-secondary">
+                {queryName
+                  ? `Resultado filtrado por: ${queryName}`
+                  : "Usuarios disponibles para la bodega y filtros actuales."}
+              </p>
+            </div>
+          </div>
           {loading ? (
             <div className="text-sm text-text-secondary">Cargando usuarios…</div>
           ) : users.length === 0 ? (

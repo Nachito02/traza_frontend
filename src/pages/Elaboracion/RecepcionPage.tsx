@@ -3,6 +3,7 @@ import { listElaboracionResource, type ElaboracionEntity } from "../../features/
 import { useAuthStore } from "../../store/authStore";
 import GenericCrudSection, { type SelectOption } from "./components/GenericCrudSection";
 import SectionSelector from "./components/SectionSelector";
+import { useSearchParams } from "react-router-dom";
 
 function toOptions(items: ElaboracionEntity[], idKeys: string[], labelKeys: string[]): SelectOption[] {
   return items
@@ -33,6 +34,7 @@ export default function RecepcionPage({
   hideSectionSelector = false,
   hidePrimaryAction = false,
 }: RecepcionPageProps) {
+  const [searchParams, setSearchParams] = useSearchParams();
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const [remitoOptions, setRemitoOptions] = useState<SelectOption[]>([]);
   const [recepcionOptions, setRecepcionOptions] = useState<SelectOption[]>([]);
@@ -41,8 +43,17 @@ export default function RecepcionPage({
   );
 
   useEffect(() => {
+    if (hideSectionSelector) {
+      setActiveSection(initialSection);
+      return;
+    }
+    const section = searchParams.get("section");
+    if (section === "remito" || section === "recepcion" || section === "analisis") {
+      setActiveSection(section);
+      return;
+    }
     setActiveSection(initialSection);
-  }, [initialSection]);
+  }, [hideSectionSelector, initialSection, searchParams]);
 
   useEffect(() => {
     if (!activeBodegaId) return;
@@ -66,7 +77,14 @@ export default function RecepcionPage({
       {!hideSectionSelector ? (
         <SectionSelector
           value={activeSection}
-          onChange={setActiveSection}
+          onChange={(value) => {
+            setActiveSection(value);
+            setSearchParams((prev) => {
+              const next = new URLSearchParams(prev);
+              next.set("section", value);
+              return next;
+            });
+          }}
           options={[
             { key: "remito", label: "Remito Uva" },
             { key: "recepcion", label: "Recepción Bodega" },
@@ -82,6 +100,7 @@ export default function RecepcionPage({
           resource="remitos-uva"
           bodegaId={activeBodegaId}
           hidePrimaryAction={hidePrimaryAction}
+          separatedLayout={!hidePrimaryAction}
           fields={[
             { name: "loteCosechaId", label: "Lote cosecha ID", type: "text", required: true },
             { name: "salida_finca", label: "Salida finca", type: "datetime-local", required: true },
@@ -100,6 +119,7 @@ export default function RecepcionPage({
           resource="recepciones-bodega"
           bodegaId={activeBodegaId}
           hidePrimaryAction={hidePrimaryAction}
+          separatedLayout={!hidePrimaryAction}
           fields={[
             { name: "remitoId", label: "Remito", type: "select", required: true, options: remitoOptions },
             { name: "fecha_hora", label: "Fecha y hora", type: "datetime-local", required: true },
@@ -117,6 +137,7 @@ export default function RecepcionPage({
           resource="analisis-recepcion"
           bodegaId={activeBodegaId}
           hidePrimaryAction={hidePrimaryAction}
+          separatedLayout={!hidePrimaryAction}
           fields={[
             {
               name: "recepcionId",

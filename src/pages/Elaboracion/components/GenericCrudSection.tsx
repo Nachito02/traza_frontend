@@ -48,6 +48,7 @@ type GenericCrudSectionProps = {
     remove?: (context: { id: string; item: ElaboracionEntity }) => Promise<unknown>;
   };
   hidePrimaryAction?: boolean;
+  separatedLayout?: boolean;
 };
 
 const ID_KEYS = [
@@ -132,6 +133,7 @@ export default function GenericCrudSection({
   idResolver,
   controller,
   hidePrimaryAction = false,
+  separatedLayout = false,
 }: GenericCrudSectionProps) {
   const [items, setItems] = useState<ElaboracionEntity[]>([]);
   const [loading, setLoading] = useState(false);
@@ -142,6 +144,7 @@ export default function GenericCrudSection({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<ElaboracionEntity | null>(null);
+  const [viewMode, setViewMode] = useState<"list" | "form">(separatedLayout ? "list" : "form");
 
   const mergedParams = useMemo(() => {
     const params: Record<string, string | number | undefined> = {
@@ -186,6 +189,7 @@ export default function GenericCrudSection({
     setEditingItem(null);
     setError(null);
     setSuccess(null);
+    setViewMode(separatedLayout ? "list" : "form");
   }, [fields, resource]);
 
   const onSubmit = async () => {
@@ -267,6 +271,9 @@ export default function GenericCrudSection({
       setValues(getInitialValues(fields));
       setEditingId(null);
       setEditingItem(null);
+      if (separatedLayout) {
+        setViewMode("list");
+      }
       await load();
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
@@ -300,6 +307,9 @@ export default function GenericCrudSection({
     setEditingItem(item);
     setError(null);
     setSuccess(null);
+    if (separatedLayout) {
+      setViewMode("form");
+    }
   };
 
   const onDeleteConfirm = async () => {
@@ -335,15 +345,105 @@ export default function GenericCrudSection({
     setConfirmDelete(item);
   };
 
-  return (
-    <section className="rounded-2xl bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="text-base font-semibold text-[#3D1B1F]">{title}</h3>
-          <p className="mt-1 text-xs text-[#7A4A50]">{description}</p>
-        </div>
-      </div>
+  const onStartCreate = () => {
+    setValues(getInitialValues(fields));
+    setEditingId(null);
+    setEditingItem(null);
+    setError(null);
+    setSuccess(null);
+    setViewMode("form");
+  };
 
+  const onCancelForm = () => {
+    setEditingId(null);
+    setEditingItem(null);
+    setValues(getInitialValues(fields));
+    setError(null);
+    setSuccess(null);
+    if (separatedLayout) {
+      setViewMode("list");
+    }
+  };
+
+  const renderFeedback = () => (
+    <>
+      {error ? (
+        <div className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+          {error}
+        </div>
+      ) : null}
+      {success ? (
+        <div className="mt-3 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+          {success}
+        </div>
+      ) : null}
+    </>
+  );
+
+  const renderList = () => (
+    <div className="mt-3 max-h-72 space-y-2 overflow-auto">
+      {loading ? (
+        <div className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2 text-xs text-[#7A4A50]">
+          Cargando registros...
+        </div>
+      ) : items.length === 0 ? (
+        <div className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2 text-xs text-[#7A4A50]">
+          Sin registros.
+        </div>
+      ) : (
+        items.map((item, index) => {
+          const itemId = idResolver ? idResolver(item) : resolveId(item);
+          const displayId = itemId || `fila-${index}`;
+          const previewRows = fields
+            .map((field) => {
+              const sourceKey = field.sourceKey ?? field.name;
+              const raw = item[sourceKey];
+              if (raw === undefined || raw === null || raw === "") return null;
+              return {
+                key: field.name,
+                label: field.label,
+                value: formatItemFieldValue(raw),
+              };
+            })
+            .filter((row): row is { key: string; label: string; value: string } => row !== null)
+            .slice(0, 5);
+          return (
+            <article key={displayId} className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2">
+              <div className="text-xs font-semibold text-[#5A2D32]">ID: {displayId}</div>
+              {previewRows.length > 0 ? (
+                <div className="mt-2 grid gap-1 rounded bg-white p-2 text-xs text-[#3D1B1F]">
+                  {previewRows.map((row) => (
+                    <div key={row.key}>
+                      <span className="font-semibold">{row.label}:</span> {row.value}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => onEdit(item)}
+                  className="rounded border border-[#C9A961]/50 px-2 py-1 text-xs font-semibold text-[#722F37]"
+                >
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDelete(item)}
+                  className="rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700"
+                >
+                  Eliminar
+                </button>
+              </div>
+            </article>
+          );
+        })
+      )}
+    </div>
+  );
+
+  const renderForm = () => (
+    <>
       <div className="mt-3 grid gap-3 md:grid-cols-2">
         {fields.map((field) => (
           <label key={field.name} className="text-xs text-[#722F37]">
@@ -406,32 +506,39 @@ export default function GenericCrudSection({
           >
             {editingId ? "Guardar" : "Crear"}
           </button>
-          {editingId ? (
-            <button
-              type="button"
-              onClick={() => {
-                setEditingId(null);
-                setEditingItem(null);
-                setValues(getInitialValues(fields));
-              }}
-              className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"
-            >
-              Cancelar edición
-            </button>
-          ) : null}
+          <button
+            type="button"
+            onClick={onCancelForm}
+            className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"
+          >
+            {editingId ? "Cancelar edición" : "Volver al listado"}
+          </button>
         </div>
       ) : null}
+    </>
+  );
 
-      {error ? (
-        <div className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-          {error}
+  return (
+    <section className="rounded-2xl bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-base font-semibold text-[#3D1B1F]">{title}</h3>
+          <p className="mt-1 text-xs text-[#7A4A50]">{description}</p>
         </div>
-      ) : null}
-      {success ? (
-        <div className="mt-3 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-          {success}
-        </div>
-      ) : null}
+        {separatedLayout && viewMode === "list" && !hidePrimaryAction ? (
+          <button
+            type="button"
+            onClick={onStartCreate}
+            className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37]"
+          >
+            Nuevo registro
+          </button>
+        ) : null}
+      </div>
+
+      {separatedLayout ? (viewMode === "form" ? renderForm() : renderList()) : renderForm()}
+
+      {renderFeedback()}
 
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -459,66 +566,6 @@ export default function GenericCrudSection({
           </div>
         </div>
       )}
-
-      <div className="mt-3 max-h-72 space-y-2 overflow-auto">
-        {loading ? (
-          <div className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2 text-xs text-[#7A4A50]">
-            Cargando registros...
-          </div>
-        ) : items.length === 0 ? (
-          <div className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2 text-xs text-[#7A4A50]">
-            Sin registros.
-          </div>
-        ) : (
-          items.map((item, index) => {
-            const itemId = idResolver ? idResolver(item) : resolveId(item);
-            const displayId = itemId || `fila-${index}`;
-            const previewRows = fields
-              .map((field) => {
-                const sourceKey = field.sourceKey ?? field.name;
-                const raw = item[sourceKey];
-                if (raw === undefined || raw === null || raw === "") return null;
-                return {
-                  key: field.name,
-                  label: field.label,
-                  value: formatItemFieldValue(raw),
-                };
-              })
-              .filter((row): row is { key: string; label: string; value: string } => row !== null)
-              .slice(0, 5);
-            return (
-              <article key={displayId} className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2">
-                <div className="text-xs font-semibold text-[#5A2D32]">ID: {displayId}</div>
-                {previewRows.length > 0 ? (
-                  <div className="mt-2 grid gap-1 rounded bg-white p-2 text-xs text-[#3D1B1F]">
-                    {previewRows.map((row) => (
-                      <div key={row.key}>
-                        <span className="font-semibold">{row.label}:</span> {row.value}
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-                <div className="mt-2 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onEdit(item)}
-                    className="rounded border border-[#C9A961]/50 px-2 py-1 text-xs font-semibold text-[#722F37]"
-                  >
-                    Editar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onDelete(item)}
-                    className="rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700"
-                  >
-                    Eliminar
-                  </button>
-                </div>
-              </article>
-            );
-          })
-        )}
-      </div>
     </section>
   );
 }

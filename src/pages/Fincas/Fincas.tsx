@@ -112,17 +112,6 @@ const Fincas = () => {
                     {(() => {
                       const fincaId = String(finca.finca_id ?? finca.id ?? "");
                       const detail = finca as FincaDetail;
-                      const vinculo =
-                        finca.vinculo ??
-                        (Array.isArray(finca.vinculos)
-                          ? finca.vinculos[0]
-                          : undefined);
-                      const tipoVinculo =
-                        vinculo?.tipo_vinculo === "proveedor_tercero"
-                          ? "Proveedor tercero"
-                          : vinculo?.tipo_vinculo === "propia"
-                            ? "Propia"
-                            : "Sin definir";
                       return (
                         <>
                           <div className="text-sm font-semibold text-[#3D1B1F]">
@@ -197,33 +186,6 @@ const Fincas = () => {
                                 ? "Eliminando..."
                                 : "Eliminar finca"}
                             </button>
-                          </div>
-                          <div className="mt-2 rounded border border-[#C9A961]/30 bg-white px-3 py-2 text-xs text-[#6B3A3F]">
-                            <div className="grid gap-1">
-                              <div>
-                                <span className="font-semibold text-[#3D1B1F]">
-                                  Ubicación:
-                                </span>{" "}
-                                {pickDetailValue(detail, [
-                                  "ubicacion_texto",
-                                  "ubicacion",
-                                  "ubicacion_finca",
-                                  "ubicacionFinca",
-                                ])}
-                              </div>
-                              <div>
-                                <span className="font-semibold text-[#3D1B1F]">
-                                  Tipo de vínculo:
-                                </span>{" "}
-                                {tipoVinculo}
-                              </div>
-                              <div>
-                                <span className="font-semibold text-[#3D1B1F]">
-                                  Vínculo activo:
-                                </span>{" "}
-                                {vinculo?.activo === false ? "No" : "Sí"}
-                              </div>
-                            </div>
                           </div>
                         </>
                       );

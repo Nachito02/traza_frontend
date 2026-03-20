@@ -183,7 +183,7 @@ const Integraciones = () => {
 
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
-      <div className="mx-auto w-full max-w-5xl space-y-6">
+      <div className="mx-auto w-full max-w-6xl space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-text">Bots</h1>
           <p className="mt-2 text-sm text-text-secondary">
@@ -193,7 +193,7 @@ const Integraciones = () => {
 
         {/* ─── Panel del Bot (solo admin_sistema) ─── */}
         {isAdminSistema ? (
-          <section className="rounded-2xl bg-primary/20 p-5 space-y-4">
+          <section className="rounded-2xl bg-primary p-5 shadow-lg space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold text-text">Bot IA</h2>
@@ -273,7 +273,7 @@ const Integraciones = () => {
                 {bots.map((bot) => (
                   <div
                     key={bot.id}
-                    className="flex flex-wrap items-center gap-3 rounded-lg border border-[#C9A961]/30 bg-white/90 px-4 py-3"
+                    className="flex flex-wrap items-center gap-3 rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] px-4 py-3"
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
@@ -304,7 +304,7 @@ const Integraciones = () => {
         ) : null}
 
         {/* ─── Mis delegaciones ─── */}
-        <section className="rounded-2xl bg-primary/20 p-5 space-y-4">
+        <section className="rounded-2xl bg-primary p-5 shadow-lg space-y-4">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-text">Mis delegaciones</h2>
@@ -437,46 +437,44 @@ const Integraciones = () => {
           ) : delegations.length === 0 ? (
             <div className="text-sm text-text-secondary">No tenés delegaciones activas.</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-[#C9A961]/30 text-left text-[#6B3A3F]">
-                    <th className="pb-2 pr-3 font-semibold">Bodega</th>
-                    <th className="pb-2 pr-3 font-semibold">Scopes</th>
-                    <th className="pb-2 pr-3 font-semibold">Vencimiento</th>
-                    <th className="pb-2 font-semibold"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#C9A961]/20">
-                  {delegations.map((d) => (
-                    <tr key={d.bot_delegation_id} className="text-[#3D1B1F]">
-                      <td className="py-2 pr-3">{getBodegaName(d.bodega_id)}</td>
-                      <td className="py-2 pr-3">
-                        <div className="flex flex-wrap gap-1">
-                          {d.scopes.map((s) => (
-                            <span key={s} className="rounded bg-[#F3E8CC] px-1.5 py-0.5 font-mono text-[10px] text-[#7A4A50]">{s}</span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="py-2 pr-3 text-[#7A4A50]">
+            <div className="space-y-2">
+              {delegations.map((d) => (
+                <article
+                  key={d.bot_delegation_id}
+                  className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="space-y-2">
+                      <div className="text-sm font-semibold text-[#3D1B1F]">
+                        {getBodegaName(d.bodega_id)}
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {d.scopes.map((s) => (
+                          <span
+                            key={s}
+                            className="rounded bg-[#F3E8CC] px-1.5 py-0.5 font-mono text-[10px] text-[#7A4A50]"
+                          >
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="text-xs text-[#7A4A50]">
                         {d.expires_at
-                          ? new Date(d.expires_at).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" })
+                          ? `Vence: ${new Date(d.expires_at).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" })}`
                           : "Sin vencimiento"}
-                      </td>
-                      <td className="py-2">
-                        <button
-                          type="button"
-                          disabled={revokingId === d.bot_delegation_id}
-                          onClick={() => void onRevoke(d.bot_delegation_id)}
-                          className="rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700 disabled:opacity-60"
-                        >
-                          {revokingId === d.bot_delegation_id ? "Revocando..." : "Revocar"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={revokingId === d.bot_delegation_id}
+                      onClick={() => void onRevoke(d.bot_delegation_id)}
+                      className="rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700 disabled:opacity-60"
+                    >
+                      {revokingId === d.bot_delegation_id ? "Revocando..." : "Revocar"}
+                    </button>
+                  </div>
+                </article>
+              ))}
             </div>
           )}
         </section>

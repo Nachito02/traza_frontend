@@ -108,7 +108,7 @@ export default function FincasAdmin() {
       const next = new URLSearchParams(prev);
       next.delete("edit");
       return next;
-    });
+    }, { replace: true });
   }, [searchParams, setSearchParams]);
 
   const disabled = useMemo(() => !activeBodegaId || saving, [activeBodegaId, saving]);
@@ -243,7 +243,6 @@ export default function FincasAdmin() {
               return (
                 <article key={id} className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-3">
                   <div className="text-sm font-semibold text-[#3D1B1F]">{item.nombre ?? item.nombre_finca ?? item.name ?? "Finca"}</div>
-                  <div className="text-xs text-[#6B3A3F]">{item.ubicacion_texto ?? item.ubicacion ?? "Sin ubicación"}</div>
                   <div className="mt-1 text-xs text-[#6B3A3F]">
                     Vínculo:{" "}
                     {vinculo?.tipo_vinculo === "proveedor_tercero"
@@ -275,47 +274,19 @@ export default function FincasAdmin() {
         ) : null}
 
         {formMode !== "none" ? (
-          <section className="rounded-2xl bg-white p-6 shadow-sm">
-            <h1 className="text-2xl font-bold text-[#3D1B1F]">
-              {formMode === "edit" ? "Editar finca" : "Nueva finca"}
-            </h1>
-            {loadingEdit ? (
-              <div className="mt-3 rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2 text-xs text-[#7A4A50]">
-                Cargando datos completos de la finca...
+          <section className="rounded-2xl bg-primary p-6 shadow-lg">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#8B5E34]">
+                  Formulario
+                </p>
+                <h1 className="text-2xl font-bold text-text">
+                  {formMode === "edit" ? "Editar finca" : "Nueva finca"}
+                </h1>
+                <p className="mt-2 text-sm text-text-secondary">
+                  Completá los datos base de la finca y definí el vínculo con la bodega activa.
+                </p>
               </div>
-            ) : null}
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <input value={form.nombre_finca} onChange={(e) => setForm((p) => ({ ...p, nombre_finca: e.target.value }))} placeholder="Nombre finca" className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm" />
-              <input value={form.ubicacion_texto} onChange={(e) => setForm((p) => ({ ...p, ubicacion_texto: e.target.value }))} placeholder="Ubicación" className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm" />
-              <input value={form.rut} onChange={(e) => setForm((p) => ({ ...p, rut: e.target.value }))} placeholder="RUT" className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm" />
-              <input value={form.renspa} onChange={(e) => setForm((p) => ({ ...p, renspa: e.target.value }))} placeholder="RENSPA" className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm" />
-              <input value={form.catastro} onChange={(e) => setForm((p) => ({ ...p, catastro: e.target.value }))} placeholder="Catastro" className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm" />
-              <select
-                value={vinculoForm.tipo_vinculo}
-                onChange={(e) =>
-                  setVinculoForm((prev) => ({
-                    ...prev,
-                    tipo_vinculo: e.target.value as "propia" | "proveedor_tercero",
-                  }))
-                }
-                className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
-              >
-                <option value="propia">Vínculo: Propia</option>
-                <option value="proveedor_tercero">Vínculo: Proveedor tercero</option>
-              </select>
-              <label className="flex items-center gap-2 rounded border border-[#C9A961]/40 px-3 py-2 text-sm text-[#3D1B1F]">
-                <input
-                  type="checkbox"
-                  checked={vinculoForm.activo}
-                  onChange={(e) =>
-                    setVinculoForm((prev) => ({ ...prev, activo: e.target.checked }))
-                  }
-                />
-                Vínculo activo
-              </label>
-            </div>
-            <div className="mt-3 flex gap-2">
-              <button type="button" onClick={() => void onSubmit()} disabled={disabled} className="cursor-pointer rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:bg-[#FFF9F0] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60">{editingId ? "Guardar" : "Crear"}</button>
               <button
                 type="button"
                 onClick={() => {
@@ -324,13 +295,115 @@ export default function FincasAdmin() {
                   setVinculoForm(emptyVinculoForm);
                   setFormMode("none");
                 }}
-                className="cursor-pointer rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 active:scale-[0.98]"
+                className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
+              >
+                Volver al listado
+              </button>
+            </div>
+            {loadingEdit ? (
+              <div className="mt-4 rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] px-3 py-2 text-xs text-[#7A4A50]">
+                Cargando datos completos de la finca...
+              </div>
+            ) : null}
+            <div className="mt-4 rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="space-y-2 text-sm text-[#6B3A3F]">
+                  <span className="font-semibold text-[#3D1B1F]">Nombre de la finca</span>
+                  <input
+                    value={form.nombre_finca}
+                    onChange={(e) => setForm((p) => ({ ...p, nombre_finca: e.target.value }))}
+                    placeholder="Finca Los Andes"
+                    className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F]"
+                  />
+                </label>
+                <label className="space-y-2 text-sm text-[#6B3A3F]">
+                  <span className="font-semibold text-[#3D1B1F]">Ubicación</span>
+                  <input
+                    value={form.ubicacion_texto}
+                    onChange={(e) => setForm((p) => ({ ...p, ubicacion_texto: e.target.value }))}
+                    placeholder="Luján de Cuyo, Mendoza"
+                    className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F]"
+                  />
+                </label>
+                <label className="space-y-2 text-sm text-[#6B3A3F]">
+                  <span className="font-semibold text-[#3D1B1F]">RUT</span>
+                  <input
+                    value={form.rut}
+                    onChange={(e) => setForm((p) => ({ ...p, rut: e.target.value }))}
+                    placeholder="RUT-123"
+                    className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F]"
+                  />
+                </label>
+                <label className="space-y-2 text-sm text-[#6B3A3F]">
+                  <span className="font-semibold text-[#3D1B1F]">RENSPA</span>
+                  <input
+                    value={form.renspa}
+                    onChange={(e) => setForm((p) => ({ ...p, renspa: e.target.value }))}
+                    placeholder="RENSPA-456"
+                    className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F]"
+                  />
+                </label>
+                <label className="space-y-2 text-sm text-[#6B3A3F]">
+                  <span className="font-semibold text-[#3D1B1F]">Catastro</span>
+                  <input
+                    value={form.catastro}
+                    onChange={(e) => setForm((p) => ({ ...p, catastro: e.target.value }))}
+                    placeholder="CAT-789"
+                    className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F]"
+                  />
+                </label>
+                <label className="space-y-2 text-sm text-[#6B3A3F]">
+                  <span className="font-semibold text-[#3D1B1F]">Tipo de vínculo</span>
+                  <select
+                    value={vinculoForm.tipo_vinculo}
+                    onChange={(e) =>
+                      setVinculoForm((prev) => ({
+                        ...prev,
+                        tipo_vinculo: e.target.value as "propia" | "proveedor_tercero",
+                      }))
+                    }
+                    className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F]"
+                  >
+                    <option value="propia">Propia</option>
+                    <option value="proveedor_tercero">Proveedor tercero</option>
+                  </select>
+                </label>
+                <label className="flex items-center gap-2 rounded-xl border border-[#C9A961]/30 bg-white px-3 py-2 text-sm text-[#3D1B1F] md:col-span-2">
+                  <input
+                    type="checkbox"
+                    checked={vinculoForm.activo}
+                    onChange={(e) =>
+                      setVinculoForm((prev) => ({ ...prev, activo: e.target.checked }))
+                    }
+                  />
+                  Vínculo activo
+                </label>
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void onSubmit()}
+                disabled={disabled}
+                className="cursor-pointer rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {editingId ? "Guardar" : "Crear"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingId(null);
+                  setForm(emptyForm);
+                  setVinculoForm(emptyVinculoForm);
+                  setFormMode("none");
+                }}
+                className="cursor-pointer rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-primary active:scale-[0.98]"
               >
                 Cancelar
               </button>
             </div>
-            {error ? <div className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">{error}</div> : null}
-            {success ? <div className="mt-3 rounded border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-700">{success}</div> : null}
+            {error ? <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div> : null}
+            {success ? <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{success}</div> : null}
           </section>
         ) : null}
       </div>

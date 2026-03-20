@@ -685,8 +685,8 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
         </div>
 
         {canRenderManagerFlow ? (
-          <section className="rounded-2xl bg-white p-5">
-            <h2 className="text-lg font-semibold text-dark">Nuevo registro</h2>
+          <section className="rounded-2xl bg-primary p-5 shadow-lg">
+            <h2 className="text-lg font-semibold text-text">Nuevo registro</h2>
             <p className="mt-1 text-xs text-text-secondary">
               Usuario actual: {user?.nombre ?? user?.email ?? "Usuario"}
             </p>
@@ -863,7 +863,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
             </button>
           </section>
         ) : isManagerMode ? (
-          <section className="rounded-2xl bg-primary/30 p-5">
+          <section className="rounded-2xl bg-primary p-5 shadow-lg">
             <h2 className="text-lg font-semibold text-text">Sin permisos de encargado</h2>
             <p className="mt-1 text-xs text-text-secondary">
               Para asignar tareas necesitás rol de encargado de finca o de bodega.
@@ -884,13 +884,13 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
           </div>
         )}
 
-        <section className="rounded-2xl bg-white p-5">
+        <section className="rounded-2xl bg-primary p-5 shadow-lg">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-dark">Pendientes</h2>
+            <h2 className="text-lg font-semibold text-text">Pendientes</h2>
             <button
               type="button"
               onClick={() => void refreshTasks()}
-              className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE]"
+              className="rounded-lg border border-[#C9A961]/40 bg-white px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE]"
             >
               Refrescar
             </button>

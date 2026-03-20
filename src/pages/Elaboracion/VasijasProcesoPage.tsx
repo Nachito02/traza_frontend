@@ -3,6 +3,7 @@ import { listElaboracionResource, type ElaboracionEntity } from "../../features/
 import { useAuthStore } from "../../store/authStore";
 import GenericCrudSection, { type SelectOption } from "./components/GenericCrudSection";
 import SectionSelector from "./components/SectionSelector";
+import { useSearchParams } from "react-router-dom";
 
 const OPERACIONES = [
   "ingreso",
@@ -42,6 +43,7 @@ export default function VasijasProcesoPage({
   hideSectionSelector = false,
   hidePrimaryAction = false,
 }: VasijasProcesoPageProps) {
+  const [searchParams, setSearchParams] = useSearchParams();
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const [activeSection, setActiveSection] = useState<
     "vasijas" | "operaciones" | "existencias" | "fermentacion"
@@ -49,8 +51,22 @@ export default function VasijasProcesoPage({
   const [vasijaOptions, setVasijaOptions] = useState<SelectOption[]>([]);
 
   useEffect(() => {
+    if (hideSectionSelector) {
+      setActiveSection(initialSection);
+      return;
+    }
+    const section = searchParams.get("section");
+    if (
+      section === "vasijas" ||
+      section === "operaciones" ||
+      section === "existencias" ||
+      section === "fermentacion"
+    ) {
+      setActiveSection(section);
+      return;
+    }
     setActiveSection(initialSection);
-  }, [initialSection]);
+  }, [hideSectionSelector, initialSection, searchParams]);
 
   useEffect(() => {
     if (!activeBodegaId) return;
@@ -64,7 +80,14 @@ export default function VasijasProcesoPage({
       {!hideSectionSelector ? (
         <SectionSelector
           value={activeSection}
-          onChange={setActiveSection}
+          onChange={(value) => {
+            setActiveSection(value);
+            setSearchParams((prev) => {
+              const next = new URLSearchParams(prev);
+              next.set("section", value);
+              return next;
+            });
+          }}
           options={[
             { key: "vasijas", label: "Vasijas" },
             { key: "operaciones", label: "Operaciones Vasija" },
@@ -81,6 +104,7 @@ export default function VasijasProcesoPage({
           resource="vasijas"
           bodegaId={activeBodegaId}
           hidePrimaryAction={hidePrimaryAction}
+          separatedLayout={!hidePrimaryAction}
           fields={[
             { name: "codigo", label: "Código", type: "text", required: true },
             { name: "tipo", label: "Tipo", type: "text" },
@@ -98,6 +122,7 @@ export default function VasijasProcesoPage({
           resource="operaciones-vasija"
           bodegaId={activeBodegaId}
           hidePrimaryAction={hidePrimaryAction}
+          separatedLayout={!hidePrimaryAction}
           fields={[
             { name: "id_vasija_origen", label: "Vasija origen", type: "select", options: vasijaOptions },
             { name: "id_vasija_destino", label: "Vasija destino", type: "select", options: vasijaOptions },
@@ -125,6 +150,7 @@ export default function VasijasProcesoPage({
           bodegaId={activeBodegaId}
           withBodegaId={false}
           hidePrimaryAction={hidePrimaryAction}
+          separatedLayout={!hidePrimaryAction}
           fields={[
             { name: "vasijaId", label: "Vasija", type: "select", required: true, options: vasijaOptions, sourceKey: "vasija_id" },
             { name: "fecha_hora", label: "Fecha y hora", type: "datetime-local", required: true },
@@ -144,6 +170,7 @@ export default function VasijasProcesoPage({
           bodegaId={activeBodegaId}
           withBodegaId={false}
           hidePrimaryAction={hidePrimaryAction}
+          separatedLayout={!hidePrimaryAction}
           fields={[
             { name: "vasijaId", label: "Vasija", type: "select", required: true, options: vasijaOptions, sourceKey: "vasija_id" },
             { name: "fecha_hora", label: "Fecha y hora", type: "datetime-local", required: true },

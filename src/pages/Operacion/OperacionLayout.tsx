@@ -4,12 +4,12 @@ import { resolveModuleAccess } from "../../lib/permissions";
 import { useAuthStore } from "../../store/authStore";
 
 const LINKS_BODEGA = [
-  { to: "/operacion/tareas?categoria=recepcion", label: "Recepción" },
-  { to: "/operacion/tareas?categoria=ciu-qc", label: "CIU y QC" },
-  { to: "/operacion/tareas?categoria=vasijas", label: "Vasijas y Proceso" },
-  { to: "/operacion/tareas?categoria=cortes", label: "Cortes y Producto" },
-  { to: "/operacion/tareas?categoria=fraccionamiento", label: "Fraccionamiento y Despacho" },
-  { to: "/operacion/tareas?categoria=qr", label: "Producto y Trazabilidad" },
+  { to: "/operacion/recepcion", label: "Recepción" },
+  { to: "/operacion/ciu-qc", label: "CIU y QC" },
+  { to: "/operacion/vasijas", label: "Vasijas y Proceso" },
+  { to: "/operacion/cortes", label: "Cortes y Producto" },
+  { to: "/operacion/fraccionamiento", label: "Fraccionamiento y Despacho" },
+  { to: "/operacion/qr", label: "Producto y Trazabilidad" },
 ];
 
 const LINKS_FINCA = [{ to: "/operacion/tareas", label: "Tareas de Finca" }];
@@ -18,32 +18,32 @@ const SUBCATEGORY_LINKS: Record<
   Array<{ to: string; label: string }>
 > = {
   recepcion: [
-    { to: "/operacion/tareas?categoria=recepcion&tarea=remito_uva", label: "Remito Uva" },
-    { to: "/operacion/tareas?categoria=recepcion&tarea=recepcion_bodega", label: "Recepción Bodega" },
-    { to: "/operacion/tareas?categoria=recepcion&tarea=analisis_recepcion", label: "Análisis Recepción" },
+    { to: "/operacion/recepcion?section=remito", label: "Remito Uva" },
+    { to: "/operacion/recepcion?section=recepcion", label: "Recepción Bodega" },
+    { to: "/operacion/recepcion?section=analisis", label: "Análisis Recepción" },
   ],
   "ciu-qc": [
-    { to: "/operacion/tareas?categoria=ciu-qc&tarea=ciu", label: "CIU" },
-    { to: "/operacion/tareas?categoria=ciu-qc&tarea=ciu_recepcion", label: "CIU-Recepción" },
-    { to: "/operacion/tareas?categoria=ciu-qc&tarea=qc_ingreso_uva", label: "QC Ingreso Uva" },
+    { to: "/operacion/ciu-qc?section=ciu", label: "CIU" },
+    { to: "/operacion/ciu-qc?section=vinculo", label: "CIU-Recepción" },
+    { to: "/operacion/ciu-qc?section=qc", label: "QC Ingreso Uva" },
   ],
   vasijas: [
-    { to: "/operacion/tareas?categoria=vasijas&tarea=vasija", label: "Vasijas" },
-    { to: "/operacion/tareas?categoria=vasijas&tarea=operacion_vasija", label: "Operación Vasija" },
-    { to: "/operacion/tareas?categoria=vasijas&tarea=existencia_vasija", label: "Existencia Vasija" },
-    { to: "/operacion/tareas?categoria=vasijas&tarea=control_fermentacion", label: "Control Fermentación" },
+    { to: "/operacion/vasijas?section=vasijas", label: "Vasijas" },
+    { to: "/operacion/vasijas?section=operaciones", label: "Operación Vasija" },
+    { to: "/operacion/vasijas?section=existencias", label: "Existencia Vasija" },
+    { to: "/operacion/vasijas?section=fermentacion", label: "Control Fermentación" },
   ],
   cortes: [
-    { to: "/operacion/tareas?categoria=cortes&tarea=corte", label: "Cortes" },
-    { to: "/operacion/tareas?categoria=cortes&tarea=producto", label: "Productos" },
+    { to: "/operacion/cortes?section=cortes", label: "Cortes" },
+    { to: "/operacion/cortes?section=productos", label: "Productos" },
   ],
   fraccionamiento: [
-    { to: "/operacion/tareas?categoria=fraccionamiento&tarea=lote_fraccionamiento", label: "Lotes" },
-    { to: "/operacion/tareas?categoria=fraccionamiento&tarea=codigo_envase", label: "Códigos Envase" },
-    { to: "/operacion/tareas?categoria=fraccionamiento&tarea=despacho", label: "Despachos" },
+    { to: "/operacion/fraccionamiento?section=lotes", label: "Lotes" },
+    { to: "/operacion/fraccionamiento?section=codigos", label: "Códigos Envase" },
+    { to: "/operacion/fraccionamiento?section=despachos", label: "Despachos" },
   ],
   qr: [
-    { to: "/operacion/tareas?categoria=qr&tarea=producto_trazabilidad", label: "Producto y Trazabilidad" },
+    { to: "/operacion/qr", label: "Producto y Trazabilidad" },
   ],
 };
 const OPERACION_SCOPE_STORAGE_KEY = "operacion_scope";
@@ -97,15 +97,14 @@ export default function OperacionLayout() {
     const params = new URLSearchParams(location.search);
     const categoryFromQuery = params.get("categoria") ?? "";
     if (categoryFromQuery) return categoryFromQuery;
-    const found = LINKS_BODEGA.find((link) =>
-      location.pathname === "/operacion/tareas" ? currentPathWithSearch.startsWith(link.to) : false,
-    );
-    if (found?.to.includes("categoria=")) {
-      const parsed = new URL(found.to, "http://localhost");
-      return parsed.searchParams.get("categoria") ?? "";
-    }
+    if (location.pathname.startsWith("/operacion/recepcion")) return "recepcion";
+    if (location.pathname.startsWith("/operacion/ciu-qc")) return "ciu-qc";
+    if (location.pathname.startsWith("/operacion/vasijas")) return "vasijas";
+    if (location.pathname.startsWith("/operacion/cortes")) return "cortes";
+    if (location.pathname.startsWith("/operacion/fraccionamiento")) return "fraccionamiento";
+    if (location.pathname.startsWith("/operacion/qr")) return "qr";
     return "recepcion";
-  }, [currentPathWithSearch, location.pathname, location.search, useBodegaOperacion]);
+  }, [location.pathname, location.search, useBodegaOperacion]);
   const subcategoryLinks = useMemo(
     () => (useBodegaOperacion ? SUBCATEGORY_LINKS[activeCategory] ?? [] : []),
     [activeCategory, useBodegaOperacion],
@@ -128,11 +127,11 @@ export default function OperacionLayout() {
 
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
-      <div className="mx-auto w-full max-w-7xl space-y-6">
-        <header className="rounded-2xl bg-white p-6 shadow-sm">
+      <div className="mx-auto w-full max-w-6xl space-y-6">
+        <header className="rounded-2xl bg-primary p-6 shadow-lg">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="text-3xl font-bold text-dark">Operación</h1>
+              <h1 className="text-3xl font-bold text-text">Operación</h1>
               <p className="mt-2 text-sm text-text-secondary">
                 {useBodegaOperacion
                   ? "Registro operativo de recepción, control, elaboración, fraccionamiento y trazabilidad."
@@ -141,18 +140,18 @@ export default function OperacionLayout() {
             </div>
             <Link
               to="/tareas"
-              className="rounded-lg border border-[#C9A961] bg-[#FFF9F0] px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:bg-[#F7EEDB]"
+              className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
             >
               Ver tareas en curso
             </Link>
           </div>
           {access.hasBothOperacionScopes ? (
             <div className="mt-3 flex items-center gap-2">
-              <label className="text-xs font-semibold text-[#722F37]">Ámbito:</label>
+              <label className="text-xs font-semibold text-text">Ámbito:</label>
               <select
                 value={selectedScope}
                 onChange={(event) => onChangeScope(event.target.value as OperacionScope)}
-                className="rounded border border-[#C9A961]/40 bg-white/90 px-2 py-1 text-xs text-[#3D1B1F]"
+                className="rounded border border-[#C9A961]/40 bg-white px-2 py-1 text-xs text-[#3D1B1F]"
               >
                 <option value="bodega">Bodega</option>
                 <option value="finca">Finca</option>
@@ -169,7 +168,7 @@ export default function OperacionLayout() {
                     "rounded-lg border px-3 py-2 text-xs font-semibold transition",
                     isLinkActive(link.to)
                       ? "border-[#C9A961] bg-[#FFF9F0] text-[#722F37]"
-                      : "border-[#C9A961]/40 bg-white/80 text-[#7A4A50] hover:bg-[#FFF9F0]",
+                      : "border-[#C9A961]/40 bg-white text-[#7A4A50] hover:bg-[#FFF9F0]",
                   ].join(" ")
                 }
               >
@@ -188,7 +187,7 @@ export default function OperacionLayout() {
                       "rounded-full border px-3 py-1 text-[11px] font-semibold transition",
                       isLinkActive(link.to)
                         ? "border-[#722F37] bg-[#722F37] text-[#FFF9F0]"
-                        : "border-[#C9A961]/40 bg-white/85 text-[#7A4A50] hover:bg-[#FFF9F0]",
+                        : "border-[#C9A961]/40 bg-white text-[#7A4A50] hover:bg-[#FFF9F0]",
                     ].join(" ")
                   }
                 >

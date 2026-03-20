@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   createElaboracionResource,
   deleteElaboracionResource,
@@ -69,8 +70,12 @@ export default function CortesProductoPage({
   hideSectionSelector = false,
   hidePrimaryAction = false,
 }: CortesProductoPageProps) {
+  const [searchParams, setSearchParams] = useSearchParams();
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const [activeSection, setActiveSection] = useState<"cortes" | "productos">(initialSection);
+  const [corteViewMode, setCorteViewMode] = useState<"list" | "form">(
+    hidePrimaryAction ? "form" : "list",
+  );
 
   const [vasijaOptions, setVasijaOptions] = useState<SelectOption[]>([]);
   const [cortes, setCortes] = useState<ElaboracionEntity[]>([]);
@@ -82,8 +87,17 @@ export default function CortesProductoPage({
   const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
+    if (hideSectionSelector) {
+      setActiveSection(initialSection);
+      return;
+    }
+    const section = searchParams.get("section");
+    if (section === "cortes" || section === "productos") {
+      setActiveSection(section);
+      return;
+    }
     setActiveSection(initialSection);
-  }, [initialSection]);
+  }, [hideSectionSelector, initialSection, searchParams]);
 
   const loadData = async () => {
     if (!activeBodegaId) return;
@@ -160,6 +174,9 @@ export default function CortesProductoPage({
       }
       setForm(emptyCorteForm());
       setEditingId(null);
+      if (!hidePrimaryAction) {
+        setCorteViewMode("list");
+      }
       await loadData();
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
@@ -190,6 +207,9 @@ export default function CortesProductoPage({
       : [{ vasijaId: "", loteCosechaId: "", volumen_l: "", porcentaje: "" }];
 
     setEditingId(id);
+    if (!hidePrimaryAction) {
+      setCorteViewMode("form");
+    }
     setForm({
       fecha: typeof item.fecha === "string" ? item.fecha.slice(0, 10) : "",
       objetivo: String(item.objetivo ?? ""),
@@ -219,7 +239,14 @@ export default function CortesProductoPage({
       {!hideSectionSelector ? (
         <SectionSelector
           value={activeSection}
-          onChange={setActiveSection}
+          onChange={(value) => {
+            setActiveSection(value);
+            setSearchParams((prev) => {
+              const next = new URLSearchParams(prev);
+              next.set("section", value);
+              return next;
+            });
+          }}
           options={[
             { key: "cortes", label: "Cortes" },
             { key: "productos", label: "Productos" },
@@ -229,206 +256,226 @@ export default function CortesProductoPage({
 
       {activeSection === "cortes" ? (
         <section className="rounded-2xl bg-white p-5 shadow-sm">
-        <h3 className="text-base font-semibold text-[#3D1B1F]">Cortes</h3>
-        <p className="mt-1 text-xs text-[#7A4A50]">
-          Validación aplicada: cada componente requiere vasijaId o loteCosechaId.
-        </p>
-
-        <div className="mt-3 grid gap-2 md:grid-cols-2">
-          <input
-            type="date"
-            value={form.fecha}
-            onChange={(event) => setForm((prev) => ({ ...prev, fecha: event.target.value }))}
-            className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
-          />
-          <input
-            type="text"
-            placeholder="Objetivo"
-            value={form.objetivo}
-            onChange={(event) => setForm((prev) => ({ ...prev, objetivo: event.target.value }))}
-            className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
-          />
-          <input
-            type="text"
-            placeholder="Campaña ID"
-            value={form.campaniaId}
-            onChange={(event) => setForm((prev) => ({ ...prev, campaniaId: event.target.value }))}
-            className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
-          />
-          <input
-            type="text"
-            placeholder="Responsable User ID"
-            value={form.responsableUserId}
-            onChange={(event) =>
-              setForm((prev) => ({ ...prev, responsableUserId: event.target.value }))
-            }
-            className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
-          />
-        </div>
-        <textarea
-          value={form.observaciones}
-          onChange={(event) => setForm((prev) => ({ ...prev, observaciones: event.target.value }))}
-          placeholder="Observaciones"
-          className="mt-2 min-h-20 w-full rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
-        />
-
-        <div className="mt-3 space-y-2">
-          {form.componentes.map((componente, index) => (
-            <div key={`comp-${index}`} className="grid gap-2 rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2 md:grid-cols-2">
-              <select
-                value={componente.vasijaId}
-                onChange={(event) =>
-                  setForm((prev) => {
-                    const componentes = [...prev.componentes];
-                    componentes[index] = { ...componentes[index], vasijaId: event.target.value };
-                    return { ...prev, componentes };
-                  })
-                }
-                className="rounded border border-[#C9A961]/40 px-2 py-1 text-sm"
-              >
-                <option value="">Vasija (opcional)</option>
-                {vasijaOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="text"
-                placeholder="Lote cosecha ID (opcional)"
-                value={componente.loteCosechaId}
-                onChange={(event) =>
-                  setForm((prev) => {
-                    const componentes = [...prev.componentes];
-                    componentes[index] = {
-                      ...componentes[index],
-                      loteCosechaId: event.target.value,
-                    };
-                    return { ...prev, componentes };
-                  })
-                }
-                className="rounded border border-[#C9A961]/40 px-2 py-1 text-sm"
-              />
-              <input
-                type="number"
-                placeholder="Volumen l"
-                value={componente.volumen_l}
-                onChange={(event) =>
-                  setForm((prev) => {
-                    const componentes = [...prev.componentes];
-                    componentes[index] = { ...componentes[index], volumen_l: event.target.value };
-                    return { ...prev, componentes };
-                  })
-                }
-                className="rounded border border-[#C9A961]/40 px-2 py-1 text-sm"
-              />
-              <input
-                type="number"
-                placeholder="Porcentaje"
-                value={componente.porcentaje}
-                onChange={(event) =>
-                  setForm((prev) => {
-                    const componentes = [...prev.componentes];
-                    componentes[index] = { ...componentes[index], porcentaje: event.target.value };
-                    return { ...prev, componentes };
-                  })
-                }
-                className="rounded border border-[#C9A961]/40 px-2 py-1 text-sm"
-              />
-              <button
-                type="button"
-                onClick={() =>
-                  setForm((prev) => ({
-                    ...prev,
-                    componentes: prev.componentes.filter((_, rowIndex) => rowIndex !== index),
-                  }))
-                }
-                className="rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700"
-              >
-                Quitar componente
-              </button>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-base font-semibold text-[#3D1B1F]">Cortes</h3>
+              <p className="mt-1 text-xs text-[#7A4A50]">
+                Validación aplicada: cada componente requiere vasijaId o loteCosechaId.
+              </p>
             </div>
-          ))}
-        </div>
-
-        {!hidePrimaryAction ? (
-          <div className="mt-2 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() =>
-                setForm((prev) => ({
-                  ...prev,
-                  componentes: [
-                    ...prev.componentes,
-                    { vasijaId: "", loteCosechaId: "", volumen_l: "", porcentaje: "" },
-                  ],
-                }))
-              }
-              className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37]"
-            >
-              Agregar componente
-            </button>
-            <button
-              type="button"
-              onClick={() => void submitCorte()}
-              disabled={saving}
-              className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37] disabled:opacity-60"
-            >
-              {editingId ? "Guardar" : "Crear"}
-            </button>
-            {editingId ? (
+            {!hidePrimaryAction && corteViewMode === "list" ? (
               <button
                 type="button"
                 onClick={() => {
                   setEditingId(null);
                   setForm(emptyCorteForm());
+                  setCorteViewMode("form");
                 }}
-                className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"
+                className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37]"
               >
-                Cancelar edición
+                Nuevo corte
               </button>
             ) : null}
           </div>
-        ) : null}
 
-        {error ? <div className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">{error}</div> : null}
-        {success ? <div className="mt-3 rounded border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-700">{success}</div> : null}
+          {hidePrimaryAction || corteViewMode === "form" ? (
+            <>
+              <div className="mt-3 grid gap-2 md:grid-cols-2">
+                <input
+                  type="date"
+                  value={form.fecha}
+                  onChange={(event) => setForm((prev) => ({ ...prev, fecha: event.target.value }))}
+                  className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
+                />
+                <input
+                  type="text"
+                  placeholder="Objetivo"
+                  value={form.objetivo}
+                  onChange={(event) => setForm((prev) => ({ ...prev, objetivo: event.target.value }))}
+                  className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
+                />
+                <input
+                  type="text"
+                  placeholder="Campaña ID"
+                  value={form.campaniaId}
+                  onChange={(event) => setForm((prev) => ({ ...prev, campaniaId: event.target.value }))}
+                  className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
+                />
+                <input
+                  type="text"
+                  placeholder="Responsable User ID"
+                  value={form.responsableUserId}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, responsableUserId: event.target.value }))
+                  }
+                  className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
+                />
+              </div>
+              <textarea
+                value={form.observaciones}
+                onChange={(event) => setForm((prev) => ({ ...prev, observaciones: event.target.value }))}
+                placeholder="Observaciones"
+                className="mt-2 min-h-20 w-full rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
+              />
 
-        <div className="mt-3 max-h-72 space-y-2 overflow-auto">
-          {loading ? (
-            <div className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2 text-xs text-[#7A4A50]">Cargando...</div>
-          ) : cortes.length === 0 ? (
-            <div className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2 text-xs text-[#7A4A50]">Sin cortes.</div>
-          ) : (
-            cortes.map((item, index) => {
-              const id = resolveCorteId(item) || `i-${index}`;
-              return (
-                <article key={id} className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2">
-                  <div className="text-xs font-semibold text-[#5A2D32]">{id}</div>
-                  <pre className="mt-1 max-h-20 overflow-auto rounded bg-white p-2 text-[11px] text-[#3D1B1F]">
-                    {JSON.stringify(item, null, 2)}
-                  </pre>
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => editCorte(item)}
-                      className="rounded border border-[#C9A961]/50 px-2 py-1 text-xs font-semibold text-[#722F37]"
+              <div className="mt-3 space-y-2">
+                {form.componentes.map((componente, index) => (
+                  <div key={`comp-${index}`} className="grid gap-2 rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2 md:grid-cols-2">
+                    <select
+                      value={componente.vasijaId}
+                      onChange={(event) =>
+                        setForm((prev) => {
+                          const componentes = [...prev.componentes];
+                          componentes[index] = { ...componentes[index], vasijaId: event.target.value };
+                          return { ...prev, componentes };
+                        })
+                      }
+                      className="rounded border border-[#C9A961]/40 px-2 py-1 text-sm"
                     >
-                      Editar
-                    </button>
+                      <option value="">Vasija (opcional)</option>
+                      {vasijaOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      placeholder="Lote cosecha ID (opcional)"
+                      value={componente.loteCosechaId}
+                      onChange={(event) =>
+                        setForm((prev) => {
+                          const componentes = [...prev.componentes];
+                          componentes[index] = {
+                            ...componentes[index],
+                            loteCosechaId: event.target.value,
+                          };
+                          return { ...prev, componentes };
+                        })
+                      }
+                      className="rounded border border-[#C9A961]/40 px-2 py-1 text-sm"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Volumen l"
+                      value={componente.volumen_l}
+                      onChange={(event) =>
+                        setForm((prev) => {
+                          const componentes = [...prev.componentes];
+                          componentes[index] = { ...componentes[index], volumen_l: event.target.value };
+                          return { ...prev, componentes };
+                        })
+                      }
+                      className="rounded border border-[#C9A961]/40 px-2 py-1 text-sm"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Porcentaje"
+                      value={componente.porcentaje}
+                      onChange={(event) =>
+                        setForm((prev) => {
+                          const componentes = [...prev.componentes];
+                          componentes[index] = { ...componentes[index], porcentaje: event.target.value };
+                          return { ...prev, componentes };
+                        })
+                      }
+                      className="rounded border border-[#C9A961]/40 px-2 py-1 text-sm"
+                    />
                     <button
                       type="button"
-                      onClick={() => void deleteCorte(item)}
+                      onClick={() =>
+                        setForm((prev) => ({
+                          ...prev,
+                          componentes: prev.componentes.filter((_, rowIndex) => rowIndex !== index),
+                        }))
+                      }
                       className="rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700"
                     >
-                      Eliminar
+                      Quitar componente
                     </button>
                   </div>
-                </article>
-              );
-            })
+                ))}
+              </div>
+
+              {!hidePrimaryAction ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        componentes: [
+                          ...prev.componentes,
+                          { vasijaId: "", loteCosechaId: "", volumen_l: "", porcentaje: "" },
+                        ],
+                      }))
+                    }
+                    className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37]"
+                  >
+                    Agregar componente
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void submitCorte()}
+                    disabled={saving}
+                    className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37] disabled:opacity-60"
+                  >
+                    {editingId ? "Guardar" : "Crear"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingId(null);
+                      setForm(emptyCorteForm());
+                      setCorteViewMode("list");
+                    }}
+                    className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"
+                  >
+                    {editingId ? "Cancelar edición" : "Volver al listado"}
+                  </button>
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <div className="mt-3 max-h-72 space-y-2 overflow-auto">
+              {loading ? (
+                <div className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2 text-xs text-[#7A4A50]">Cargando...</div>
+              ) : cortes.length === 0 ? (
+                <div className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2 text-xs text-[#7A4A50]">Sin cortes.</div>
+              ) : (
+                cortes.map((item, index) => {
+                  const id = resolveCorteId(item) || `i-${index}`;
+                  return (
+                    <article key={id} className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2">
+                      <div className="text-xs font-semibold text-[#5A2D32]">{id}</div>
+                      <pre className="mt-1 max-h-20 overflow-auto rounded bg-white p-2 text-[11px] text-[#3D1B1F]">
+                        {JSON.stringify(item, null, 2)}
+                      </pre>
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => editCorte(item)}
+                          className="rounded border border-[#C9A961]/50 px-2 py-1 text-xs font-semibold text-[#722F37]"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void deleteCorte(item)}
+                          className="rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })
+              )}
+            </div>
           )}
-        </div>
+
+          {error ? <div className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">{error}</div> : null}
+          {success ? <div className="mt-3 rounded border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-700">{success}</div> : null}
         </section>
       ) : null}
 
@@ -438,6 +485,7 @@ export default function CortesProductoPage({
           description="Catálogo de productos finales para fraccionamiento."
           resource="productos"
           bodegaId={activeBodegaId}
+          separatedLayout={!hidePrimaryAction}
           fields={[
             { name: "nombre_comercial", label: "Nombre comercial", type: "text", required: true },
             { name: "varietal", label: "Varietal", type: "text" },

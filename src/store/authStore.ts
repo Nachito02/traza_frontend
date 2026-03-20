@@ -65,6 +65,32 @@ const ME_PATH = "/auth/me";
 const ME_BODEGAS_PATH = "/auth/me/bodegas";
 const LOGOUT_PATH = "/auth/logout";
 const CHANGE_PASSWORD_PATH = "/auth/change-password";
+const ACTIVE_BODEGA_STORAGE_KEY = "activeBodegaId";
+
+function getStoredActiveBodegaId() {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(ACTIVE_BODEGA_STORAGE_KEY);
+}
+
+function setStoredActiveBodegaId(bodegaId: string | number | null) {
+  if (typeof window === "undefined") return;
+  if (bodegaId === null || bodegaId === undefined || bodegaId === "") {
+    window.localStorage.removeItem(ACTIVE_BODEGA_STORAGE_KEY);
+    return;
+  }
+  window.localStorage.setItem(ACTIVE_BODEGA_STORAGE_KEY, String(bodegaId));
+}
+
+function resolveActiveBodegaId(bodegas: Bodega[], preferredId?: string | number | null) {
+  const preferred = preferredId === null || preferredId === undefined ? "" : String(preferredId);
+  if (preferred && bodegas.some((bodega) => String(bodega.bodega_id) === preferred)) {
+    return preferred;
+  }
+  if (bodegas.length === 1) {
+    return String(bodegas[0].bodega_id);
+  }
+  return null;
+}
 
 async function fetchMe() {
   const response = await apiClient.get<User>(ME_PATH);
@@ -90,13 +116,16 @@ async function enrichUser(user: User) {
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: false,
-  isLoading: false,
+  isLoading: true,
   error: null,
   bodegas: [],
   bodegasLoading: false,
-  activeBodegaId: null,
+  activeBodegaId: getStoredActiveBodegaId(),
   mustChangePasswordUserId: null,
-  setActiveBodega: (bodegaId) => set({ activeBodegaId: bodegaId }),
+  setActiveBodega: (bodegaId) => {
+    setStoredActiveBodegaId(bodegaId);
+    set({ activeBodegaId: bodegaId });
+  },
   fetchBodegas: async () => {
     set({ bodegasLoading: true });
     try {
@@ -117,7 +146,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         .get<Bodega[]>(ME_BODEGAS_PATH)
         .then((r) => r.data)
         .catch(() => []);
-      set({ user: enrichedUser, isAuthenticated: true, mustChangePasswordUserId: null, bodegas });
+      const activeBodegaId = resolveActiveBodegaId(
+        bodegas,
+        get().activeBodegaId ?? getStoredActiveBodegaId() ?? enrichedUser.bodegaId,
+      );
+      setStoredActiveBodegaId(activeBodegaId);
+      set({
+        user: enrichedUser,
+        isAuthenticated: true,
+        mustChangePasswordUserId: null,
+        bodegas,
+        activeBodegaId,
+      });
     } catch (error) {
       const message = getApiErrorMessage(error);
       set({ error: message });
@@ -161,13 +201,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const user = "user" in data ? data.user : data;
       const resolvedUser = user?.id ? user : await fetchMe();
       const enrichedUser = await enrichUser(resolvedUser);
-
-      set({ user: enrichedUser, isAuthenticated: true, mustChangePasswordUserId: null });
       const bodegas = await apiClient
         .get<Bodega[]>(ME_BODEGAS_PATH)
         .then((r) => r.data)
         .catch(() => []);
-      set({ bodegas });
+      const activeBodegaId = resolveActiveBodegaId(
+        bodegas,
+        get().activeBodegaId ?? getStoredActiveBodegaId() ?? enrichedUser.bodegaId,
+      );
+      setStoredActiveBodegaId(activeBodegaId);
+      set({
+        user: enrichedUser,
+        isAuthenticated: true,
+        mustChangePasswordUserId: null,
+        bodegas,
+        activeBodegaId,
+      });
     } catch (error) {
       const message = getApiErrorMessage(error);
       set({ user: null, isAuthenticated: false });
@@ -211,6 +260,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         bodegas: [],
         activeBodegaId: null,
       });
+      setStoredActiveBodegaId(null);
     }
   },
   bootstrap: async () => {
@@ -222,10 +272,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         .get<Bodega[]>(ME_BODEGAS_PATH)
         .then((r) => r.data)
         .catch(() => []);
-      set({ user: enrichedUser, isAuthenticated: true });
-      set({ bodegas });
+      const activeBodegaId = resolveActiveBodegaId(
+        bodegas,
+        get().activeBodegaId ?? getStoredActiveBodegaId() ?? enrichedUser.bodegaId,
+      );
+      setStoredActiveBodegaId(activeBodegaId);
+      set({
+        user: enrichedUser,
+        isAuthenticated: true,
+        bodegas,
+        activeBodegaId,
+      });
     } catch {
-      set({ user: null, isAuthenticated: false, bodegas: [] });
+      set({ user: null, isAuthenticated: false, bodegas: [], activeBodegaId: null });
+      setStoredActiveBodegaId(null);
     } finally {
       set({ isLoading: false });
     }
@@ -241,4 +301,5 @@ setAuthFailureHandler(() => {
     bodegas: [],
     activeBodegaId: null,
   });
+  setStoredActiveBodegaId(null);
 });

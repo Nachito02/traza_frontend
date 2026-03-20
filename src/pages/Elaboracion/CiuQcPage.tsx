@@ -8,6 +8,7 @@ import {
 import { useAuthStore } from "../../store/authStore";
 import GenericCrudSection, { type SelectOption } from "./components/GenericCrudSection";
 import SectionSelector from "./components/SectionSelector";
+import { useSearchParams } from "react-router-dom";
 
 function toOptions(items: ElaboracionEntity[], idKeys: string[], labelKeys: string[]): SelectOption[] {
   return items
@@ -47,14 +48,24 @@ export default function CiuQcPage({
   hideSectionSelector = false,
   hidePrimaryAction = false,
 }: CiuQcPageProps) {
+  const [searchParams, setSearchParams] = useSearchParams();
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const [activeSection, setActiveSection] = useState<"ciu" | "vinculo" | "qc">(initialSection);
   const [ciuOptions, setCiuOptions] = useState<SelectOption[]>([]);
   const [recepcionOptions, setRecepcionOptions] = useState<SelectOption[]>([]);
 
   useEffect(() => {
+    if (hideSectionSelector) {
+      setActiveSection(initialSection);
+      return;
+    }
+    const section = searchParams.get("section");
+    if (section === "ciu" || section === "vinculo" || section === "qc") {
+      setActiveSection(section);
+      return;
+    }
     setActiveSection(initialSection);
-  }, [initialSection]);
+  }, [hideSectionSelector, initialSection, searchParams]);
 
   useEffect(() => {
     if (!activeBodegaId) return;
@@ -82,7 +93,14 @@ export default function CiuQcPage({
       {!hideSectionSelector ? (
         <SectionSelector
           value={activeSection}
-          onChange={setActiveSection}
+          onChange={(value) => {
+            setActiveSection(value);
+            setSearchParams((prev) => {
+              const next = new URLSearchParams(prev);
+              next.set("section", value);
+              return next;
+            });
+          }}
           options={[
             { key: "ciu", label: "CIU" },
             { key: "vinculo", label: "CIU-Recepción" },
@@ -98,6 +116,7 @@ export default function CiuQcPage({
           resource="cius"
           bodegaId={activeBodegaId}
           hidePrimaryAction={hidePrimaryAction}
+          separatedLayout={!hidePrimaryAction}
           fields={[
             { name: "codigo_ciu", label: "Código CIU", type: "text", required: true },
             { name: "emitido_at", label: "Emitido", type: "datetime-local", required: true },
@@ -157,6 +176,7 @@ export default function CiuQcPage({
             },
           ]}
           hidePrimaryAction={hidePrimaryAction}
+          separatedLayout={!hidePrimaryAction}
         />
       ) : null}
 
@@ -167,6 +187,7 @@ export default function CiuQcPage({
           resource="qc-ingreso-uva"
           bodegaId={activeBodegaId}
           hidePrimaryAction={hidePrimaryAction}
+          separatedLayout={!hidePrimaryAction}
           fields={[
             {
               name: "recepcionBodegaId",
