@@ -378,10 +378,6 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
   const isManagerMode = mode === "manager";
   const canRenderManagerFlow = isManagerMode && canManageTasks;
 
-  const catalogTasksForCategory = useMemo(
-    () => OPERACION_TASK_TEMPLATES.filter((task) => task.categoria === form.categoriaOperacion),
-    [form.categoriaOperacion],
-  );
   const selectedCatalogTask = useMemo(
     () => OPERACION_TASK_TEMPLATES.find((task) => task.id === form.tareaCatalogoId) ?? null,
     [form.tareaCatalogoId],
