@@ -1,6 +1,8 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? "";
+const ACCESS_TOKEN_STORAGE_KEY = "accessToken";
+const REFRESH_TOKEN_STORAGE_KEY = "refreshToken";
 
 type ApiError = {
   error?: string;
@@ -17,6 +19,38 @@ export const apiClient = axios.create({
     Accept: "application/json",
   },
 });
+
+function getStoredToken(key: string) {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(key);
+}
+
+function setStoredToken(key: string, value: string | null) {
+  if (typeof window === "undefined") return;
+  if (!value) {
+    window.localStorage.removeItem(key);
+    return;
+  }
+  window.localStorage.setItem(key, value);
+}
+
+export function getStoredAccessToken() {
+  return getStoredToken(ACCESS_TOKEN_STORAGE_KEY);
+}
+
+export function getStoredRefreshToken() {
+  return getStoredToken(REFRESH_TOKEN_STORAGE_KEY);
+}
+
+export function storeAuthTokens(accessToken?: string | null, refreshToken?: string | null) {
+  setStoredToken(ACCESS_TOKEN_STORAGE_KEY, accessToken ?? null);
+  setStoredToken(REFRESH_TOKEN_STORAGE_KEY, refreshToken ?? null);
+}
+
+export function clearStoredAuthTokens() {
+  setStoredToken(ACCESS_TOKEN_STORAGE_KEY, null);
+  setStoredToken(REFRESH_TOKEN_STORAGE_KEY, null);
+}
 
 const REFRESH_PATH = "/auth/refresh";
 const AUTH_PATHS_WITHOUT_REFRESH = new Set([
@@ -91,12 +125,18 @@ apiClient.interceptors.response.use(
 
     isRefreshing = true;
     try {
+      const refreshToken = getStoredRefreshToken();
+      const refreshConfig = { skipAuthRefresh: true } as RetryableRequestConfig;
+      if (refreshToken) {
+        refreshConfig.headers = {
+          ...(refreshConfig.headers ?? {}),
+          "X-Refresh-Token": refreshToken,
+        } as unknown as RetryableRequestConfig["headers"];
+      }
       await apiClient.post(
         REFRESH_PATH,
-        {},
-        {
-          skipAuthRefresh: true,
-        } as RetryableRequestConfig,
+        refreshToken ? { refreshToken } : {},
+        refreshConfig,
       );
       flushPendingRequests(null);
       return apiClient(originalRequest);
@@ -109,6 +149,17 @@ apiClient.interceptors.response.use(
     }
   },
 );
+
+apiClient.interceptors.request.use((config) => {
+  const token = getStoredAccessToken();
+  if (token) {
+    config.headers = config.headers ?? {};
+    if (!config.headers.Authorization) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  return config;
+});
 
 export function getApiErrorMessage(error: unknown) {
   if (axios.isAxiosError(error)) {

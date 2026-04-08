@@ -1,5 +1,11 @@
 import { create } from "zustand";
-import { apiClient, getApiErrorMessage, setAuthFailureHandler } from "../lib/api";
+import {
+  apiClient,
+  clearStoredAuthTokens,
+  getApiErrorMessage,
+  setAuthFailureHandler,
+  storeAuthTokens,
+} from "../lib/api";
 
 export type User = {
   id: string | number;
@@ -34,6 +40,11 @@ export type Bodega = {
   activo: boolean;
   created_at: string;
   updated_at: string;
+};
+
+type AuthTokensResponse = {
+  access_token?: string;
+  refresh_token?: string;
 };
 
 type AuthState = {
@@ -198,6 +209,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               : "Usuario o contraseña incorrectos";
         throw new Error(errorMessage);
       }
+      const authTokens = data as AuthTokensResponse;
+      storeAuthTokens(authTokens.access_token ?? null, authTokens.refresh_token ?? null);
       const user = "user" in data ? data.user : data;
       const resolvedUser = user?.id ? user : await fetchMe();
       const enrichedUser = await enrichUser(resolvedUser);
@@ -218,6 +231,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         activeBodegaId,
       });
     } catch (error) {
+      clearStoredAuthTokens();
       const message = getApiErrorMessage(error);
       set({ user: null, isAuthenticated: false });
       set({ error: message });
@@ -253,6 +267,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch {
       // Si no existe el endpoint, igual limpiamos estado local.
     } finally {
+      clearStoredAuthTokens();
       set({
         user: null,
         isAuthenticated: false,
@@ -284,6 +299,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         activeBodegaId,
       });
     } catch {
+      clearStoredAuthTokens();
       set({ user: null, isAuthenticated: false, bodegas: [], activeBodegaId: null });
       setStoredActiveBodegaId(null);
     } finally {
@@ -293,6 +309,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 }));
 
 setAuthFailureHandler(() => {
+  clearStoredAuthTokens();
   useAuthStore.setState({
     user: null,
     isAuthenticated: false,
