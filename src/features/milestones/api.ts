@@ -6,6 +6,18 @@ export type ProtocoloProceso = {
   evento_tipo: string;
   obligatorio: boolean;
   orden: number;
+  campos_obligatorios?: string[];
+  required_fields?: string[];
+  plantilla?: {
+    version?: number;
+    campos?: Array<{
+      campo: string;
+      type: string;
+      required?: boolean;
+      unit?: string;
+      enum?: string[];
+    }>;
+  };
   protocolo_etapa: {
     etapa_id: string;
     nombre: string;

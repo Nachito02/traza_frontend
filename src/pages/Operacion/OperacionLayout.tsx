@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { resolveModuleAccess } from "../../lib/permissions";
 import { useAuthStore } from "../../store/authStore";
+import { useOperacionStore } from "../../store/operacionStore";
 
 const LINKS_BODEGA = [
+  { to: "/operacion/tareas", label: "Tareas" },
   { to: "/operacion/recepcion", label: "Recepción" },
   { to: "/operacion/ciu-qc", label: "CIU y QC" },
   { to: "/operacion/vasijas", label: "Vasijas y Proceso" },
@@ -13,10 +15,8 @@ const LINKS_BODEGA = [
 ];
 
 const LINKS_FINCA = [{ to: "/operacion/tareas", label: "Tareas de Finca" }];
-const SUBCATEGORY_LINKS: Record<
-  string,
-  Array<{ to: string; label: string }>
-> = {
+
+const SUBCATEGORY_LINKS: Record<string, Array<{ to: string; label: string }>> = {
   recepcion: [
     { to: "/operacion/recepcion?section=remito", label: "Remito Uva" },
     { to: "/operacion/recepcion?section=recepcion", label: "Recepción Bodega" },
@@ -42,12 +42,10 @@ const SUBCATEGORY_LINKS: Record<
     { to: "/operacion/fraccionamiento?section=codigos", label: "Códigos Envase" },
     { to: "/operacion/fraccionamiento?section=despachos", label: "Despachos" },
   ],
-  qr: [
-    { to: "/operacion/qr", label: "Producto y Trazabilidad" },
-  ],
+  qr: [{ to: "/operacion/qr", label: "Producto y Trazabilidad" }],
 };
-const OPERACION_SCOPE_STORAGE_KEY = "operacion_scope";
 
+const OPERACION_SCOPE_STORAGE_KEY = "operacion_scope";
 type OperacionScope = "bodega" | "finca";
 
 function readOperacionScopePreference(): OperacionScope | null {
@@ -65,6 +63,7 @@ function writeOperacionScopePreference(scope: OperacionScope) {
 export default function OperacionLayout() {
   const user = useAuthStore((state) => state.user);
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
+  const { activeProtocoloId } = useOperacionStore();
   const navigate = useNavigate();
   const location = useLocation();
   const access = resolveModuleAccess(user, activeBodegaId);
@@ -75,7 +74,6 @@ export default function OperacionLayout() {
     if (preferred) return preferred;
     return "bodega";
   });
-
   useEffect(() => {
     if (access.canAccessOperacionBodega && !access.canAccessOperacionFinca) {
       setSelectedScope("bodega");
@@ -92,8 +90,10 @@ export default function OperacionLayout() {
   const useBodegaOperacion = selectedScope === "bodega";
   const links = useBodegaOperacion ? LINKS_BODEGA : LINKS_FINCA;
   const currentPathWithSearch = `${location.pathname}${location.search}`;
+
   const activeCategory = useMemo(() => {
     if (!useBodegaOperacion) return "";
+    if (location.pathname.startsWith("/operacion/tareas")) return "";
     const params = new URLSearchParams(location.search);
     const categoryFromQuery = params.get("categoria") ?? "";
     if (categoryFromQuery) return categoryFromQuery;
@@ -103,8 +103,9 @@ export default function OperacionLayout() {
     if (location.pathname.startsWith("/operacion/cortes")) return "cortes";
     if (location.pathname.startsWith("/operacion/fraccionamiento")) return "fraccionamiento";
     if (location.pathname.startsWith("/operacion/qr")) return "qr";
-    return "recepcion";
+    return "";
   }, [location.pathname, location.search, useBodegaOperacion]);
+
   const subcategoryLinks = useMemo(
     () => (useBodegaOperacion ? SUBCATEGORY_LINKS[activeCategory] ?? [] : []),
     [activeCategory, useBodegaOperacion],
@@ -118,10 +119,6 @@ export default function OperacionLayout() {
   const onChangeScope = (scope: OperacionScope) => {
     setSelectedScope(scope);
     writeOperacionScopePreference(scope);
-    if (scope === "bodega") {
-      navigate("/operacion/tareas", { replace: true });
-      return;
-    }
     navigate("/operacion/tareas", { replace: true });
   };
 
@@ -138,26 +135,44 @@ export default function OperacionLayout() {
                   : "Gestión operativa de finca: asignación y seguimiento de tareas."}
               </p>
             </div>
-            <Link
-              to="/tareas"
-              className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
-            >
-              Ver tareas en curso
-            </Link>
-          </div>
-          {access.hasBothOperacionScopes ? (
-            <div className="mt-3 flex items-center gap-2">
-              <label className="text-xs font-semibold text-text">Ámbito:</label>
-              <select
-                value={selectedScope}
-                onChange={(event) => onChangeScope(event.target.value as OperacionScope)}
-                className="rounded border border-[#C9A961]/40 bg-white px-2 py-1 text-xs text-[#3D1B1F]"
+            <div className="flex gap-2">
+              <Link
+                to="/tareas"
+                className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
               >
-                <option value="bodega">Bodega</option>
-                <option value="finca">Finca</option>
-              </select>
+                Ver tareas en curso
+              </Link>
+              <Link
+                to="/progreso"
+                className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
+              >
+                Ver progreso
+              </Link>
             </div>
-          ) : null}
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-4">
+            {access.hasBothOperacionScopes ? (
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-semibold text-text">Ámbito:</label>
+                <select
+                  value={selectedScope}
+                  onChange={(event) => onChangeScope(event.target.value as OperacionScope)}
+                  className="rounded border border-[#C9A961]/40 bg-white px-2 py-1 text-xs text-[#3D1B1F]"
+                >
+                  <option value="bodega">Bodega</option>
+                  <option value="finca">Finca</option>
+                </select>
+              </div>
+            ) : null}
+            {useBodegaOperacion && !activeProtocoloId ? (
+              <span className="text-xs text-amber-700">
+                Sin protocolo activo — configuralo desde{" "}
+                <a href="/bodega" className="underline">Bodega</a>.
+              </span>
+            ) : null}
+          </div>
+
           <nav className="mt-4 flex flex-wrap gap-2">
             {links.map((link) => (
               <NavLink
@@ -176,6 +191,7 @@ export default function OperacionLayout() {
               </NavLink>
             ))}
           </nav>
+
           {subcategoryLinks.length > 0 ? (
             <nav className="mt-3 flex flex-wrap gap-2">
               {subcategoryLinks.map((link) => (

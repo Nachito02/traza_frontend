@@ -20,6 +20,7 @@ const MilestonesPlan = () => {
     formError,
     fileToUpload,
     form,
+    activeFields,
     operarios,
     milestonesByStage,
     selectedStage,
@@ -148,6 +149,7 @@ const MilestonesPlan = () => {
         <EventoModal
           milestone={active}
           operarios={operarios}
+          fields={activeFields}
           form={form}
           formError={formError}
           saving={saving}

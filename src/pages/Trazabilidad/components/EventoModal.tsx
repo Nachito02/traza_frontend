@@ -1,10 +1,11 @@
 import type { Milestone } from "../../../features/milestones/api";
 import type { Operario } from "../../../features/operarios/api";
-import { EVENTO_CONFIG } from "../eventoConfig";
+import type { EventoField } from "../eventoFields";
 
 type Props = {
   milestone: Milestone;
   operarios: Operario[];
+  fields: EventoField[];
   form: Record<string, string>;
   formError: string | null;
   saving: boolean;
@@ -16,6 +17,7 @@ type Props = {
 const EventoModal = ({
   milestone,
   operarios,
+  fields,
   form,
   formError,
   saving,
@@ -23,8 +25,6 @@ const EventoModal = ({
   onSubmit,
   onClose,
 }: Props) => {
-  const config = EVENTO_CONFIG[milestone.protocolo_proceso.evento_tipo];
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-4"
@@ -43,10 +43,10 @@ const EventoModal = ({
           </p>
         </div>
 
-        {config ? (
+        {fields.length > 0 ? (
           <div className="min-h-0 flex-1 overflow-y-auto pr-2">
             <div className="space-y-3">
-            {config.fields.map((field) => (
+            {fields.map((field) => (
               <div key={field.name}>
                 <label className="block text-xs text-[#722F37] mb-2">{field.label}</label>
                 {field.type === "textarea" ? (
@@ -88,6 +88,15 @@ const EventoModal = ({
                       </option>
                     ))}
                   </select>
+                ) : field.type === "checkbox" ? (
+                  <label className="flex items-center gap-2 rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F]">
+                    <input
+                      type="checkbox"
+                      checked={form[field.name] === "true"}
+                      onChange={(e) => onChange(field.name, e.target.checked ? "true" : "false")}
+                    />
+                    <span>{field.placeholder ?? field.label}</span>
+                  </label>
                 ) : (
                   <input
                     type={field.type}

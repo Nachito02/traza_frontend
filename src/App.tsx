@@ -40,6 +40,7 @@ import BodegaHome from "./pages/Bodega/BodegaHome";
 import BodegaVasijasPage from "./pages/Bodega/BodegaVasijasPage";
 import BodegaVasijaFormPage from "./pages/Bodega/BodegaVasijaFormPage";
 import OperacionLayout from "./pages/Operacion/OperacionLayout";
+import ProgresoPage from "./pages/Operacion/ProgresoPage";
 import { resolveModuleAccess } from "./lib/permissions";
 
 function LegacyElaboracionRedirect() {
@@ -148,9 +149,12 @@ export default function App() {
           <Route path="cortes" element={canUseOperacionBodega ? <CortesProductoPage /> : <Navigate to="/operacion/tareas" replace />} />
           <Route path="fraccionamiento" element={canUseOperacionBodega ? <FraccionamientoDespachoPage /> : <Navigate to="/operacion/tareas" replace />} />
           <Route path="qr" element={canUseOperacionBodega ? <QrInversaPage /> : <Navigate to="/operacion/tareas" replace />} />
+          <Route path="trazabilidades" element={<TrazabilidadesActivas planBasePath="/operacion/trazabilidades" embedded />} />
+          <Route path="trazabilidades/:id/plan" element={<MilestonesPlan />} />
         </Route>
         <Route path="/elaboracion" element={canUseOperacionBodega ? <Navigate to="/operacion/recepcion" replace /> : <Navigate to="/fincas" replace />} />
         <Route path="/elaboracion/*" element={<LegacyElaboracionRedirect />} />
+        <Route path="/progreso" element={access.canAccessBodega ? <ProgresoPage /> : <Navigate to="/dashboard" replace />} />
         <Route path="/tareas" element={<Tareas mode="operator" />} />
         <Route path="/usuarios" element={<Usuarios />} />
         <Route path="/integraciones" element={<Integraciones />} />

@@ -204,7 +204,7 @@ export async function createTareaEntrada(
   payload: SaveTareaProgresoPayload,
 ) {
   const response = await apiClient.post(
-    `/ia/tareas/${encodeURIComponent(tareaAsignacionId)}/entradas`,
+    `/tareas/me/asignaciones/${encodeURIComponent(tareaAsignacionId)}/entradas`,
     buildLegacyCompatiblePayload(payload),
   );
   return response.data;
@@ -212,8 +212,39 @@ export async function createTareaEntrada(
 
 export async function finalizarTareaAsignacion(tareaAsignacionId: string) {
   const response = await apiClient.post(
-    `/ia/tareas/${encodeURIComponent(tareaAsignacionId)}/finalizar`,
+    `/tareas/me/asignaciones/${encodeURIComponent(tareaAsignacionId)}/finalizar`,
     {},
   );
   return response.data;
+}
+
+export type TareaEntradaDetail = {
+  entradaId: string;
+  descripcion?: string | null;
+  adjuntos?: unknown;
+  fecha: string;
+  creadoPor?: { user_id: string; nombre: string } | null;
+};
+
+export async function fetchTareasByBodega(bodegaId: string): Promise<Tarea[]> {
+  try {
+    const response = await apiClient.get<Tarea[] | { items?: Tarea[] }>(
+      `/tareas?bodegaId=${encodeURIComponent(bodegaId)}`,
+    );
+    if (Array.isArray(response.data)) return response.data;
+    return response.data?.items ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchTareaAsignacionDetail(tareaAsignacionId: string): Promise<TareaEntradaDetail[]> {
+  try {
+    const response = await apiClient.get<TareaEntradaDetail[]>(
+      `/tareas/me/asignaciones/${encodeURIComponent(tareaAsignacionId)}/entradas`,
+    );
+    return Array.isArray(response.data) ? response.data : [];
+  } catch {
+    return [];
+  }
 }

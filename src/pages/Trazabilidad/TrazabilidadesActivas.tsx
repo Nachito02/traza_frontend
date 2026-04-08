@@ -12,7 +12,12 @@ import { useAuthStore } from "../../store/authStore";
 
 const ACTIVE_STATES = new Set(["draft", "en_curso"]);
 
-const TrazabilidadesActivas = () => {
+type TrazabilidadesActivasProps = {
+  planBasePath?: string;
+  embedded?: boolean;
+};
+
+const TrazabilidadesActivas = ({ planBasePath = "/trazabilidades", embedded = false }: TrazabilidadesActivasProps = {}) => {
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const loadFincas = useFincasStore((state) => state.loadFincas);
   const fincas = useFincasStore((state) => state.fincas);
@@ -96,7 +101,7 @@ const TrazabilidadesActivas = () => {
   );
 
   return (
-    <div className="min-h-screen bg-secondary px-6 py-10">
+    <div className={embedded ? "w-full" : "min-h-screen bg-secondary px-6 py-10"}>
       <div className="mx-auto w-full max-w-6xl space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-text">Trazabilidades activas</h1>
@@ -163,7 +168,7 @@ const TrazabilidadesActivas = () => {
                       {item.estado}
                     </span>
                     <Link
-                      to={`/trazabilidades/${item.trazabilidad_id}/plan`}
+                      to={`${planBasePath}/${item.trazabilidad_id}/plan`}
                       className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:bg-[#F8F3EE]"
                     >
                       Abrir plan

@@ -72,8 +72,7 @@ const Fincas = () => {
             <div>
               <h2 className="text-lg font-semibold text-text">Fincas</h2>
               <p className="text-xs text-text">
-                Primero definí la finca para poder cargar campañas, cuarteles y
-                protocolos.
+                Administración de fincas.
               </p>
             </div>
             <div className="flex items-center gap-2">

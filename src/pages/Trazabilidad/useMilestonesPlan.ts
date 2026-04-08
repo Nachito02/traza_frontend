@@ -9,11 +9,14 @@ import {
 import { createEvento } from "../../features/eventos/api";
 import { fetchOperariosByBodega, type Operario } from "../../features/operarios/api";
 import { fetchTrazabilidad, type Trazabilidad } from "../../features/trazabilidades/api";
-import { EVENTO_CONFIG } from "./eventoConfig";
 import { fetchCampaniaById } from "../../features/campanias/api";
 import { fetchFincaById, type Finca } from "../../features/fincas/api";
 import { fetchCuartelById, type Cuartel } from "../../features/cuarteles/api";
-import { fetchProtocoloById } from "../../features/protocolos/api";
+import {
+  fetchProtocoloById,
+  fetchProtocoloPlantilla,
+  type ProtocoloPlantillaIteracion,
+} from "../../features/protocolos/api";
 import {
   fetchHallazgosByTrazabilidad,
   fetchIndicadoresByTrazabilidad,
@@ -21,6 +24,7 @@ import {
   type HallazgoCumplimiento,
 } from "../../features/cumplimiento/api";
 import { useAuthStore } from "../../store/authStore";
+import { buildEventoFields, type EventoField } from "./eventoFields";
 
 export type StageGroup = {
   name: string;
@@ -71,6 +75,7 @@ export const useMilestonesPlan = () => {
   const [fileToUpload, setFileToUpload] = useState<File | null>(null);
   const [selectedStageName, setSelectedStageName] = useState<string>("");
   const [form, setForm] = useState<Record<string, string>>({});
+  const [plantillaByProcesoId, setPlantillaByProcesoId] = useState<Map<string, ProtocoloPlantillaIteracion>>(new Map());
 
   const milestoneIdFromQuery = searchParams.get("milestoneId");
 
@@ -101,6 +106,7 @@ export const useMilestonesPlan = () => {
             finca,
             cuartel,
             protocolo,
+            protocoloPlantilla,
           ] = await Promise.all([
             fetchOperariosByBodega(trazabilidadData.bodega_id).catch(() => []),
             fetchHallazgosByTrazabilidad(id).catch(() => []),
@@ -113,6 +119,7 @@ export const useMilestonesPlan = () => {
               ? fetchCuartelById(trazabilidadData.cuartel_id).catch(() => null)
               : Promise.resolve(null),
             fetchProtocoloById(trazabilidadData.protocolo_id).catch(() => null),
+            fetchProtocoloPlantilla(trazabilidadData.protocolo_id).catch(() => null),
           ]);
           if (!mounted) return;
           setOperarios((fetchedOperarios ?? []).filter((item) => item.is_active !== false));
@@ -120,6 +127,13 @@ export const useMilestonesPlan = () => {
           setIndicadores(indicadoresData);
           setFincaDetail(finca);
           setCuartelDetail(cuartel);
+          setPlantillaByProcesoId(
+            new Map(
+              (protocoloPlantilla?.iteraciones ?? [])
+                .map((iteracion) => [String(iteracion.proceso?.proceso_id ?? ""), iteracion] as const)
+                .filter(([procesoId]) => Boolean(procesoId)),
+            ),
+          );
           setContextSummary({
             nombre: trazabilidadData.nombre_producto?.trim() || "Proceso sin nombre",
             estado: trazabilidadData.estado ?? "draft",
@@ -137,6 +151,7 @@ export const useMilestonesPlan = () => {
           setIndicadores(null);
           setFincaDetail(null);
           setCuartelDetail(null);
+          setPlantillaByProcesoId(new Map());
           setContextSummary({
             nombre: trazabilidadData.nombre_producto?.trim() || "Proceso sin nombre",
             estado: trazabilidadData.estado ?? "draft",
@@ -156,6 +171,7 @@ export const useMilestonesPlan = () => {
         setIndicadores(null);
         setFincaDetail(null);
         setCuartelDetail(null);
+        setPlantillaByProcesoId(new Map());
         setContextSummary(null);
       })
       .finally(() => {
@@ -252,16 +268,19 @@ export const useMilestonesPlan = () => {
     };
   }, [nextPendingMilestone]);
 
+  const activeFields = useMemo<EventoField[]>(
+    () => (active ? buildEventoFields(active, plantillaByProcesoId) : []),
+    [active, plantillaByProcesoId],
+  );
+
   const openModal = useCallback((milestone: Milestone) => {
     setFormError(null);
     const tipo = milestone.protocolo_proceso.evento_tipo;
-    const config = EVENTO_CONFIG[tipo];
+    const fields = buildEventoFields(milestone, plantillaByProcesoId);
     const nextForm: Record<string, string> = {};
-    if (config) {
-      config.fields.forEach((field) => {
-        nextForm[field.name] = field.defaultValue ?? "";
-      });
-    }
+    fields.forEach((field) => {
+      nextForm[field.name] = field.defaultValue ?? "";
+    });
 
     const activeBodega = bodegas.find(
       (item) => String(item.bodega_id) === String(trazabilidad?.bodega_id ?? ""),
@@ -315,7 +334,7 @@ export const useMilestonesPlan = () => {
 
     setForm(nextForm);
     setActive(milestone);
-  }, [bodegas, cuartelDetail, fincaDetail, trazabilidad?.bodega_id]);
+  }, [bodegas, cuartelDetail, fincaDetail, plantillaByProcesoId, trazabilidad?.bodega_id]);
 
   useEffect(() => {
     if (!milestoneIdFromQuery || milestones.length === 0 || active) return;
@@ -373,12 +392,15 @@ export const useMilestonesPlan = () => {
     setSaving(true);
     try {
       const tipo = active.protocolo_proceso.evento_tipo;
-      const config = EVENTO_CONFIG[tipo];
-      if (!config) {
+      if (activeFields.length === 0) {
         setFormError("Tipo de evento no soportado todavía.");
         return;
       }
-      const missing = config.fields.filter((field) => field.required && !form[field.name]);
+      const missing = activeFields.filter((field) => {
+        if (!field.required) return false;
+        if (field.type === "checkbox") return form[field.name] !== "true";
+        return !form[field.name];
+      });
       if (missing.length > 0) {
         setFormError("Completá los campos obligatorios.");
         return;
@@ -392,8 +414,12 @@ export const useMilestonesPlan = () => {
         milestoneId: active.milestone_id,
       };
 
-      config.fields.forEach((field) => {
+      activeFields.forEach((field) => {
         const rawValue = form[field.name];
+        if (field.type === "checkbox") {
+          payload[field.name] = rawValue === "true";
+          return;
+        }
         if (!rawValue) return;
         if (field.type === "number") {
           const parsed = Number(rawValue);
@@ -471,6 +497,7 @@ export const useMilestonesPlan = () => {
     formError,
     fileToUpload,
     form,
+    activeFields,
     operarios,
     // derived
     milestonesByStage,

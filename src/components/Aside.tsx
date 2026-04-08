@@ -8,6 +8,7 @@ import {
   ClipboardPenLine,
   Bot,
   ScrollText,
+  TrendingUp,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
@@ -32,6 +33,9 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
       : []),
     ...(access.canAccessOperacion
       ? [{ to: "/operacion", label: "Operacion", icon: <ClipboardPenLine /> }]
+      : []),
+    ...(access.canAccessBodega
+      ? [{ to: "/progreso", label: "Progreso", icon: <TrendingUp /> }]
       : []),
     { to: "/tareas", label: "Tareas", icon: <ListTodo /> },
     { to: "/usuarios", label: "Usuarios", icon: <Users /> },

@@ -14,8 +14,20 @@ import { fetchAuthUsers, type AuthUser } from "../../features/users/api";
 import { fetchOperariosByBodega, type Operario } from "../../features/operarios/api";
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
-import { fetchProtocolosExpanded, type ProtocoloExpanded } from "../../features/protocolos/api";
+import { useOperacionStore } from "../../store/operacionStore";
+import {
+  fetchProtocoloById,
+  fetchProtocolosExpanded,
+  type ProtocoloExpanded,
+} from "../../features/protocolos/api";
 import { resolveModuleAccess } from "../../lib/permissions";
+import { EVENTO_CONFIG } from "../Trazabilidad/eventoConfig";
+import {
+  createTareaEntrada,
+  fetchTareaAsignacionDetail,
+  finalizarTareaAsignacion,
+  type TareaEntradaDetail,
+} from "../../features/encargos/api";
 import RecepcionPage from "../Elaboracion/RecepcionPage";
 import CiuQcPage from "../Elaboracion/CiuQcPage";
 import VasijasProcesoPage from "../Elaboracion/VasijasProcesoPage";
@@ -222,6 +234,29 @@ function getDefaultTaskForCategory(categoria: OperacionCategoria) {
   return OPERACION_TASK_TEMPLATES.find((task) => task.categoria === categoria) ?? null;
 }
 
+function normalizeStr(str: string) {
+  return str
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function getMatchedCatalogTaskId(titulo: string, eventoTipo?: string | null): string | null {
+  if (eventoTipo) {
+    const byType = OPERACION_TASK_TEMPLATES.find((t) => t.id === eventoTipo);
+    if (byType) return byType.id;
+  }
+  const norm = normalizeStr(titulo);
+  for (const template of OPERACION_TASK_TEMPLATES) {
+    const templateNorm = normalizeStr(template.titulo);
+    if (norm === templateNorm || norm.includes(templateNorm) || templateNorm.includes(norm)) {
+      return template.id;
+    }
+  }
+  return null;
+}
+
 type TareasProps = {
   mode?: "manager" | "operator";
 };
@@ -239,7 +274,17 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
   const [protocoloTaskOptions, setProtocoloTaskOptions] = useState<ProtocoloTaskOption[]>([]);
   const [canManageTasks, setCanManageTasks] = useState(false);
   const [forceMineMode, setForceMineMode] = useState(true);
+  const { activeProtocoloId } = useOperacionStore();
+  const [activeProtocolo, setActiveProtocolo] = useState<ProtocoloExpanded | null>(null);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const [expandedTaskForm, setExpandedTaskForm] = useState<Record<string, string>>({});
+  const [expandedTaskSaving, setExpandedTaskSaving] = useState(false);
+  const [expandedTaskFinalizing, setExpandedTaskFinalizing] = useState(false);
+  const [expandedTaskError, setExpandedTaskError] = useState<string | null>(null);
+  const [expandedTaskNotice, setExpandedTaskNotice] = useState<string | null>(null);
+  const [expandedTaskEntries, setExpandedTaskEntries] = useState<TareaEntradaDetail[]>([]);
+  const [expandedTaskEntriesLoading, setExpandedTaskEntriesLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -248,6 +293,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
     tareaProtocolo: "",
     tareaCatalogoId: "",
     categoriaOperacion: "recepcion" as OperacionCategoria,
+    selectedProcesoId: "",
     titulo: "",
     descripcion: "",
     fechaFin: "",
@@ -557,6 +603,200 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
     };
   }, []);
 
+  useEffect(() => {
+    if (!activeProtocoloId || managerScope !== "bodega") {
+      setActiveProtocolo(null);
+      return;
+    }
+    let mounted = true;
+    fetchProtocoloById(activeProtocoloId)
+      .then((data) => { if (mounted) setActiveProtocolo(data); })
+      .catch(() => { if (mounted) setActiveProtocolo(null); });
+    return () => { mounted = false; };
+  }, [activeProtocoloId, managerScope]);
+
+  const protocolProcesses = useMemo(() => {
+    if (!activeProtocolo) return [];
+    return (activeProtocolo.protocolo_etapa ?? []).flatMap((etapa) =>
+      (etapa.protocolo_proceso ?? []).map((proceso) => ({
+        proceso_id: String(proceso.proceso_id ?? proceso.id ?? ""),
+        nombre: proceso.nombre ?? "",
+        evento_tipo: proceso.evento_tipo ?? "",
+        obligatorio: proceso.obligatorio ?? false,
+        orden: proceso.orden ?? 999,
+        etapaNombre: etapa.nombre ?? "",
+        etapaOrden: etapa.orden ?? 999,
+      })),
+    ).sort((a, b) => a.etapaOrden - b.etapaOrden || a.orden - b.orden);
+  }, [activeProtocolo]);
+
+  const groupedProtocolProcesses = useMemo(() => {
+    const groups = new Map<string, { nombre: string; orden: number; procesos: typeof protocolProcesses }>();
+    protocolProcesses.forEach((proceso) => {
+      const key = proceso.etapaNombre || "General";
+      const existing = groups.get(key);
+      if (existing) {
+        existing.procesos.push(proceso);
+      } else {
+        groups.set(key, { nombre: key, orden: proceso.etapaOrden, procesos: [proceso] });
+      }
+    });
+    return Array.from(groups.values()).sort((a, b) => a.orden - b.orden);
+  }, [protocolProcesses]);
+
+  const getEventoTipoForTask = (task: Tarea): string | null => {
+    if (!task.proceso_id) return null;
+    // Look up in active protocol processes first
+    const inProtocol = protocolProcesses.find(
+      (p) => p.proceso_id === String(task.proceso_id),
+    );
+    if (inProtocol?.evento_tipo) return inProtocol.evento_tipo;
+    // Fall back to all loaded protocol options
+    const inOptions = protocoloTaskOptions.find((opt) =>
+      opt.value.endsWith(`:${task.proceso_id}`),
+    );
+    return inOptions?.eventoTipo ?? null;
+  };
+
+  const openExpandedTask = (taskId: string, task: Tarea) => {
+    setExpandedTaskId(taskId);
+    setExpandedTaskError(null);
+    setExpandedTaskNotice(null);
+    setExpandedTaskEntries([]);
+    const tipo = getEventoTipoForTask(task) ?? "";
+    const config = EVENTO_CONFIG[tipo];
+    const initialForm: Record<string, string> = {};
+    if (config) {
+      config.fields.forEach((f) => { initialForm[f.name] = f.defaultValue ?? ""; });
+      if ("fecha" in initialForm && !initialForm.fecha) {
+        initialForm.fecha = new Date().toISOString().slice(0, 10);
+      }
+    }
+    setExpandedTaskForm(initialForm);
+
+    // Cargar historial de entradas desde el backend
+    const asignacionId = task.tarea_asignacion?.[0]?.tarea_asignacion_id;
+    if (asignacionId) {
+      setExpandedTaskEntriesLoading(true);
+      fetchTareaAsignacionDetail(asignacionId)
+        .then((entries) => setExpandedTaskEntries(entries))
+        .catch(() => setExpandedTaskEntries([]))
+        .finally(() => setExpandedTaskEntriesLoading(false));
+    }
+  };
+
+  const getAsignacionId = async (task: Tarea): Promise<string | null> => {
+    const existing = task.tarea_asignacion?.[0]?.tarea_asignacion_id;
+    if (existing) return existing;
+
+    // Auto-asignar al usuario actual (encargado registrando directamente)
+    const tareaId = String(task.tarea_id ?? task.id ?? "");
+    const userId = String(user?.id ?? "");
+    if (!tareaId || !userId) return null;
+
+    try {
+      const resp = await assignTareaToUser(tareaId, userId);
+      const r = resp as Record<string, unknown>;
+      // Extract from any response shape
+      const newId = String(
+        r?.tarea_asignacion_id ??
+        r?.id ??
+        (r?.asignacion as Record<string, unknown> | undefined)?.tarea_asignacion_id ??
+        (Array.isArray(r) ? (r[0] as Record<string, unknown>)?.tarea_asignacion_id : undefined) ??
+        ""
+      );
+      if (newId) return newId;
+    } catch {
+      // Asignación puede existir ya — intentar obtenerla desde el listado
+    }
+
+    // Fallback: recargar tareas y extraer el id de la asignacion creada
+    try {
+      const data = await fetchPendientesByScope({
+        bodegaId: String(activeBodegaId),
+        mode: forceMineMode ? "mine" : "scope",
+      });
+      const reloaded = data?.find(
+        (t) => String(t.tarea_id ?? t.id ?? "") === tareaId,
+      );
+      return reloaded?.tarea_asignacion?.[0]?.tarea_asignacion_id ?? null;
+    } catch {
+      return null;
+    }
+  };
+
+  const onSubmitTaskEvent = async (task: Tarea) => {
+    const tipo = getEventoTipoForTask(task) ?? "";
+    const config = EVENTO_CONFIG[tipo];
+    if (!config) {
+      setExpandedTaskError("Tipo de actividad no soportado.");
+      return;
+    }
+    const missing = config.fields.filter((f) => f.required && !expandedTaskForm[f.name]);
+    if (missing.length > 0) {
+      setExpandedTaskError("Completá los campos obligatorios.");
+      return;
+    }
+
+    const asignacionId = await getAsignacionId(task);
+    console.log("[Tareas] asignacionId:", asignacionId, "task:", task);
+    if (!asignacionId) {
+      setExpandedTaskError("No se encontró asignación para esta tarea. Asignala a un operario primero.");
+      return;
+    }
+
+    const draft: Record<string, unknown> = {};
+    config.fields.forEach((field) => {
+      const v = expandedTaskForm[field.name];
+      if (!v) return;
+      draft[field.name] = field.type === "number" ? Number(v) : v;
+    });
+
+    setExpandedTaskSaving(true);
+    setExpandedTaskError(null);
+    try {
+      await createTareaEntrada(asignacionId, { draft });
+      // Agregar al historial (optimistic, luego recarga del backend)
+      const newEntry: TareaEntradaDetail = {
+        entradaId: `local-${Date.now()}`,
+        descripcion: Object.entries(draft).map(([k, v]) => `${k}: ${String(v)}`).join(", "),
+        fecha: new Date().toISOString(),
+        adjuntos: [],
+        creadoPor: user ? { user_id: String(user.id ?? ""), nombre: String(user.nombre ?? user.email ?? "") } : null,
+      };
+      setExpandedTaskEntries((prev) => [...prev, newEntry]);
+      setExpandedTaskNotice("Registro guardado. Podés agregar otro o finalizar la tarea.");
+      // Resetear form para nuevo registro
+      const initialForm: Record<string, string> = {};
+      config.fields.forEach((f) => { initialForm[f.name] = f.defaultValue ?? ""; });
+      if ("fecha" in initialForm) initialForm.fecha = new Date().toISOString().slice(0, 10);
+      setExpandedTaskForm(initialForm);
+    } catch (e) {
+      setExpandedTaskError(`No se pudo guardar el registro. ${getApiErrorMessage(e)}`);
+    } finally {
+      setExpandedTaskSaving(false);
+    }
+  };
+
+  const onFinalizeTask = async (task: Tarea) => {
+    const asignacionId = await getAsignacionId(task);
+    if (!asignacionId) {
+      setExpandedTaskError("No se encontró asignación para finalizar.");
+      return;
+    }
+    setExpandedTaskFinalizing(true);
+    setExpandedTaskError(null);
+    try {
+      await finalizarTareaAsignacion(asignacionId);
+      setExpandedTaskId(null);
+      await refreshTasks();
+    } catch {
+      setExpandedTaskError("No se pudo finalizar la tarea.");
+    } finally {
+      setExpandedTaskFinalizing(false);
+    }
+  };
+
   const scopedProtocoloTaskOptions = useMemo(
     () =>
       protocoloTaskOptions.filter((option) =>
@@ -609,8 +849,12 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
       setError("Seleccioná una bodega activa.");
       return;
     }
-    if (managerScope === "bodega" && !form.tareaCatalogoId) {
-      setError("Seleccioná una tarea operativa.");
+    if (managerScope === "bodega" && activeProtocolo && !form.selectedProcesoId) {
+      setError("Seleccioná una actividad del protocolo.");
+      return;
+    }
+    if (managerScope === "bodega" && !activeProtocolo && !form.tareaCatalogoId) {
+      setError("Seleccioná un protocolo activo o una tarea operativa.");
       return;
     }
     if (managerScope === "finca" && !form.tareaProtocolo) {
@@ -622,9 +866,11 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
       return;
     }
     const procesoId =
-      managerScope === "finca"
-        ? form.tareaProtocolo.split(":")[2] || undefined
-        : undefined;
+      managerScope === "bodega" && activeProtocolo
+        ? form.selectedProcesoId || undefined
+        : managerScope === "finca"
+          ? form.tareaProtocolo.split(":")[2] || undefined
+          : undefined;
     const selectedAssignee = assigneeOptions.find((o) => o.key === form.assigneeKey) ?? null;
     const assigneeUserId = selectedAssignee?.userId ?? null;
     const assigneeHasAccount = selectedAssignee?.hasAccount ?? true;
@@ -666,6 +912,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
         ...prev,
         tareaProtocolo: "",
         tareaCatalogoId: "",
+        selectedProcesoId: "",
         titulo: "",
         descripcion: "",
         fechaFin: "",
@@ -724,46 +971,40 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
             </p>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               {managerScope === "bodega" ? (
-                <>
+                activeProtocolo ? (
                   <select
-                    value={form.categoriaOperacion}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        categoriaOperacion: e.target.value as OperacionCategoria,
-                        tareaCatalogoId: "",
-                        titulo: "",
-                      }))
-                    }
-                    className="w-full rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
-                    >
-                      {OPERACION_CATEGORY_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  <select
-                    value={form.tareaCatalogoId}
+                    value={form.selectedProcesoId}
                     onChange={(e) => {
-                      const selected = e.target.value;
-                      const task = OPERACION_TASK_TEMPLATES.find((item) => item.id === selected);
+                      const procesoId = e.target.value;
+                      const proceso = protocolProcesses.find((p) => p.proceso_id === procesoId);
                       setForm((prev) => ({
                         ...prev,
-                        tareaCatalogoId: selected,
-                        titulo: task?.titulo ?? "",
+                        selectedProcesoId: procesoId,
+                        titulo: proceso?.nombre ?? "",
+                        tareaCatalogoId: proceso?.evento_tipo
+                          ? (getMatchedCatalogTaskId(proceso.nombre, proceso.evento_tipo) ?? "")
+                          : "",
                       }));
                     }}
-                    className="w-full rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
+                    className="w-full rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F] md:col-span-2"
                   >
-                    <option value="">Seleccionar tarea operativa</option>
-                    {catalogTasksForCategory.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
+                    <option value="">Seleccionar actividad del protocolo</option>
+                    {groupedProtocolProcesses.map((group) => (
+                      <optgroup key={group.nombre} label={group.nombre}>
+                        {group.procesos.map((proceso) => (
+                          <option key={proceso.proceso_id} value={proceso.proceso_id}>
+                            {proceso.nombre}
+                            {proceso.obligatorio ? " *" : ""}
+                          </option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
-                </>
+                ) : (
+                  <div className="md:col-span-2 rounded-lg border border-[#C9A961]/40 bg-white/70 px-3 py-3 text-sm text-[#7A4A50]">
+                    Seleccioná un <strong>Protocolo activo</strong> en el encabezado para ver las actividades disponibles.
+                  </div>
+                )
               ) : (
                 <select
                   value={form.tareaProtocolo}
@@ -893,7 +1134,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
               type="button"
               onClick={() => void onCreate()}
               disabled={saving}
-              className="mt-6 rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE]"
+              className="mt-6 rounded-lg border border-[#722F37]/40 bg-[#722F37] px-3 py-2 text-xs font-semibold text-[#FFF9F0] transition hover:bg-[#5D232A] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? "Guardando..." : "Registrar tarea"}
             </button>
@@ -938,40 +1179,171 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
             <div className="text-sm text-text-secondary">No hay tareas pendientes.</div>
           ) : (
             <div className="space-y-2">
-              {tasks.map((task) => (
-                <article
-                  key={String(task.tarea_id ?? task.id)}
-                  className="rounded-lg border border-[#C9A961]/30 bg-[#FFF9F0] px-3 py-2"
-                >
-                  {(() => {
-                    const taskId = String(task.tarea_id ?? task.id ?? "");
-                    return (
-                      <>
-                  <div className="text-sm font-semibold text-[#3D1B1F]">{task.titulo}</div>
-                  <div className="mt-1 text-xs text-[#7A4A50]">
-                    Prioridad: {task.prioridad ?? "media"} · Estado: {task.estado ?? "pendiente"}
-                  </div>
-                  {task.descripcion && (
-                    <div className="mt-1 text-xs text-[#6B3A3F]">{task.descripcion}</div>
-                  )}
-                  {task.fecha_fin && (
-                    <div className="mt-1 text-xs text-[#7A4A50]">Vence: {task.fecha_fin}</div>
-                  )}
-                  {canRenderManagerFlow && (
-                    <button
-                      type="button"
-                      onClick={() => void onDeleteTask(task)}
-                      disabled={deletingTaskId === taskId}
-                      className="mt-2 rounded-lg border border-red-300 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60"
-                    >
-                      {deletingTaskId === taskId ? "Eliminando..." : "Eliminar tarea"}
-                    </button>
-                  )}
-                      </>
-                    );
-                  })()}
-                </article>
-              ))}
+              {tasks.map((task) => {
+                const taskId = String(task.tarea_id ?? task.id ?? "");
+                const isExpanded = expandedTaskId === taskId;
+                const catalogTaskId = getMatchedCatalogTaskId(task.titulo, getEventoTipoForTask(task));
+                return (
+                  <article
+                    key={taskId}
+                    className="rounded-lg border border-[#C9A961]/30 bg-[#FFF9F0] px-3 py-2"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-[#3D1B1F]">{task.titulo}</div>
+                        <div className="mt-1 text-xs text-[#7A4A50]">
+                          Prioridad: {task.prioridad ?? "media"} · Estado: {task.estado ?? "pendiente"}
+                        </div>
+                        {task.descripcion && (
+                          <div className="mt-1 text-xs text-[#6B3A3F]">{task.descripcion}</div>
+                        )}
+                        {task.fecha_fin && (
+                          <div className="mt-1 text-xs text-[#7A4A50]">Vence: {task.fecha_fin}</div>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                        if (isExpanded) {
+                          setExpandedTaskId(null);
+                        } else {
+                          openExpandedTask(taskId, task);
+                        }
+                      }}
+                        className="shrink-0 rounded-lg border border-[#C9A961]/40 px-3 py-1.5 text-xs font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE]"
+                      >
+                        {isExpanded ? "Cerrar" : "Abrir tarea"}
+                      </button>
+                    </div>
+
+                    {isExpanded && (() => {
+                      const eventoTipo = getEventoTipoForTask(task);
+                      const catalogId = catalogTaskId ?? (eventoTipo ? getMatchedCatalogTaskId(task.titulo, eventoTipo) : null);
+                      const eventoConfig = eventoTipo ? EVENTO_CONFIG[eventoTipo] : null;
+                      return (
+                        <div className="mt-3 rounded-xl border border-[#C9A961]/40 bg-white/70 p-3">
+                          {catalogId ? (
+                            renderEmbeddedOperacionForm(catalogId)
+                          ) : eventoConfig ? (
+                            <div className="space-y-3">
+                              <h4 className="text-sm font-semibold text-[#3D1B1F]">
+                                {eventoConfig.label}
+                              </h4>
+
+                              {/* Historial de registros */}
+                              {expandedTaskEntriesLoading ? (
+                                <p className="text-[11px] text-[#7A4A50]">Cargando registros…</p>
+                              ) : expandedTaskEntries.length > 0 ? (
+                                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2">
+                                  <p className="mb-1 text-[11px] font-semibold text-emerald-800">
+                                    Registros guardados ({expandedTaskEntries.length})
+                                  </p>
+                                  {expandedTaskEntries.map((entry, i) => (
+                                    <div key={entry.entradaId ?? i} className="mt-1 rounded bg-white px-2 py-1 text-[11px] text-emerald-700">
+                                      #{i + 1} · {new Date(entry.fecha).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                                      {entry.creadoPor?.nombre ? ` · ${entry.creadoPor.nombre}` : ""}
+                                      {entry.descripcion ? <span className="ml-1 text-emerald-600">— {entry.descripcion}</span> : null}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : null}
+
+                              {/* Formulario para nuevo registro */}
+                              {eventoConfig.fields.map((field) => (
+                                <div key={field.name}>
+                                  <label className="mb-1 block text-xs font-medium text-[#722F37]">
+                                    {field.label}{field.required ? " *" : ""}
+                                  </label>
+                                  {field.type === "textarea" ? (
+                                    <textarea
+                                      className="min-h-20 w-full rounded-lg border border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                                      value={expandedTaskForm[field.name] ?? ""}
+                                      onChange={(e) => setExpandedTaskForm((prev) => ({ ...prev, [field.name]: e.target.value }))}
+                                      placeholder={field.placeholder}
+                                    />
+                                  ) : field.type === "select" ? (
+                                    <select
+                                      className="w-full rounded-lg border border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                                      value={expandedTaskForm[field.name] ?? ""}
+                                      onChange={(e) => setExpandedTaskForm((prev) => ({ ...prev, [field.name]: e.target.value }))}
+                                    >
+                                      <option value="">{field.required ? "Seleccionar..." : "Sin especificar"}</option>
+                                      {(field.options ?? []).map((opt) => (
+                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                      ))}
+                                    </select>
+                                  ) : field.type === "user_select" ? (
+                                    <select
+                                      className="w-full rounded-lg border border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                                      value={expandedTaskForm[field.name] ?? ""}
+                                      onChange={(e) => setExpandedTaskForm((prev) => ({ ...prev, [field.name]: e.target.value }))}
+                                    >
+                                      <option value="">Sin especificar</option>
+                                      {operariosCampo.map((op) => (
+                                        <option key={op.user_id} value={op.user_id}>{op.nombre}</option>
+                                      ))}
+                                    </select>
+                                  ) : (
+                                    <input
+                                      type={field.type}
+                                      step={field.step}
+                                      className="w-full rounded-lg border border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                                      value={expandedTaskForm[field.name] ?? ""}
+                                      onChange={(e) => setExpandedTaskForm((prev) => ({ ...prev, [field.name]: e.target.value }))}
+                                      placeholder={field.placeholder}
+                                    />
+                                  )}
+                                </div>
+                              ))}
+
+                              {expandedTaskError && (
+                                <p className="text-xs text-red-600">{expandedTaskError}</p>
+                              )}
+                              {expandedTaskNotice && (
+                                <p className="text-xs text-emerald-700">{expandedTaskNotice}</p>
+                              )}
+
+                              <div className="flex flex-wrap items-center gap-2 pt-1">
+                                <button
+                                  type="button"
+                                  onClick={() => void onSubmitTaskEvent(task)}
+                                  disabled={expandedTaskSaving}
+                                  className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:opacity-60"
+                                >
+                                  {expandedTaskSaving ? "Guardando..." : expandedTaskEntries.length > 0 ? "Registrar otro" : "Registrar"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void onFinalizeTask(task)}
+                                  disabled={expandedTaskFinalizing || expandedTaskSaving}
+                                  className="rounded-lg border border-[#722F37]/40 bg-[#722F37] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#5D232A] disabled:opacity-60"
+                                >
+                                  {expandedTaskFinalizing ? "Finalizando..." : "Finalizar tarea"}
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-[#7A4A50]">
+                              Tipo de actividad no soportado todavía.
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {canRenderManagerFlow && (
+                      <button
+                        type="button"
+                        onClick={() => void onDeleteTask(task)}
+                        disabled={deletingTaskId === taskId}
+                        className="mt-2 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60"
+                      >
+                        {deletingTaskId === taskId ? "Eliminando..." : "Eliminar tarea"}
+                      </button>
+                    )}
+                  </article>
+                );
+              })}
             </div>
           )}
         </section>
