@@ -15,9 +15,16 @@ const MilestoneCard = ({
   onOpenUpload,
   onNavigateToTareas,
 }: Props) => {
+  const statusLabel =
+    m.estado === "completado"
+      ? "Completado"
+      : m.protocolo_proceso.obligatorio
+        ? "Pendiente obligatorio"
+        : "Pendiente opcional";
+
   return (
     <div className="rounded-2xl border border-[#C9A961]/30 bg-white/90 p-5 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="text-sm font-semibold text-[#3D1B1F] flex items-center gap-2">
             {m.protocolo_proceso.orden}. {m.protocolo_proceso.nombre}
@@ -29,6 +36,11 @@ const MilestoneCard = ({
             Tipo: {m.protocolo_proceso.evento_tipo} •{" "}
             {m.protocolo_proceso.obligatorio ? "Obligatorio" : "Opcional"}
           </div>
+          <div className="mt-2 text-xs text-[#8B4049]">
+            {m.estado === "completado"
+              ? "Ya tiene registro cargado para este proceso."
+              : "Todavía falta cargar el evento o derivarlo a una tarea."}
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <span
@@ -38,7 +50,7 @@ const MilestoneCard = ({
                 : "bg-[#FFF9E9] text-[#8A6B1F]"
             }`}
           >
-            {m.estado}
+            {statusLabel}
           </span>
 
           <button
@@ -56,7 +68,7 @@ const MilestoneCard = ({
             disabled={m.estado === "completado"}
             className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Registrar evento
+            {m.estado === "completado" ? "Evento registrado" : "Cargar evento"}
           </button>
           {m.estado !== "completado" && (
             <button

@@ -10,6 +10,11 @@ export type Trazabilidad = {
   estado: string;
   nombre_producto?: string | null;
   imagen_producto?: string | null;
+  trazabilidad_origen?: Array<{
+    finca_id: string;
+    cuartel_id: string;
+    estado?: string | null;
+  }>;
 };
 
 export type CreateTrazabilidadPayload = {

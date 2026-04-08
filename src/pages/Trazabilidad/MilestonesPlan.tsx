@@ -5,6 +5,7 @@ import MilestoneCard from "./components/MilestoneCard";
 import EventoModal from "./components/EventoModal";
 import UploadModal from "./components/UploadModal";
 import { useParams } from "react-router-dom";
+import ProcessOverview from "./components/ProcessOverview";
 
 const MilestonesPlan = () => {
   const { id } = useParams();
@@ -24,6 +25,10 @@ const MilestonesPlan = () => {
     selectedStage,
     globalSummary,
     obligatorioPendiente,
+    hallazgos,
+    indicadores,
+    contextSummary,
+    nextStep,
     setSelectedStageName,
     setFileToUpload,
     openModal,
@@ -40,9 +45,9 @@ const MilestonesPlan = () => {
     <div className="min-h-screen bg-gradient-to-br from-[#F9F6F2] via-[#F3E7DA] to-[#EAD8C6] px-6 py-10">
       <div className="mx-auto w-full max-w-5xl">
         <div className="mb-8">
-          <h1 className="text-3xl text-[#3D1B1F]">Plan de trabajo</h1>
+          <h1 className="text-3xl text-[#3D1B1F]">Workspace del proceso</h1>
           <p className="mt-2 text-sm text-[#6B3A3F]">
-            Completá los milestones del protocolo para cerrar la trazabilidad.
+            Seguí el estado de la trazabilidad, completá procesos y detectá bloqueos antes de cerrar.
           </p>
         </div>
 
@@ -60,6 +65,17 @@ const MilestonesPlan = () => {
           </div>
         ) : (
           <div className="space-y-8">
+            {contextSummary ? (
+              <ProcessOverview
+                context={contextSummary}
+                summary={globalSummary}
+                selectedStage={selectedStage}
+                nextStep={nextStep}
+                hallazgos={hallazgos}
+                indicadores={indicadores}
+              />
+            ) : null}
+
             <MilestoneSummary summary={globalSummary} />
 
             <StageSelector
@@ -123,7 +139,7 @@ const MilestonesPlan = () => {
             disabled={obligatorioPendiente}
             className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Finalizar trazabilidad
+            {obligatorioPendiente ? "Faltan obligatorios para cerrar" : "Lista para cierre"}
           </button>
         </div>
       </div>

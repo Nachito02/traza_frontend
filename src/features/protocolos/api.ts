@@ -252,7 +252,11 @@ export function getDefaultProtocoloId(protocolos: Protocolo[]) {
     return nombre.includes("vitivinic");
   });
 
-  const defaultProtocol = byName ?? protocolos[0];
+  const byKnownCatalog = protocolos.find((item) =>
+    String(item.protocolo_id ?? item.id ?? "") === "b6e7538b-58bf-47bf-afdb-5aec31e1fdfd",
+  );
+
+  const defaultProtocol = byKnownCatalog ?? byName ?? protocolos[0];
   return defaultProtocol
     ? String(defaultProtocol.protocolo_id ?? defaultProtocol.id ?? "")
     : "";

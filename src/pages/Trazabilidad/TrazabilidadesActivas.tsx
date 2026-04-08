@@ -104,6 +104,14 @@ const TrazabilidadesActivas = () => {
             Estado draft y en curso para la bodega activa.
           </p>
         </div>
+        <div className="flex justify-end">
+          <Link
+            to="/trazabilidades/nueva"
+            className="rounded-lg border border-[#C9A961]/40 bg-[#722F37] px-4 py-2 text-sm font-semibold text-[#FFF9F0] transition hover:bg-[#5D232A]"
+          >
+            Nuevo proceso
+          </Link>
+        </div>
 
         {!activeBodegaId ? (
           <div className="rounded-2xl border border-red-400/30 bg-red-500/10 p-6 text-sm text-red-200">
@@ -119,7 +127,13 @@ const TrazabilidadesActivas = () => {
           </div>
         ) : activas.length === 0 ? (
           <div className="rounded-2xl border border-white/10 bg-primary/25 p-6 text-sm text-text-secondary">
-            No hay trazabilidades activas.
+            <div>No hay trazabilidades activas.</div>
+            <Link
+              to="/trazabilidades/nueva"
+              className="mt-3 inline-flex rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:bg-[#F8F3EE]"
+            >
+              Crear el primer proceso
+            </Link>
           </div>
         ) : (
           <div className="grid gap-3">

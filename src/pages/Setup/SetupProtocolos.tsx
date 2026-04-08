@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  fetchProtocolos,
+  fetchProtocolosExpanded,
   getDefaultProtocoloId,
-  type Protocolo,
+  type ProtocoloExpanded,
 } from "../../features/protocolos/api";
 import { createTrazabilidad } from "../../features/trazabilidades/api";
 import { getApiErrorMessage } from "../../lib/api";
@@ -14,7 +14,7 @@ const SetupProtocolos = () => {
   const navigate = useNavigate();
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const activeCampaniaId = useCampaniaStore((state) => state.activeCampaniaId);
-  const [protocolos, setProtocolos] = useState<Protocolo[]>([]);
+  const [protocolos, setProtocolos] = useState<ProtocoloExpanded[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -24,10 +24,20 @@ const SetupProtocolos = () => {
     let mounted = true;
     setLoading(true);
     setError(null);
-    fetchProtocolos()
+    fetchProtocolosExpanded()
       .then((data) => {
         if (!mounted) return;
-        const loaded = data ?? [];
+        const loaded = [...(data ?? [])].sort((a, b) => {
+          const aProcessCount = (a.protocolo_etapa ?? []).reduce(
+            (acc, etapa) => acc + (etapa.protocolo_proceso?.length ?? 0),
+            0,
+          );
+          const bProcessCount = (b.protocolo_etapa ?? []).reduce(
+            (acc, etapa) => acc + (etapa.protocolo_proceso?.length ?? 0),
+            0,
+          );
+          return bProcessCount - aProcessCount;
+        });
         setProtocolos(loaded);
         const defaultId = getDefaultProtocoloId(loaded);
         if (defaultId) {
@@ -132,6 +142,13 @@ const SetupProtocolos = () => {
                   <div>
                     <div className="font-semibold text-[#3D1B1F]">
                       {protocolo.nombre ?? protocolo.codigo ?? "Protocolo"}
+                    </div>
+                    <div className="mt-1 text-xs text-[#7A4A50]">
+                      {(protocolo.protocolo_etapa ?? []).length} etapas ·{" "}
+                      {(protocolo.protocolo_etapa ?? []).reduce(
+                        (acc, etapa) => acc + (etapa.protocolo_proceso?.length ?? 0),
+                        0,
+                      )} procesos
                     </div>
                     {selected === id && (
                       <div className="mt-1 text-xs font-medium text-[#8A6B1F]">

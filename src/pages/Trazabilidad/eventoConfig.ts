@@ -17,6 +17,35 @@ export type EventoConfig = {
 };
 
 export const EVENTO_CONFIG: Record<string, EventoConfig> = {
+  origen_unidad_productiva: {
+    label: "Origen / unidad productiva",
+    fields: [
+      { name: "fecha", label: "Fecha", type: "date", required: true },
+      {
+        name: "productor_razon_social",
+        label: "Productor / Razón social",
+        type: "text",
+        required: true,
+      },
+      { name: "localidad", label: "Localidad", type: "text", required: true },
+      { name: "provincia", label: "Provincia", type: "text", required: true },
+      { name: "codigo_cuartel", label: "Código de cuartel", type: "text", required: true },
+      {
+        name: "superficie_ha",
+        label: "Superficie (ha)",
+        type: "number",
+        required: true,
+        step: "0.01",
+      },
+      { name: "cultivo", label: "Cultivo", type: "text", required: true },
+      { name: "variedad", label: "Variedad", type: "text", required: true },
+      { name: "sistema_productivo", label: "Sistema productivo", type: "text" },
+      { name: "sistema_riego", label: "Sistema de riego", type: "text" },
+      { name: "sistema_conduccion", label: "Sistema de conducción", type: "text" },
+      { name: "coordenadas", label: "Coordenadas / polígono", type: "textarea" },
+      { name: "responsable_user_id", label: "Responsable", type: "user_select" },
+    ],
+  },
   riego: {
     label: "Riego",
     fields: [
@@ -167,13 +196,81 @@ export const EVENTO_CONFIG: Record<string, EventoConfig> = {
       { name: "milimetros", label: "Milímetros", type: "number", required: true, step: "0.01" },
     ],
   },
-  energia: {
-    label: "Energía",
+  energia_riego: {
+    label: "Gasto energético para riego",
     fields: [
+      { name: "fecha", label: "Fecha", type: "date", required: true },
+      { name: "periodo", label: "Período", type: "text", required: true },
+      {
+        name: "tipo_energia",
+        label: "Tipo de energía",
+        type: "select",
+        required: true,
+        options: [
+          { value: "electrica", label: "Eléctrica" },
+          { value: "combustible", label: "Combustible" },
+        ],
+      },
+      { name: "consumo", label: "Consumo", type: "number", required: true, step: "0.01" },
+      {
+        name: "unidad",
+        label: "Unidad",
+        type: "select",
+        required: true,
+        options: [
+          { value: "kWh", label: "kWh" },
+          { value: "litros", label: "Litros" },
+        ],
+      },
+    ],
+  },
+  energia_heladas: {
+    label: "Gasto energético para defensa contra heladas",
+    fields: [
+      { name: "fecha", label: "Fecha", type: "date", required: true },
       { name: "periodo", label: "Periodo", type: "text", required: true },
-      { name: "tipo_energia", label: "Tipo", type: "text", required: true },
-      { name: "consumo", label: "Consumo", type: "number", required: true },
-      { name: "unidad", label: "Unidad", type: "text", required: true },
+      {
+        name: "tipo_energia",
+        label: "Tipo de energía",
+        type: "select",
+        required: true,
+        options: [
+          { value: "electrica", label: "Eléctrica" },
+          { value: "combustible", label: "Combustible" },
+        ],
+      },
+      { name: "consumo", label: "Consumo", type: "number", required: true, step: "0.01" },
+      {
+        name: "unidad",
+        label: "Unidad",
+        type: "select",
+        required: true,
+        options: [
+          { value: "kWh", label: "kWh" },
+          { value: "litros", label: "Litros" },
+        ],
+      },
+    ],
+  },
+  inventario_insumos: {
+    label: "Inventario de insumos y productos caducados",
+    fields: [
+      { name: "fecha", label: "Fecha", type: "date", required: true },
+      { name: "producto", label: "Producto", type: "text", required: true },
+      { name: "cantidad", label: "Cantidad", type: "number", required: true, step: "0.01" },
+      { name: "fecha_vencimiento", label: "Fecha de vencimiento", type: "date" },
+      {
+        name: "estado",
+        label: "Estado",
+        type: "select",
+        required: true,
+        options: [
+          { value: "vigente", label: "Vigente" },
+          { value: "bloqueado", label: "Bloqueado" },
+          { value: "vencido", label: "Vencido" },
+        ],
+      },
+      { name: "responsable_user_id", label: "Responsable", type: "user_select" },
     ],
   },
   accidente: {

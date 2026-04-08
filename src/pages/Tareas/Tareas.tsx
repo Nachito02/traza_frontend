@@ -55,6 +55,8 @@ type ProtocoloTaskOption = {
   eventoTipo: string;
   etapaLabel: string;
   protocoloLabel: string;
+  ordenEtapa: number;
+  ordenProceso: number;
 };
 
 type OperacionCategoria =
@@ -533,13 +535,15 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
             ),
           )
           .sort((a, b) => a.ordenEtapa - b.ordenEtapa || a.ordenProceso - b.ordenProceso)
-          .map(({ value, label, titulo, eventoTipo, etapaLabel, protocoloLabel }) => ({
+          .map(({ value, label, titulo, eventoTipo, etapaLabel, protocoloLabel, ordenEtapa, ordenProceso }) => ({
             value,
             label,
             titulo,
             eventoTipo,
             etapaLabel,
             protocoloLabel,
+            ordenEtapa,
+            ordenProceso,
           }));
 
         setProtocoloTaskOptions(options);
@@ -562,6 +566,34 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
       ),
     [managerScope, protocoloTaskOptions],
   );
+
+  const groupedProtocoloTaskOptions = useMemo(() => {
+    const groups = new Map<
+      string,
+      { label: string; orden: number; options: ProtocoloTaskOption[] }
+    >();
+
+    scopedProtocoloTaskOptions.forEach((option) => {
+      const groupKey = option.etapaLabel || "Sin etapa";
+      const current = groups.get(groupKey);
+      if (current) {
+        current.options.push(option);
+        return;
+      }
+      groups.set(groupKey, {
+        label: groupKey,
+        orden: option.ordenEtapa,
+        options: [option],
+      });
+    });
+
+    return Array.from(groups.values())
+      .sort((a, b) => a.orden - b.orden)
+      .map((group) => ({
+        ...group,
+        options: group.options.sort((a, b) => a.ordenProceso - b.ordenProceso),
+      }));
+  }, [scopedProtocoloTaskOptions]);
 
   useEffect(() => {
     if (!form.tareaProtocolo) return;
@@ -749,10 +781,14 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                   className="w-full rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F] md:col-span-2"
                 >
                   <option value="">Seleccionar tarea del protocolo</option>
-                  {scopedProtocoloTaskOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
+                  {groupedProtocoloTaskOptions.map((group) => (
+                    <optgroup key={group.label} label={group.label}>
+                      {group.options.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.titulo}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
               )}

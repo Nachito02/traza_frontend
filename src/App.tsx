@@ -20,6 +20,7 @@ import SetupCuarteles from "./pages/Setup/SetupCuarteles";
 import SetupProtocolos from "./pages/Setup/SetupProtocolos";
 import MilestonesPlan from "./pages/Trazabilidad/MilestonesPlan";
 import TrazabilidadesActivas from "./pages/Trazabilidad/TrazabilidadesActivas";
+import NuevaTrazabilidad from "./pages/Trazabilidad/NuevaTrazabilidad";
 import FincaDetail from "./pages/Fincas/FincaDetail";
 import Fincas from "./pages/Fincas/Fincas";
 import Usuarios from "./pages/Usuarios/Usuarios";
@@ -160,6 +161,7 @@ export default function App() {
         <Route path="/setup/cuarteles" element={<SetupCuarteles />} />
         <Route path="/setup/protocolos" element={<SetupProtocolos />} />
         <Route path="/trazabilidades" element={<TrazabilidadesActivas />} />
+        <Route path="/trazabilidades/nueva" element={<NuevaTrazabilidad />} />
         <Route path="/trazabilidades/:id/plan" element={<MilestonesPlan />} />
       </Route>
       {/* <Route path="*" element={<NotFound />} /> */}

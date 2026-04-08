@@ -41,6 +41,9 @@ const Dashboard = () => {
     };
   }, [campanias, trazabilidades]);
 
+  const actionLinkClass =
+    "cursor-pointer rounded-lg border border-[#C9A961]/40 bg-white px-4 py-2 text-sm font-semibold text-[#722F37] transition duration-150 hover:border-[#C9A961]/70 hover:bg-[#FFF9F0] hover:text-[#5D232A]";
+
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-6xl">
@@ -73,15 +76,22 @@ const Dashboard = () => {
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
+                onClick={() => navigate("/trazabilidades/nueva")}
+                className={actionLinkClass}
+              >
+                Nuevo proceso
+              </button>
+              <button
+                type="button"
                 onClick={() => navigate("/trazabilidades")}
-                className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-text transition hover:bg-primary"
+                className={actionLinkClass}
               >
                 Ver procesos y etapas
               </button>
               <button
                 type="button"
                 onClick={() => navigate("/operacion")}
-                className="rounded-lg border border-[#C9A961]/40 bg-white px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:bg-[#FFF9F0]"
+                className={actionLinkClass}
               >
                 Ir a Operación
               </button>
