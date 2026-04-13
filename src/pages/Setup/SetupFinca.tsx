@@ -4,6 +4,14 @@ import { createFinca } from "../../features/fincas/api";
 import { upsertBodegaFincaVinculo } from "../../features/users/api";
 import { useAuthStore } from "../../store/authStore";
 import { useFincasStore } from "../../features/fincas/store";
+import {
+  AppButton,
+  AppCard,
+  AppInput,
+  AppSelect,
+  NoticeBanner,
+  SectionIntro,
+} from "../../components/ui";
 
 const SetupFinca = () => {
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
@@ -98,45 +106,47 @@ const SetupFinca = () => {
     return (
       <div className="min-h-screen bg-secondary px-6 py-10">
         <div className="mx-auto w-full max-w-5xl space-y-6">
-          <section className="rounded-2xl bg-primary p-6 shadow-lg">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#8B5E34]">
-              Setup
-            </p>
-            <h1 className="mt-2 text-3xl font-bold text-text">Finca creada</h1>
-            <p className="mt-2 text-sm text-text-secondary">
-              <strong>{createdFincaNombre}</strong> ya quedó registrada y podés seguir con la carga
-              del contexto productivo.
-            </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <div className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] px-4 py-3">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8B5E34]">
-                  Próximo paso
-                </div>
-                <div className="mt-1 text-sm font-semibold text-[#3D1B1F]">Crear cuarteles</div>
-              </div>
-            </div>
-          </section>
+          <AppCard
+            as="section"
+            tone="default"
+            padding="lg"
+            header={(
+              <SectionIntro
+                title="Finca creada"
+                description={
+                  <>
+                    <strong>{createdFincaNombre}</strong> ya quedó registrada y podés seguir con la
+                    carga del contexto productivo.
+                  </>
+                }
+              />
+            )}
+          >
+            <NoticeBanner tone="success" title="Próximo paso">
+              Crear cuarteles para esta finca y completar la base operativa.
+            </NoticeBanner>
+          </AppCard>
 
-          <section className="rounded-2xl bg-primary p-6 shadow-lg">
+          <AppCard as="section" tone="default" padding="lg">
             <div className="flex flex-wrap gap-3">
-              <button
+              <AppButton
                 type="button"
+                variant="primary"
                 onClick={() =>
                   navigate(`/setup/cuarteles?fincaId=${encodeURIComponent(createdFincaId)}`)
                 }
-                className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-text transition hover:bg-primary"
               >
                 Crear un cuartel para esta finca
-              </button>
-              <button
+              </AppButton>
+              <AppButton
                 type="button"
+                variant="secondary"
                 onClick={() => navigate("/fincas")}
-                className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-text transition hover:bg-primary"
               >
                 Finalizar
-              </button>
+              </AppButton>
             </div>
-          </section>
+          </AppCard>
         </div>
       </div>
     );
@@ -145,139 +155,111 @@ const SetupFinca = () => {
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-5xl space-y-6">
-        <section className="rounded-2xl bg-primary p-6 shadow-lg">
-          <div className="space-y-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#8B5E34]">
-                Setup
-              </p>
-              <h1 className="mt-2 text-3xl font-bold text-text">Crear finca</h1>
-              <p className="mt-2 max-w-3xl text-sm text-text-secondary">
-                Definí primero la finca y su vínculo con la bodega para después avanzar con
-                campañas, cuarteles y trazabilidad.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <div className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] px-4 py-3">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8B5E34]">
-                  Flujo
-                </div>
-                <div className="mt-1 text-sm font-semibold text-[#3D1B1F]">
-                  Finca - Cuarteles - Protocolos
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+        <AppCard
+          as="section"
+          tone="default"
+          padding="lg"
+          header={(
+            <SectionIntro
+              title="Crear finca"
+              description="Definí primero la finca y su vínculo con la bodega para después avanzar con campañas, cuarteles y trazabilidad."
+            />
+          )}
+        >
+          <NoticeBanner tone="info" title="Flujo">
+            Finca - Cuarteles - Protocolos
+          </NoticeBanner>
+        </AppCard>
 
         {bodegas.length === 0 ? (
-          <section className="rounded-2xl bg-primary p-6 shadow-lg">
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              No hay bodegas disponibles para este usuario.
-            </div>
-          </section>
+          <NoticeBanner tone="danger">
+            No hay bodegas disponibles para este usuario.
+          </NoticeBanner>
         ) : (
-          <section className="rounded-2xl bg-primary p-6 shadow-lg">
+          <AppCard as="section" tone="default" padding="lg">
             <form className="space-y-5">
-              <div className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4">
+              <AppCard as="div" tone="soft" padding="md">
                 <div className="grid gap-4 md:grid-cols-2">
-                  <label className="space-y-2 text-sm text-[#6B3A3F]">
-                    <span className="font-semibold text-[#3D1B1F]">Bodega</span>
-                    <select
-                      className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F] outline-none"
-                      value={selectedBodegaId}
-                      onChange={(e) => setSelectedBodegaId(e.target.value)}
-                    >
-                      <option value="">Seleccioná una bodega</option>
-                      {bodegas.map((bodega) => (
-                        <option key={bodega.bodega_id} value={bodega.bodega_id}>
-                          {bodega.nombre} {bodega.cuit ? `(${bodega.cuit})` : ""} -{" "}
-                          {bodega.bodega_id.slice(0, 8)}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-xs text-[#7A4A50]">
-                      Se usa la bodega elegida como contexto activo para el setup.
-                    </p>
-                  </label>
+                  <AppSelect
+                    label="Bodega"
+                    description="Se usa la bodega elegida como contexto activo para el setup."
+                    value={selectedBodegaId}
+                    onChange={(e) => setSelectedBodegaId(e.target.value)}
+                  >
+                    <option value="">Seleccioná una bodega</option>
+                    {bodegas.map((bodega) => (
+                      <option key={bodega.bodega_id} value={bodega.bodega_id}>
+                        {bodega.nombre} {bodega.cuit ? `(${bodega.cuit})` : ""} -{" "}
+                        {bodega.bodega_id.slice(0, 8)}
+                      </option>
+                    ))}
+                  </AppSelect>
 
-                  <label className="space-y-2 text-sm text-[#6B3A3F]">
-                    <span className="font-semibold text-[#3D1B1F]">Nombre de la finca</span>
-                    <input
-                      type="text"
-                      className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F] outline-none"
-                      placeholder="Finca Los Andes"
-                      value={form.nombre_finca}
-                      onChange={(e) => onChange("nombre_finca", e.target.value)}
-                    />
-                  </label>
+                  <AppInput
+                    label="Nombre de la finca"
+                    type="text"
+                    uiSize="lg"
+                    placeholder="Finca Los Andes"
+                    value={form.nombre_finca}
+                    onChange={(e) => onChange("nombre_finca", e.target.value)}
+                  />
 
-                  <label className="space-y-2 text-sm text-[#6B3A3F]">
-                    <span className="font-semibold text-[#3D1B1F]">RUT</span>
-                    <input
-                      type="text"
-                      className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F] outline-none"
-                      placeholder="RUT-123"
-                      value={form.rut}
-                      onChange={(e) => onChange("rut", e.target.value)}
-                    />
-                  </label>
+                  <AppInput
+                    label="RUT"
+                    type="text"
+                    uiSize="lg"
+                    placeholder="RUT-123"
+                    value={form.rut}
+                    onChange={(e) => onChange("rut", e.target.value)}
+                  />
 
-                  <label className="space-y-2 text-sm text-[#6B3A3F]">
-                    <span className="font-semibold text-[#3D1B1F]">Renspa</span>
-                    <input
-                      type="text"
-                      className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F] outline-none"
-                      placeholder="RENSPA-456"
-                      value={form.renspa}
-                      onChange={(e) => onChange("renspa", e.target.value)}
-                    />
-                  </label>
+                  <AppInput
+                    label="Renspa"
+                    type="text"
+                    uiSize="lg"
+                    placeholder="RENSPA-456"
+                    value={form.renspa}
+                    onChange={(e) => onChange("renspa", e.target.value)}
+                  />
 
-                  <label className="space-y-2 text-sm text-[#6B3A3F]">
-                    <span className="font-semibold text-[#3D1B1F]">Catastro</span>
-                    <input
-                      type="text"
-                      className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F] outline-none"
-                      placeholder="CAT-789"
-                      value={form.catastro}
-                      onChange={(e) => onChange("catastro", e.target.value)}
-                    />
-                  </label>
+                  <AppInput
+                    label="Catastro"
+                    type="text"
+                    uiSize="lg"
+                    placeholder="CAT-789"
+                    value={form.catastro}
+                    onChange={(e) => onChange("catastro", e.target.value)}
+                  />
 
-                  <label className="space-y-2 text-sm text-[#6B3A3F] md:col-span-2">
-                    <span className="font-semibold text-[#3D1B1F]">Ubicación</span>
-                    <input
-                      type="text"
-                      className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F] outline-none"
-                      placeholder="Luján de Cuyo, Mendoza"
-                      value={form.ubicacion_texto}
-                      onChange={(e) => onChange("ubicacion_texto", e.target.value)}
-                    />
-                  </label>
+                  <AppInput
+                    label="Ubicación"
+                    type="text"
+                    uiSize="lg"
+                    className="md:col-span-2"
+                    placeholder="Luján de Cuyo, Mendoza"
+                    value={form.ubicacion_texto}
+                    onChange={(e) => onChange("ubicacion_texto", e.target.value)}
+                  />
                 </div>
-              </div>
+              </AppCard>
 
-              <div className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4">
+              <AppCard as="div" tone="soft" padding="md">
                 <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-                  <label className="space-y-2 text-sm text-[#6B3A3F]">
-                    <span className="font-semibold text-[#3D1B1F]">Vínculo con la bodega</span>
-                    <select
-                      className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F] outline-none"
-                      value={form.tipo_vinculo}
-                      onChange={(e) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          tipo_vinculo: e.target.value as "propia" | "proveedor_tercero",
-                        }))
-                      }
-                    >
-                      <option value="propia">Propia</option>
-                      <option value="proveedor_tercero">Proveedor tercero</option>
-                    </select>
-                  </label>
+                  <AppSelect
+                    label="Vínculo con la bodega"
+                    value={form.tipo_vinculo}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        tipo_vinculo: e.target.value as "propia" | "proveedor_tercero",
+                      }))
+                    }
+                  >
+                    <option value="propia">Propia</option>
+                    <option value="proveedor_tercero">Proveedor tercero</option>
+                  </AppSelect>
 
-                  <label className="flex items-center gap-2 rounded-xl border border-[#C9A961]/30 bg-white px-3 py-2 text-sm text-[#3D1B1F]">
+                  <label className="flex min-h-11 items-center gap-2 rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-white px-4 py-2 text-sm text-[color:var(--text-ink)]">
                     <input
                       type="checkbox"
                       checked={form.vinculo_activo}
@@ -288,33 +270,30 @@ const SetupFinca = () => {
                     Vínculo activo
                   </label>
                 </div>
-              </div>
+              </AppCard>
 
-              {error ? (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {error}
-                </div>
-              ) : null}
+              {error ? <NoticeBanner tone="danger">{error}</NoticeBanner> : null}
 
               <div className="flex flex-wrap gap-2">
-                <button
+                <AppButton
                   type="button"
+                  variant="primary"
                   disabled={saving}
+                  loading={saving}
                   onClick={() => void handleSubmit()}
-                  className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-text transition hover:bg-primary disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {saving ? "Guardando..." : "Crear finca"}
-                </button>
-                <button
+                </AppButton>
+                <AppButton
                   type="button"
+                  variant="secondary"
                   onClick={() => navigate("/fincas")}
-                  className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-text transition hover:bg-primary"
                 >
                   Volver a fincas
-                </button>
+                </AppButton>
               </div>
             </form>
-          </section>
+          </AppCard>
         )}
       </div>
     </div>

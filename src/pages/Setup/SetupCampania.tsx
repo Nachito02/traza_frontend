@@ -8,6 +8,14 @@ import {
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
 import { useCampaniaStore } from "../../store/campaniaStore";
+import {
+  AppButton,
+  AppCard,
+  AppInput,
+  AppSelect,
+  NoticeBanner,
+  SectionIntro,
+} from "../../components/ui";
 
 const SetupCampania = () => {
   const navigate = useNavigate();
@@ -141,49 +149,62 @@ const SetupCampania = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F9F6F2] via-[#F3E7DA] to-[#EAD8C6] px-6 py-10">
-      <div className="mx-auto w-full max-w-3xl rounded-2xl bg-white/90 p-8 shadow-lg">
-        <h1 className="text-2xl text-[#3D1B1F]">Campaña</h1>
+    <div className="min-h-screen bg-secondary px-6 py-10">
+      <div className="mx-auto w-full max-w-4xl space-y-6">
+        <AppCard
+          as="section"
+          tone="default"
+          padding="lg"
+          header={(
+            <SectionIntro
+              title="Campaña"
+              description="Definí la campaña activa o reutilizá una existente para seguir con el setup productivo."
+            />
+          )}
+        >
+          <NoticeBanner tone="info" title="Flujo">
+            Campaña activa - Cuarteles - Protocolo - Trazabilidad
+          </NoticeBanner>
+        </AppCard>
 
         {!activeBodegaId ? (
-          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <NoticeBanner tone="danger">
             Seleccioná una bodega activa para crear o usar campañas.
-          </div>
+          </NoticeBanner>
         ) : null}
 
         {loadingCampanias ? (
-          <div className="mt-6 text-sm text-[#6B3A3F]">Cargando campañas…</div>
+          <NoticeBanner tone="info">Cargando campañas…</NoticeBanner>
         ) : mode === "active" && activeCampania ? (
-          <div className="mt-6 space-y-4">
-            <div className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <AppCard as="section" tone="default" padding="lg">
+            <div className="space-y-4">
+            <NoticeBanner tone="success">
               Campaña activa: <strong>{activeCampania.nombre}</strong>
-            </div>
+            </NoticeBanner>
             <div className="flex flex-wrap gap-3">
-              <button
+              <AppButton
                 type="button"
+                variant="primary"
                 disabled={!activeBodegaId}
                 onClick={handleContinueWithExisting}
-                className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:opacity-60"
               >
                 Continuar con esta campaña
-              </button>
-              <button
+              </AppButton>
+              <AppButton
                 type="button"
+                variant="secondary"
                 onClick={() => { setMode("new"); setError(null); }}
-                className="rounded-lg border border-transparent px-4 py-2 text-sm text-[#7A4A50] transition hover:text-[#3D1B1F]"
               >
                 Crear nueva campaña
-              </button>
+              </AppButton>
             </div>
           </div>
+          </AppCard>
         ) : mode === "existing" && campanias.length > 0 ? (
-          <div className="mt-6 space-y-4">
-            <div>
-              <label className="block text-sm text-[#722F37] mb-2">
-                Campaña existente
-              </label>
-              <select
-                className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+          <AppCard as="section" tone="default" padding="lg">
+            <div className="space-y-4">
+              <AppSelect
+                label="Campaña existente"
                 value={selectedCampaniaId}
                 onChange={(e) => setSelectedCampaniaId(e.target.value)}
               >
@@ -195,90 +216,77 @@ const SetupCampania = () => {
                     </option>
                   );
                 })}
-              </select>
-            </div>
+              </AppSelect>
             <div className="flex flex-wrap gap-3">
-              <button
+              <AppButton
                 type="button"
+                variant="primary"
                 disabled={!canUseExisting || !activeBodegaId}
                 onClick={handleContinueWithExisting}
-                className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Continuar con campaña seleccionada
-              </button>
-              <button
+              </AppButton>
+              <AppButton
                 type="button"
+                variant="secondary"
                 onClick={() => { setMode("new"); setError(null); }}
-                className="rounded-lg border border-transparent px-4 py-2 text-sm text-[#7A4A50] transition hover:text-[#3D1B1F]"
               >
                 Crear nueva campaña
-              </button>
+              </AppButton>
             </div>
           </div>
+          </AppCard>
         ) : (
-          <form className="mt-6 space-y-4">
-            <div>
-              <label className="block text-sm text-[#722F37] mb-2">
-                Nombre de la campaña
-              </label>
-              <input
+          <AppCard as="section" tone="default" padding="lg">
+          <form className="space-y-4">
+            <AppInput
+              label="Nombre de la campaña"
                 type="text"
-                className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                uiSize="lg"
                 placeholder="Campaña 2025"
                 value={form.nombre}
                 onChange={(e) => onChange("nombre", e.target.value)}
-              />
-            </div>
+            />
             <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="block text-sm text-[#722F37] mb-2">
-                  Fecha inicio
-                </label>
-                <input
+              <AppInput
+                label="Fecha inicio"
                   type="date"
-                  className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                  uiSize="lg"
                   value={form.fecha_inicio}
                   onChange={(e) => onChange("fecha_inicio", e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-[#722F37] mb-2">
-                  Fecha fin
-                </label>
-                <input
+              />
+              <AppInput
+                label="Fecha fin"
                   type="date"
-                  className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                  uiSize="lg"
                   value={form.fecha_fin}
                   onChange={(e) => onChange("fecha_fin", e.target.value)}
-                />
-              </div>
+              />
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <button
+              <AppButton
                 type="button"
+                variant="primary"
                 disabled={saving || !activeBodegaId}
+                loading={saving}
                 onClick={() => void handleSubmit()}
-                className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {saving ? "Guardando..." : "Crear campaña"}
-              </button>
-              <button
+              </AppButton>
+              <AppButton
                 type="button"
+                variant="secondary"
                 onClick={() => navigate("/admin/campanias")}
-                className="rounded-lg border border-transparent px-4 py-2 text-sm text-[#7A4A50] transition hover:text-[#3D1B1F]"
               >
                 Omitir
-              </button>
+              </AppButton>
             </div>
           </form>
+          </AppCard>
         )}
 
-        {error && (
-          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+        {error ? <NoticeBanner tone="danger">{error}</NoticeBanner> : null}
       </div>
     </div>
   );

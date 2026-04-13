@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { AppCard, NoticeBanner, SectionIntro } from "../../components/ui";
 import { resolveModuleAccess } from "../../lib/permissions";
 import { useAuthStore } from "../../store/authStore";
 import { useOperacionStore } from "../../store/operacionStore";
@@ -125,40 +126,47 @@ export default function OperacionLayout() {
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-6xl space-y-6">
-        <header className="rounded-2xl bg-primary p-6 shadow-lg">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h1 className="text-3xl font-bold text-text">Operación</h1>
-              <p className="mt-2 text-sm text-text-secondary">
-                {useBodegaOperacion
+        <AppCard
+          as="section"
+          tone="default"
+          padding="lg"
+          className="bg-[color:var(--surface-hero)] text-[color:var(--text-on-dark)]"
+          header={(
+            <SectionIntro
+              title="Operación"
+              description={
+                useBodegaOperacion
                   ? "Registro operativo de recepción, control, elaboración, fraccionamiento y trazabilidad."
-                  : "Gestión operativa de finca: asignación y seguimiento de tareas."}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Link
-                to="/tareas"
-                className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
-              >
-                Ver tareas en curso
-              </Link>
-              <Link
-                to="/progreso"
-                className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
-              >
-                Ver progreso
-              </Link>
-            </div>
-          </div>
-
-          <div className="mt-3 flex flex-wrap items-center gap-4">
+                  : "Gestión operativa de finca: asignación y seguimiento de tareas."
+              }
+              descriptionClassName="text-[color:var(--text-on-dark-muted)]"
+              actions={(
+                <div className="flex flex-wrap gap-2">
+                  <Link
+                    to="/tareas"
+                    className="inline-flex min-h-9 items-center justify-center rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-[color:var(--action-ghost-bg)] px-3 py-2 text-xs font-semibold text-[color:var(--text-ink)] shadow-[var(--shadow-inset-soft)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)] hover:border-[color:var(--accent-secondary)] hover:bg-[color:var(--action-ghost-hover)]"
+                  >
+                    Ver tareas en curso
+                  </Link>
+                  <Link
+                    to="/progreso"
+                    className="inline-flex min-h-9 items-center justify-center rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-[color:var(--action-ghost-bg)] px-3 py-2 text-xs font-semibold text-[color:var(--text-ink)] shadow-[var(--shadow-inset-soft)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)] hover:border-[color:var(--accent-secondary)] hover:bg-[color:var(--action-ghost-hover)]"
+                  >
+                    Ver progreso
+                  </Link>
+                </div>
+              )}
+            />
+          )}
+        >
+          <div className="flex flex-wrap items-center gap-4">
             {access.hasBothOperacionScopes ? (
               <div className="flex items-center gap-2">
-                <label className="text-xs font-semibold text-text">Ámbito:</label>
+                <label className="text-xs font-semibold text-[color:var(--text-on-dark-muted)]">Ámbito:</label>
                 <select
                   value={selectedScope}
                   onChange={(event) => onChangeScope(event.target.value as OperacionScope)}
-                  className="rounded border border-[#C9A961]/40 bg-white px-2 py-1 text-xs text-[#3D1B1F]"
+                  className="min-h-9 rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-[color:var(--surface-base)] px-3 py-2 text-xs text-[color:var(--text-ink)] outline-none transition focus:border-[color:var(--accent-secondary)] focus:ring-2 focus:ring-[color:var(--accent-secondary)]/20"
                 >
                   <option value="bodega">Bodega</option>
                   <option value="finca">Finca</option>
@@ -166,24 +174,27 @@ export default function OperacionLayout() {
               </div>
             ) : null}
             {useBodegaOperacion && !activeProtocoloId ? (
-              <span className="text-xs text-amber-700">
-                Sin protocolo activo — configuralo desde{" "}
-                <a href="/bodega" className="underline">Bodega</a>.
-              </span>
+              <NoticeBanner tone="warning" className="px-3 py-2 text-xs">
+                Sin protocolo activo. Configuralo desde{" "}
+                <Link to="/bodega" className="font-semibold text-[color:var(--accent-primary)] hover:underline">
+                  Bodega
+                </Link>
+                .
+              </NoticeBanner>
             ) : null}
           </div>
 
-          <nav className="mt-4 flex flex-wrap gap-2">
+          <nav className="mt-5 flex flex-wrap gap-2">
             {links.map((link) => (
               <NavLink
                 key={link.to}
                 to={link.to}
                 className={() =>
                   [
-                    "rounded-lg border px-3 py-2 text-xs font-semibold transition",
+                    "inline-flex min-h-10 items-center justify-center rounded-[var(--radius-md)] border px-3 py-2 text-xs font-semibold shadow-[var(--shadow-inset-soft)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)]",
                     isLinkActive(link.to)
-                      ? "border-[#C9A961] bg-[#FFF9F0] text-[#722F37]"
-                      : "border-[#C9A961]/40 bg-white text-[#7A4A50] hover:bg-[#FFF9F0]",
+                      ? "border-[color:var(--accent-secondary)] bg-[color:var(--surface-base)] text-[color:var(--accent-primary)]"
+                      : "border-[color:var(--border-default)] bg-white/90 text-[color:var(--text-ink-muted)] hover:border-[color:var(--accent-secondary)] hover:bg-[color:var(--surface-base)] hover:text-[color:var(--accent-primary)]",
                   ].join(" ")
                 }
               >
@@ -200,10 +211,10 @@ export default function OperacionLayout() {
                   to={link.to}
                   className={() =>
                     [
-                      "rounded-full border px-3 py-1 text-[11px] font-semibold transition",
+                      "inline-flex min-h-8 items-center justify-center rounded-full border px-3 py-1 text-[11px] font-semibold transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)]",
                       isLinkActive(link.to)
-                        ? "border-[#722F37] bg-[#722F37] text-[#FFF9F0]"
-                        : "border-[#C9A961]/40 bg-white text-[#7A4A50] hover:bg-[#FFF9F0]",
+                        ? "border-white/20 bg-white/90 text-[color:var(--accent-primary)]"
+                        : "border-white/15 bg-white/5 text-[color:var(--text-on-dark-muted)] hover:border-white/25 hover:bg-white/10 hover:text-[color:var(--text-on-dark)]",
                     ].join(" ")
                   }
                 >
@@ -212,7 +223,7 @@ export default function OperacionLayout() {
               ))}
             </nav>
           ) : null}
-        </header>
+        </AppCard>
 
         <Outlet />
       </div>

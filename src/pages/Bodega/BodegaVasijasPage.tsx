@@ -5,6 +5,12 @@ import {
   listElaboracionResource,
   type ElaboracionEntity,
 } from "../../features/elaboracion/api";
+import {
+  AppButton,
+  AppCard,
+  NoticeBanner,
+  SectionIntro,
+} from "../../components/ui";
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
 
@@ -102,52 +108,48 @@ export default function BodegaVasijasPage() {
 
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
-      <div className="mx-auto w-full max-w-6xl">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-text">
-            Administracion de vasijas
-          </h1>
-          <p className="mt-2 text-sm text-text-secondary">
-            Primero ves el listado y después decidís si crear, editar o eliminar.
-          </p>
-        </div>
+      <div className="mx-auto w-full max-w-6xl space-y-6">
+        <SectionIntro
+          title="Administración de vasijas"
+          description="Primero ves el listado y después decidís si crear, editar o eliminar."
+        />
 
-        <section className="rounded-2xl bg-primary p-6 shadow-lg">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold text-text">Vasijas</h2>
-              <p className="text-xs text-text">
-                Administrá las vasijas de la bodega activa con un flujo separado de alta y edición.
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Link
-                to="/bodega/vasijas/nueva"
-                className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
-              >
-                Crear vasija
+        <AppCard
+          as="section"
+          tone="default"
+          padding="lg"
+          header={(
+            <SectionIntro
+              title="Vasijas"
+              description="Administrá las vasijas de la bodega activa con un flujo separado de alta y edición."
+              actions={(
+                <>
+              <Link to="/bodega/vasijas/nueva">
+                <AppButton variant="primary" size="sm">Crear vasija</AppButton>
               </Link>
-              <button
+              <AppButton
                 type="button"
+                variant="secondary"
+                size="sm"
                 onClick={() => void reload()}
-                className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
               >
                 Actualizar listado
-              </button>
-            </div>
-          </div>
+              </AppButton>
+                </>
+              )}
+            />
+          )}
+        >
 
           <div className="mt-4">
             {!activeBodegaId ? (
-              <div className="text-xs text-[#7A4A50]">
+              <NoticeBanner>
                 Seleccioná una bodega para ver las vasijas.
-              </div>
+              </NoticeBanner>
             ) : loading ? (
-              <div className="text-xs text-[#7A4A50]">Cargando vasijas...</div>
+              <NoticeBanner>Cargando vasijas...</NoticeBanner>
             ) : items.length === 0 ? (
-              <div className="text-xs text-text-secondary">
-                No hay vasijas cargadas.
-              </div>
+              <NoticeBanner>No hay vasijas cargadas.</NoticeBanner>
             ) : (
               <div className="grid gap-3 md:grid-cols-2">
                 {items.map((item) => {
@@ -176,33 +178,35 @@ export default function BodegaVasijasPage() {
                       : `${String(item.capacidad_litros)} l`;
 
                   return (
-                    <article
+                    <AppCard
                       key={id || codigo}
-                      className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4 transition hover:bg-white"
+                      as="article"
+                      tone="interactive"
+                      padding="md"
                     >
-                      <div className="text-sm font-semibold text-[#3D1B1F]">
+                      <div className="text-sm font-semibold text-[color:var(--text-ink)]">
                         {codigo}
                       </div>
-                      <div className="mt-1 text-xs text-[#7A4A50]">{tipo}</div>
-                      <div className="mt-2 text-[11px] text-[#8B4049]/80">
+                      <div className="mt-1 text-xs text-[color:var(--text-ink-muted)]">{tipo}</div>
+                      <div className="mt-2 text-[11px] text-[color:var(--accent-primary)]/80">
                         Gestioná la vasija y su información base
                       </div>
-                      <div className="mt-3 rounded border border-[#C9A961]/30 bg-white px-3 py-2 text-xs text-[#6B3A3F]">
+                      <div className="mt-3 rounded border border-[color:var(--border-default)] bg-white px-3 py-2 text-xs text-[color:var(--text-ink-muted)]">
                         <div className="grid gap-1">
                           <div>
-                            <span className="font-semibold text-[#3D1B1F]">
+                            <span className="font-semibold text-[color:var(--text-ink)]">
                               Capacidad:
                             </span>{" "}
                             {capacidad}
                           </div>
                           <div>
-                            <span className="font-semibold text-[#3D1B1F]">
+                            <span className="font-semibold text-[color:var(--text-ink)]">
                               Estado:
                             </span>{" "}
                             {estado}
                           </div>
                           <div>
-                            <span className="font-semibold text-[#3D1B1F]">
+                            <span className="font-semibold text-[color:var(--text-ink)]">
                               Ubicación:
                             </span>{" "}
                             {ubicacion}
@@ -210,42 +214,41 @@ export default function BodegaVasijasPage() {
                         </div>
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2">
-                        <button
+                        <AppButton
                           type="button"
+                          variant="secondary"
+                          size="sm"
                           onClick={() =>
                             navigate(`/bodega/vasijas/${encodeURIComponent(id)}/editar`)
                           }
                           disabled={!id}
-                          className="rounded border border-[#C9A961]/40 px-2 py-1 text-xs font-semibold text-[#722F37] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           Editar vasija
-                        </button>
-                        <button
+                        </AppButton>
+                        <AppButton
                           type="button"
+                          variant="danger"
+                          size="sm"
                           disabled={!id || deletingId === id}
+                          loading={deletingId === id}
                           onClick={() => void onDelete(item)}
-                          className="rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           {deletingId === id ? "Eliminando..." : "Eliminar vasija"}
-                        </button>
+                        </AppButton>
                       </div>
-                    </article>
+                    </AppCard>
                   );
                 })}
               </div>
             )}
             {error ? (
-              <div className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                {error}
-              </div>
+              <NoticeBanner tone="danger" className="mt-3">{error}</NoticeBanner>
             ) : null}
             {success ? (
-              <div className="mt-3 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-                {success}
-              </div>
+              <NoticeBanner tone="success" className="mt-3">{success}</NoticeBanner>
             ) : null}
           </div>
-        </section>
+        </AppCard>
       </div>
     </div>
   );

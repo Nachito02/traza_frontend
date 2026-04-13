@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  AppButton,
+  AppCard,
+  AppInput,
+  AppSelect,
+  NoticeBanner,
+  SectionIntro,
+} from "../../components/ui";
+import {
   BOT_SCOPES,
   BOT_SCOPE_LABELS,
   createDelegation,
@@ -184,114 +192,109 @@ const Integraciones = () => {
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-6xl space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-text">Bots</h1>
-          <p className="mt-2 text-sm text-text-secondary">
-            Gestioná bots y delegaciones de acceso.
-          </p>
-        </div>
+        <SectionIntro
+          title="Bots"
+          description="Gestioná bots y delegaciones de acceso."
+        />
 
         {/* ─── Panel del Bot (solo admin_sistema) ─── */}
         {isAdminSistema ? (
-          <section className="rounded-2xl bg-primary p-5 shadow-lg space-y-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-semibold text-text">Bot IA</h2>
-                <p className="text-xs text-text-secondary">
-                  Usuario especial con rol <code>bot_agent</code>. Solo admin_sistema puede crearlo.
-                </p>
-              </div>
-              {!showBotForm ? (
-                <button
-                  type="button"
-                  onClick={() => setShowBotForm(true)}
-                  className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
-                >
-                  Nuevo bot
-                </button>
-              ) : null}
-            </div>
+          <AppCard
+            as="section"
+            padding="md"
+            header={(
+              <SectionIntro
+                title="Bot IA"
+                description={<>Usuario especial con rol <code>bot_agent</code>. Solo admin_sistema puede crearlo.</>}
+                actions={
+                  !showBotForm ? (
+                    <AppButton type="button" variant="secondary" size="sm" onClick={() => setShowBotForm(true)}>
+                      Nuevo bot
+                    </AppButton>
+                  ) : null
+                }
+              />
+            )}
+          >
 
-            {botError && (
-              <div className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{botError}</div>
-            )}
-            {botNotice && (
-              <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{botNotice}</div>
-            )}
+            {botError && <NoticeBanner tone="danger">{botError}</NoticeBanner>}
+            {botNotice && <NoticeBanner tone="success">{botNotice}</NoticeBanner>}
 
             {/* Formulario de registro */}
             {showBotForm ? (
-              <div className="grid gap-2 rounded-lg border border-[#C9A961]/30 bg-[#FFF9F0] p-3 md:grid-cols-3">
-                <input
+              <div className="grid gap-2 rounded-[var(--radius-lg)] border border-[color:var(--border-default)] bg-[color:var(--surface-soft)] p-3 md:grid-cols-3">
+                <AppInput
                   value={botForm.nombre}
                   onChange={(e) => setBotForm((p) => ({ ...p, nombre: e.target.value }))}
                   placeholder="Nombre del bot"
-                  className="rounded border border-[#C9A961]/40 px-2 py-2 text-sm text-[#3D1B1F]"
                 />
-                <input
+                <AppInput
                   value={botForm.email}
                   onChange={(e) => setBotForm((p) => ({ ...p, email: e.target.value }))}
                   placeholder="Email"
                   type="email"
-                  className="rounded border border-[#C9A961]/40 px-2 py-2 text-sm text-[#3D1B1F]"
                 />
-                <input
+                <AppInput
                   value={botForm.password}
                   onChange={(e) => setBotForm((p) => ({ ...p, password: e.target.value }))}
                   placeholder="Password"
                   type="password"
-                  className="rounded border border-[#C9A961]/40 px-2 py-2 text-sm text-[#3D1B1F]"
                 />
                 <div className="md:col-span-3 flex gap-2">
-                  <button
-                    type="button"
-                    disabled={botSaving}
-                    onClick={() => void onRegisterBot()}
-                    className="rounded border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] disabled:opacity-60"
-                  >
+                  <AppButton type="button" variant="secondary" size="sm" disabled={botSaving} onClick={() => void onRegisterBot()}>
                     {botSaving ? "Creando..." : "Crear bot"}
-                  </button>
-                  <button
+                  </AppButton>
+                  <AppButton
                     type="button"
+                    variant="secondary"
+                    size="sm"
                     disabled={botSaving}
                     onClick={() => { setShowBotForm(false); setBotForm({ nombre: "", email: "", password: "" }); setBotError(null); }}
-                    className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60"
                   >
                     Cancelar
-                  </button>
+                  </AppButton>
                 </div>
               </div>
             ) : null}
 
             {/* Lista de bots registrados */}
             {botsLoading ? (
-              <div className="text-xs text-text-secondary">Cargando bots…</div>
+              <NoticeBanner>Cargando bots…</NoticeBanner>
             ) : bots.length === 0 ? (
-              <div className="text-xs text-text-secondary">No hay bots registrados todavía.</div>
+              <NoticeBanner>No hay bots registrados todavía.</NoticeBanner>
             ) : (
               <div className="space-y-2">
                 {bots.map((bot) => (
                   <div
                     key={bot.id}
-                    className="flex flex-wrap items-center gap-3 rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] px-4 py-3"
+                    className="flex flex-wrap items-center gap-3 rounded-[var(--radius-xl)] border border-[color:var(--border-default)] bg-[color:var(--surface-soft)] px-4 py-3"
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700">Bot</span>
-                        <span className="text-sm font-semibold text-[#3D1B1F]">{bot.nombre}</span>
-                        <span className={["rounded-full px-2 py-0.5 text-xs font-semibold", bot.is_active ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-700"].join(" ")}>
+                        <span className="rounded-full border border-[color:var(--border-default)] bg-white px-2 py-0.5 text-xs font-semibold text-[color:var(--accent-primary)]">
+                          Bot
+                        </span>
+                        <span className="text-sm font-semibold text-[color:var(--text-ink)]">{bot.nombre}</span>
+                        <span
+                          className={[
+                            "rounded-full border px-2 py-0.5 text-xs font-semibold",
+                            bot.is_active
+                              ? "border-[color:var(--feedback-success-border)] bg-[color:var(--feedback-success-bg)] text-[color:var(--feedback-success-text)]"
+                              : "border-[color:var(--feedback-neutral-border)] bg-[color:var(--feedback-neutral-bg)] text-[color:var(--feedback-neutral-text)]",
+                          ].join(" ")}
+                        >
                           {bot.is_active ? "Activo" : "Inactivo"}
                         </span>
                       </div>
-                      <div className="mt-0.5 text-xs text-[#7A4A50]">{bot.email ?? "Sin email"}</div>
+                      <div className="mt-0.5 text-xs text-[color:var(--text-ink-muted)]">{bot.email ?? "Sin email"}</div>
                     </div>
-                    <div className="flex items-center gap-1 rounded border border-[#C9A961]/30 bg-[#FFF9F0] px-2 py-1">
-                      <span className="font-mono text-xs text-[#7A4A50] select-all">{bot.id}</span>
+                    <div className="flex items-center gap-1 rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-white px-2 py-1">
+                      <span className="select-all font-mono text-xs text-[color:var(--text-ink-muted)]">{bot.id}</span>
                       <button
                         type="button"
                         title="Copiar ID"
                         onClick={() => void navigator.clipboard.writeText(bot.id).then(() => setBotNotice("ID copiado."))}
-                        className="ml-1 text-[#C9A961] hover:text-[#722F37] text-xs"
+                        className="ml-1 text-xs text-[color:var(--accent-secondary)] transition hover:text-[color:var(--accent-primary)]"
                       >
                         copiar
                       </button>
@@ -300,83 +303,76 @@ const Integraciones = () => {
                 ))}
               </div>
             )}
-          </section>
+          </AppCard>
         ) : null}
 
         {/* ─── Mis delegaciones ─── */}
-        <section className="rounded-2xl bg-primary p-5 shadow-lg space-y-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold text-text">Mis delegaciones</h2>
-              <p className="text-xs text-text-secondary">
-                Accesos que le otorgaste al bot IA para actuar en tu nombre.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={openDelForm}
-              className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
-            >
-              Nueva delegación
-            </button>
-          </div>
+        <AppCard
+          as="section"
+          padding="md"
+          header={(
+            <SectionIntro
+              title="Mis delegaciones"
+              description="Accesos que le otorgaste al bot IA para actuar en tu nombre."
+              actions={(
+                <AppButton type="button" variant="secondary" size="sm" onClick={openDelForm}>
+                  Nueva delegación
+                </AppButton>
+              )}
+            />
+          )}
+        >
 
-          {delError && (
-            <div className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">{delError}</div>
-          )}
-          {delNotice && (
-            <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{delNotice}</div>
-          )}
+          {delError && <NoticeBanner tone="danger">{delError}</NoticeBanner>}
+          {delNotice && <NoticeBanner tone="success">{delNotice}</NoticeBanner>}
 
           {/* Formulario nueva delegación */}
           {showDelForm ? (
-            <div className="rounded-lg border border-[#C9A961]/30 bg-[#FFF9F0] p-4 space-y-3">
-              <p className="text-xs font-semibold text-[#6B3A3F]">Nueva delegación</p>
+            <div className="space-y-3 rounded-[var(--radius-lg)] border border-[color:var(--border-default)] bg-[color:var(--surface-soft)] p-4">
+              <p className="text-xs font-semibold text-[color:var(--text-accent)]">Nueva delegación</p>
 
               {/* Bot */}
               <div>
-                <label className="block mb-1 text-xs text-[#6B3A3F]">Bot</label>
+                <label className="mb-1 block text-xs text-[color:var(--text-accent)]">Bot</label>
                 {botsLoading ? (
                   <div className="text-xs text-text-secondary py-2">Cargando bots…</div>
                 ) : bots.length === 0 ? (
-                  <div className="text-xs text-[#7A4A50] py-2">No hay bots registrados. Pedile al admin_sistema que registre uno.</div>
+                  <div className="py-2 text-xs text-[color:var(--text-ink-muted)]">No hay bots registrados. Pedile al admin_sistema que registre uno.</div>
                 ) : (
-                  <select
+                  <AppSelect
                     value={delForm.botUserId}
                     onChange={(e) => setDelForm((p) => ({ ...p, botUserId: e.target.value }))}
-                    className="w-full rounded border border-[#C9A961]/40 px-2 py-2 text-sm text-[#3D1B1F]"
                   >
                     <option value="">Seleccionar bot</option>
                     {bots.map((bot) => (
                       <option key={bot.id} value={bot.id}>{bot.nombre} ({bot.email})</option>
                     ))}
-                  </select>
+                  </AppSelect>
                 )}
               </div>
 
               {/* Bodega */}
               <div>
-                <label className="block mb-1 text-xs text-[#6B3A3F]">Bodega (opcional — vacío = todas)</label>
-                <select
+                <label className="mb-1 block text-xs text-[color:var(--text-accent)]">Bodega (opcional — vacío = todas)</label>
+                <AppSelect
                   value={delForm.bodegaId}
                   onChange={(e) => setDelForm((p) => ({ ...p, bodegaId: e.target.value }))}
-                  className="w-full rounded border border-[#C9A961]/40 px-2 py-2 text-sm text-[#3D1B1F]"
                 >
                   <option value="">Todas mis bodegas</option>
                   {bodegas.map((b) => (
                     <option key={b.bodega_id} value={b.bodega_id}>{b.nombre}</option>
                   ))}
-                </select>
+                </AppSelect>
               </div>
 
               {/* Scopes */}
               <div>
-                <label className="block mb-1 text-xs text-[#6B3A3F]">Permisos (scopes)</label>
-                <div className="flex flex-wrap gap-3 rounded border border-[#C9A961]/30 bg-white p-2">
+                <label className="mb-1 block text-xs text-[color:var(--text-accent)]">Permisos (scopes)</label>
+                <div className="flex flex-wrap gap-3 rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-white p-2">
                   {BOT_SCOPES.map((scope) => {
                     const checked = delForm.scopes.includes(scope);
                     return (
-                      <label key={scope} className="flex items-center gap-2 text-xs text-[#3D1B1F]">
+                      <label key={scope} className="flex items-center gap-2 text-xs text-[color:var(--text-ink)]">
                         <input
                           type="checkbox"
                           checked={checked}
@@ -390,8 +386,8 @@ const Integraciones = () => {
                           }
                         />
                         <span>
-                          <span className="font-mono text-[10px] text-[#C9A961]">{scope}</span>
-                          <span className="block text-[#7A4A50]">{BOT_SCOPE_LABELS[scope]}</span>
+                          <span className="font-mono text-[10px] text-[color:var(--accent-secondary)]">{scope}</span>
+                          <span className="block text-[color:var(--text-ink-muted)]">{BOT_SCOPE_LABELS[scope]}</span>
                         </span>
                       </label>
                     );
@@ -401,83 +397,82 @@ const Integraciones = () => {
 
               {/* Vencimiento */}
               <div>
-                <label className="block mb-1 text-xs text-[#6B3A3F]">Vencimiento (opcional)</label>
-                <input
+                <label className="mb-1 block text-xs text-[color:var(--text-accent)]">Vencimiento (opcional)</label>
+                <AppInput
                   type="datetime-local"
                   value={delForm.expiresAt}
                   onChange={(e) => setDelForm((p) => ({ ...p, expiresAt: e.target.value }))}
-                  className="rounded border border-[#C9A961]/40 px-2 py-2 text-sm text-[#3D1B1F]"
                 />
               </div>
 
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  disabled={delSaving}
-                  onClick={() => void onCreateDelegation()}
-                  className="rounded border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] disabled:opacity-60"
-                >
+                <AppButton type="button" variant="secondary" size="sm" disabled={delSaving} onClick={() => void onCreateDelegation()}>
                   {delSaving ? "Guardando..." : "Crear delegación"}
-                </button>
-                <button
+                </AppButton>
+                <AppButton
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   disabled={delSaving}
                   onClick={() => { setShowDelForm(false); setDelError(null); }}
-                  className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60"
                 >
                   Cancelar
-                </button>
+                </AppButton>
               </div>
             </div>
           ) : null}
 
           {/* Tabla de delegaciones */}
           {delegationsLoading ? (
-            <div className="text-sm text-text-secondary">Cargando delegaciones…</div>
+            <NoticeBanner>Cargando delegaciones…</NoticeBanner>
           ) : delegations.length === 0 ? (
-            <div className="text-sm text-text-secondary">No tenés delegaciones activas.</div>
+            <NoticeBanner>No tenés delegaciones activas.</NoticeBanner>
           ) : (
             <div className="space-y-2">
               {delegations.map((d) => (
-                <article
+                <AppCard
                   key={d.bot_delegation_id}
-                  className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4"
+                  as="article"
+                  tone="soft"
+                  padding="sm"
+                  className="bg-[color:var(--surface-soft)]"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="space-y-2">
-                      <div className="text-sm font-semibold text-[#3D1B1F]">
+                      <div className="text-sm font-semibold text-[color:var(--text-ink)]">
                         {getBodegaName(d.bodega_id)}
                       </div>
                       <div className="flex flex-wrap gap-1">
                         {d.scopes.map((s) => (
                           <span
                             key={s}
-                            className="rounded bg-[#F3E8CC] px-1.5 py-0.5 font-mono text-[10px] text-[#7A4A50]"
+                            className="rounded-[var(--radius-sm)] border border-[color:var(--border-default)] bg-white px-1.5 py-0.5 font-mono text-[10px] text-[color:var(--text-ink-muted)]"
                           >
                             {s}
                           </span>
                         ))}
                       </div>
-                      <div className="text-xs text-[#7A4A50]">
+                      <div className="text-xs text-[color:var(--text-ink-muted)]">
                         {d.expires_at
                           ? `Vence: ${new Date(d.expires_at).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" })}`
                           : "Sin vencimiento"}
                       </div>
                     </div>
-                    <button
+                    <AppButton
                       type="button"
+                      variant="danger"
+                      size="sm"
                       disabled={revokingId === d.bot_delegation_id}
                       onClick={() => void onRevoke(d.bot_delegation_id)}
-                      className="rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700 disabled:opacity-60"
                     >
                       {revokingId === d.bot_delegation_id ? "Revocando..." : "Revocar"}
-                    </button>
+                    </AppButton>
                   </div>
-                </article>
+                </AppCard>
               ))}
             </div>
           )}
-        </section>
+        </AppCard>
       </div>
     </div>
   );

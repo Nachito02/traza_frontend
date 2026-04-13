@@ -6,6 +6,13 @@ import {
   patchElaboracionResource,
   type ElaboracionEntity,
 } from "../../features/elaboracion/api";
+import {
+  AppButton,
+  AppCard,
+  AppInput,
+  NoticeBanner,
+  SectionIntro,
+} from "../../components/ui";
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
 
@@ -166,119 +173,117 @@ export default function BodegaVasijaFormPage({
 
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
-      <div className="mx-auto w-full max-w-3xl rounded-2xl bg-primary p-6 shadow-lg">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-text">{pageTitle}</h1>
-            <p className="mt-1 text-sm text-text-secondary">
-              Completá los datos de la vasija y luego volvés al listado.
-            </p>
-          </div>
-          <Link
-            to="/bodega/vasijas"
-            className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
-          >
-            Volver al listado
-          </Link>
-        </div>
+      <div className="mx-auto w-full max-w-4xl space-y-6">
+        <AppCard
+          as="section"
+          tone="default"
+          padding="lg"
+          header={(
+            <SectionIntro
+              title={pageTitle}
+              description="Completá los datos de la vasija y luego volvés al listado."
+              actions={(
+                <Link to="/bodega/vasijas">
+                  <AppButton variant="secondary" size="sm">Volver al listado</AppButton>
+                </Link>
+              )}
+            />
+          )}
+        >
+          <NoticeBanner tone="info" title="Flujo">
+            Primero definís los datos base de la vasija y después seguís trabajando desde el listado.
+          </NoticeBanner>
+        </AppCard>
 
         {!activeBodegaId ? (
-          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <NoticeBanner tone="danger">
             Seleccioná una bodega para administrar vasijas.
-          </div>
+          </NoticeBanner>
         ) : loading ? (
-          <div className="mt-6 rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] px-3 py-2 text-sm text-[#7A4A50]">
+          <NoticeBanner>
             Cargando vasija...
-          </div>
+          </NoticeBanner>
         ) : (
-          <>
-            <div className="mt-6 rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4">
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold text-[#3D1B1F]">Datos de la vasija</h2>
-                <p className="text-xs text-[#7A4A50]">
-                  Mantené la información base consistente con el resto de la administración.
-                </p>
-              </div>
+          <AppCard
+            as="section"
+            tone="default"
+            padding="lg"
+            header={(
+              <SectionIntro
+                title="Datos de la vasija"
+                description="Mantené la información base consistente con el resto de la administración."
+              />
+            )}
+          >
+            <AppCard as="div" tone="soft" padding="md">
               <div className="grid gap-4 md:grid-cols-2">
-              <label className="text-sm text-[#722F37]">
-                <span className="mb-2 block">Código</span>
-                <input
+              <AppInput
+                label="Código"
                   type="text"
                   value={form.codigo}
                   onChange={(event) => onChange("codigo", event.target.value)}
-                  className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                  uiSize="lg"
                 />
-              </label>
-              <label className="text-sm text-[#722F37]">
-                <span className="mb-2 block">Tipo</span>
-                <input
+              <AppInput
+                label="Tipo"
                   type="text"
                   value={form.tipo}
                   onChange={(event) => onChange("tipo", event.target.value)}
-                  className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                  uiSize="lg"
                 />
-              </label>
-              <label className="text-sm text-[#722F37]">
-                <span className="mb-2 block">Capacidad litros</span>
-                <input
+              <AppInput
+                label="Capacidad litros"
                   type="number"
                   value={form.capacidad_litros}
                   onChange={(event) =>
                     onChange("capacidad_litros", event.target.value)
                   }
-                  className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                  uiSize="lg"
                 />
-              </label>
-              <label className="text-sm text-[#722F37]">
-                <span className="mb-2 block">Estado</span>
-                <input
+              <AppInput
+                label="Estado"
                   type="text"
                   value={form.estado}
                   onChange={(event) => onChange("estado", event.target.value)}
-                  className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                  uiSize="lg"
                 />
-              </label>
-              <label className="text-sm text-[#722F37] md:col-span-2">
-                <span className="mb-2 block">Ubicación</span>
-                <input
+              <AppInput
+                label="Ubicación"
+                className="md:col-span-2"
                   type="text"
                   value={form.ubicacion}
                   onChange={(event) => onChange("ubicacion", event.target.value)}
-                  className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                  uiSize="lg"
                 />
-              </label>
               </div>
-            </div>
+            </AppCard>
 
             {error ? (
-              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {error}
-              </div>
+              <NoticeBanner tone="danger" className="mt-4">{error}</NoticeBanner>
             ) : null}
             {success ? (
-              <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                {success}
-              </div>
+              <NoticeBanner tone="success" className="mt-4">{success}</NoticeBanner>
             ) : null}
 
             <div className="mt-6 flex flex-wrap gap-3">
-              <button
+              <AppButton
                 type="button"
+                variant="primary"
+                loading={saving}
                 onClick={() => void onSubmit()}
                 disabled={saving}
-                className="rounded-lg border border-[#722F37] bg-[#722F37] px-4 py-2 text-sm font-semibold text-[#FFF9F0] transition hover:bg-[#8A3A45] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {saving ? "Guardando..." : mode === "edit" ? "Guardar cambios" : "Crear vasija"}
-              </button>
-              <button
+              </AppButton>
+              <AppButton
                 type="button"
+                variant="secondary"
                 onClick={() => navigate("/bodega/vasijas")}
-                className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:bg-[#F8F3EE]"
               >
                 Cancelar
-              </button>
+              </AppButton>
             </div>
-          </>
+          </AppCard>
         )}
       </div>
     </div>

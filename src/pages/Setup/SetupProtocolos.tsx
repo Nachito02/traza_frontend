@@ -9,6 +9,12 @@ import { createTrazabilidad } from "../../features/trazabilidades/api";
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
 import { useCampaniaStore } from "../../store/campaniaStore";
+import {
+  AppButton,
+  AppCard,
+  NoticeBanner,
+  SectionIntro,
+} from "../../components/ui";
 
 const SetupProtocolos = () => {
   const navigate = useNavigate();
@@ -100,81 +106,92 @@ const SetupProtocolos = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F9F6F2] via-[#F3E7DA] to-[#EAD8C6] px-6 py-10">
-      <div className="mx-auto w-full max-w-3xl rounded-2xl bg-white/90 p-8 shadow-lg">
-        <h1 className="text-2xl text-[#3D1B1F]">Seleccionar protocolo</h1>
-        <p className="mt-2 text-sm text-[#6B3A3F]">
-          Paso 4 de 4 del setup guiado.
-        </p>
+    <div className="min-h-screen bg-secondary px-6 py-10">
+      <div className="mx-auto w-full max-w-4xl space-y-6">
+        <AppCard
+          as="section"
+          tone="default"
+          padding="lg"
+          header={(
+            <SectionIntro
+              title="Seleccionar protocolo"
+              description="Paso 4 de 4 del setup guiado. Elegí el protocolo con el que se va a crear la trazabilidad inicial."
+            />
+          )}
+        >
+          <NoticeBanner tone="info" title="Cierre del setup">
+            Al finalizar se crea la primera trazabilidad usando la bodega, campaña, finca y cuartel que acabás de definir.
+          </NoticeBanner>
+        </AppCard>
 
         {loading ? (
-          <div className="mt-6 text-sm text-[#7A4A50]">
-            Cargando protocolos…
-          </div>
+          <NoticeBanner tone="info">Cargando protocolos…</NoticeBanner>
         ) : error ? (
-          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {error}
-          </div>
+          <NoticeBanner tone="danger">{error}</NoticeBanner>
         ) : protocolos.length === 0 ? (
-          <div className="mt-6 rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] px-3 py-2 text-sm text-[#6B3A3F]">
-            No hay protocolos disponibles.
-          </div>
+          <NoticeBanner tone="warning">No hay protocolos disponibles.</NoticeBanner>
         ) : (
-          <div className="mt-6 space-y-3">
-            {protocolos.map((protocolo) => {
-              const id =
-                protocolo.protocolo_id ?? protocolo.id ?? protocolo.nombre ?? "";
-              return (
-                <label
-                  key={id}
-                  className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 text-sm ${
-                    selected === id
-                      ? "border-[#C9A961] bg-[#FFF9F0]"
-                      : "border-[#C9A961]/30 bg-white"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    className="mt-1"
-                    checked={selected === id}
-                    onChange={() => setSelected(id)}
-                  />
-                  <div>
-                    <div className="font-semibold text-[#3D1B1F]">
-                      {protocolo.nombre ?? protocolo.codigo ?? "Protocolo"}
-                    </div>
-                    <div className="mt-1 text-xs text-[#7A4A50]">
-                      {(protocolo.protocolo_etapa ?? []).length} etapas ·{" "}
-                      {(protocolo.protocolo_etapa ?? []).reduce(
-                        (acc, etapa) => acc + (etapa.protocolo_proceso?.length ?? 0),
-                        0,
-                      )} procesos
-                    </div>
-                    {selected === id && (
-                      <div className="mt-1 text-xs font-medium text-[#8A6B1F]">
-                        Protocolo seleccionado por defecto
+          <AppCard as="section" tone="default" padding="lg">
+            <div className="space-y-3">
+              {protocolos.map((protocolo) => {
+                const id =
+                  protocolo.protocolo_id ?? protocolo.id ?? protocolo.nombre ?? "";
+                return (
+                  <label
+                    key={id}
+                    className={`flex cursor-pointer items-start gap-3 rounded-[var(--radius-lg)] border p-4 text-sm transition ${
+                      selected === id
+                        ? "border-[color:var(--accent-secondary)] bg-[color:var(--surface-muted)]"
+                        : "border-[color:var(--border-default)] bg-white hover:border-[color:var(--accent-secondary)] hover:bg-[color:var(--surface-soft)]"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      className="mt-1"
+                      checked={selected === id}
+                      onChange={() => setSelected(id)}
+                    />
+                    <div>
+                      <div className="font-semibold text-[color:var(--text-ink)]">
+                        {protocolo.nombre ?? protocolo.codigo ?? "Protocolo"}
                       </div>
-                    )}
-                    {protocolo.descripcion && (
-                      <div className="mt-1 text-xs text-[#7A4A50]">
-                        {protocolo.descripcion}
+                      <div className="mt-1 text-xs text-[color:var(--text-ink-muted)]">
+                        {(protocolo.protocolo_etapa ?? []).length} etapas ·{" "}
+                        {(protocolo.protocolo_etapa ?? []).reduce(
+                          (acc, etapa) => acc + (etapa.protocolo_proceso?.length ?? 0),
+                          0,
+                        )}{" "}
+                        procesos
                       </div>
-                    )}
-                  </div>
-                </label>
-              );
-            })}
-          </div>
-        )}
+                      {selected === id && (
+                        <div className="mt-1 text-xs font-medium text-[color:var(--accent-primary)]">
+                          Protocolo seleccionado por defecto
+                        </div>
+                      )}
+                      {protocolo.descripcion && (
+                        <div className="mt-1 text-xs text-[color:var(--text-ink-muted)]">
+                          {protocolo.descripcion}
+                        </div>
+                      )}
+                    </div>
+                  </label>
+                );
+              })}
 
-        <button
-          type="button"
-          onClick={() => void handleContinue()}
-          disabled={saving}
-          className="mt-6 rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {saving ? "Creando trazabilidad..." : "Finalizar setup"}
-        </button>
+              <div className="pt-3">
+                <AppButton
+                  type="button"
+                  variant="primary"
+                  onClick={() => void handleContinue()}
+                  disabled={saving}
+                  loading={saving}
+                >
+                  {saving ? "Creando trazabilidad..." : "Finalizar setup"}
+                </AppButton>
+              </div>
+            </div>
+          </AppCard>
+        )}
       </div>
     </div>
   );

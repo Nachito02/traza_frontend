@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { AppButton, AppCard, NoticeBanner, SectionIntro } from "../../components/ui";
 import type { Cuartel } from "../../features/cuarteles/api";
 import {
   fetchCuartelById,
@@ -136,8 +137,10 @@ const FincaDetail = () => {
   if (!id) {
     return (
       <div className="min-h-screen bg-secondary px-6 py-10">
-        <div className="mx-auto w-full max-w-6xl rounded-2xl border border-red-200 bg-red-50 p-8 text-sm text-red-700 shadow-lg">
-          Finca no encontrada.
+        <div className="mx-auto w-full max-w-6xl">
+          <NoticeBanner tone="danger" className="p-8">
+            Finca no encontrada.
+          </NoticeBanner>
         </div>
       </div>
     );
@@ -146,83 +149,69 @@ const FincaDetail = () => {
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-6xl space-y-6">
-        <section className="rounded-2xl bg-primary p-6 shadow-lg">
+        <AppCard as="section" padding="lg">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="space-y-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#8B5E34]">
-                  Finca
-                </p>
-                <h1 className="text-3xl font-bold text-text">{fincaNombre}</h1>
-                <p className="mt-2 max-w-3xl text-sm text-text-secondary">
-                  Desde esta vista podés revisar el contexto general de la finca y seguir con la
-                  gestión de cuarteles sin mezclar formularios dentro del detalle.
-                </p>
-              </div>
+              <SectionIntro
+                title={<span className="text-3xl font-bold text-text">{fincaNombre}</span>}
+                description="Desde esta vista podés revisar el contexto general de la finca y seguir con la gestión de cuarteles sin mezclar formularios dentro del detalle."
+                className="[&>div>p]:max-w-3xl"
+              />
               <div className="flex flex-wrap gap-2">
-                <div className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] px-4 py-3">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8B5E34]">
+                <div className="rounded-[var(--radius-xl)] border border-[color:var(--border-default)] bg-[color:var(--surface-soft)] px-4 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--accent-secondary)]">
                     Ubicación
                   </div>
-                  <div className="mt-1 text-sm font-semibold text-[#3D1B1F]">{fincaUbicacion}</div>
+                  <div className="mt-1 text-sm font-semibold text-[color:var(--text-ink)]">{fincaUbicacion}</div>
                 </div>
-                <div className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] px-4 py-3">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8B5E34]">
+                <div className="rounded-[var(--radius-xl)] border border-[color:var(--border-default)] bg-[color:var(--surface-soft)] px-4 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--accent-secondary)]">
                     Cuarteles
                   </div>
-                  <div className="mt-1 text-sm font-semibold text-[#3D1B1F]">
+                  <div className="mt-1 text-sm font-semibold text-[color:var(--text-ink)]">
                     {loading ? "Cargando..." : `${cuarteles.length} registrados`}
                   </div>
                 </div>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Link
-                to={`/admin/fincas?edit=${encodeURIComponent(String(id))}`}
-                className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
-              >
-                Editar finca
+              <Link to={`/admin/fincas?edit=${encodeURIComponent(String(id))}`}>
+                <AppButton variant="secondary" size="sm">Editar finca</AppButton>
               </Link>
-              <Link
-                to={`/admin/cuarteles?fincaId=${encodeURIComponent(String(id))}&create=1`}
-                className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
-              >
-                Crear cuartel
+              <Link to={`/admin/cuarteles?fincaId=${encodeURIComponent(String(id))}&create=1`}>
+                <AppButton variant="secondary" size="sm">Crear cuartel</AppButton>
               </Link>
-              <Link
-                to="/fincas"
-                className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
-              >
-                Volver a fincas
+              <Link to="/fincas">
+                <AppButton variant="secondary" size="sm">Volver a fincas</AppButton>
               </Link>
-              <button
+              <AppButton
                 type="button"
+                variant="danger"
+                size="sm"
                 onClick={() => void onDeleteFinca()}
                 disabled={deletingFinca}
-                className="rounded-lg border border-red-300 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {deletingFinca ? "Eliminando..." : "Eliminar finca"}
-              </button>
+              </AppButton>
             </div>
           </div>
-        </section>
+        </AppCard>
 
-        <section className="rounded-2xl bg-primary p-6 shadow-lg">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold text-text">Cuarteles de la finca</h2>
-              <p className="text-xs text-text-secondary">
-                Primero revisás el listado y después, si hace falta, editás o creás desde la
-                administración.
-              </p>
-            </div>
-            <Link
-              to={`/admin/cuarteles?fincaId=${encodeURIComponent(String(id))}`}
-              className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
-            >
-              Administrar cuarteles
-            </Link>
-          </div>
+        <AppCard
+          as="section"
+          padding="lg"
+          header={(
+            <SectionIntro
+              title="Cuarteles de la finca"
+              description="Primero revisás el listado y después, si hace falta, editás o creás desde la administración."
+              actions={(
+                <Link to={`/admin/cuarteles?fincaId=${encodeURIComponent(String(id))}`}>
+                  <AppButton variant="secondary" size="sm">Administrar cuarteles</AppButton>
+                </Link>
+              )}
+            />
+          )}
+        >
 
           {cuarteles.length > 0 ? (
             <div className="mt-4 flex flex-wrap gap-2">
@@ -235,10 +224,10 @@ const FincaDetail = () => {
                     type="button"
                     onClick={() => void onOpenCuartelTag(cuartelId)}
                     className={[
-                      "rounded-full border px-3 py-1 text-xs font-semibold transition",
+                      "rounded-full border px-3 py-1 text-xs font-semibold transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)]",
                       isActive
-                        ? "border-[#722F37] bg-[#722F37] text-[#FFF9F0]"
-                        : "border-[#C9A961]/50 bg-[#FFF9F0] text-[#722F37] hover:bg-white",
+                        ? "border-[color:var(--accent-primary)] bg-[color:var(--accent-primary)] text-[color:var(--text-primary)]"
+                        : "border-[color:var(--border-default)] bg-[color:var(--surface-soft)] text-[color:var(--accent-primary)] hover:bg-white",
                     ].join(" ")}
                   >
                     {cuartel.codigo_cuartel ?? "Cuartel"}
@@ -250,21 +239,24 @@ const FincaDetail = () => {
 
           <div className="mt-4">
             {loading ? (
-              <div className="text-sm text-[#7A4A50]">Cargando cuarteles…</div>
+              <NoticeBanner>Cargando cuarteles…</NoticeBanner>
             ) : error ? (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              <NoticeBanner tone="danger">
                 {error}
-              </div>
+              </NoticeBanner>
             ) : cuarteles.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-[#C9A961]/40 bg-[#FFF9F0] px-4 py-5 text-sm text-[#6B3A3F]">
+              <NoticeBanner>
                 No hay cuarteles cargados para esta finca.
-              </div>
+              </NoticeBanner>
             ) : (
               <div className="grid gap-3 md:grid-cols-2">
                 {cuarteles.map((cuartel) => (
-                  <article
+                  <AppCard
                     key={cuartel.cuartel_id ?? cuartel.id}
-                    className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4"
+                    as="article"
+                    tone="soft"
+                    padding="sm"
+                    className="bg-[color:var(--surface-soft)]"
                   >
                     {(() => {
                       const cuartelId = String(cuartel.cuartel_id ?? cuartel.id ?? "");
@@ -276,15 +268,15 @@ const FincaDetail = () => {
                         <>
                           <div className="flex items-start justify-between gap-3">
                             <div>
-                              <div className="text-sm font-semibold text-[#3D1B1F]">
+                              <div className="text-sm font-semibold text-[color:var(--text-ink)]">
                                 {cuartel.codigo_cuartel ?? "Cuartel"}
                               </div>
-                              <div className="mt-1 text-xs text-[#6B3A3F]">
+                              <div className="mt-1 text-xs text-[color:var(--text-accent)]">
                                 {cuartel.variedad ?? "Variedad sin definir"} ·{" "}
                                 {cuartel.superficie_ha ?? "-"} ha
                               </div>
                             </div>
-                            <div className="rounded-full border border-[#C9A961]/40 px-2.5 py-1 text-[11px] font-semibold text-[#722F37]">
+                            <div className="rounded-full border border-[color:var(--border-default)] px-2.5 py-1 text-[11px] font-semibold text-[color:var(--accent-primary)]">
                               {cuartel.cultivo ?? "vid"}
                             </div>
                           </div>
@@ -293,50 +285,50 @@ const FincaDetail = () => {
                             <button
                               type="button"
                               onClick={() => void onToggleCuartelDetail(cuartelId)}
-                              className="cursor-pointer rounded border border-[#C9A961]/40 px-2 py-1 text-xs font-semibold text-[#722F37] transition hover:bg-white"
+                              className="cursor-pointer rounded-[var(--radius-md)] border border-[color:var(--border-default)] px-2 py-1 text-xs font-semibold text-[color:var(--accent-primary)] transition hover:bg-white"
                             >
                               {isExpanded ? "Ocultar detalle" : "Ver detalle"}
                             </button>
                             <Link
                               to={`/admin/cuarteles?edit=${encodeURIComponent(cuartelId)}&fincaId=${encodeURIComponent(String(id))}`}
-                              className="rounded border border-[#C9A961]/40 px-2 py-1 text-xs font-semibold text-[#722F37] transition hover:bg-white"
+                              className="inline-flex"
                             >
-                              Editar cuartel
+                              <AppButton variant="secondary" size="sm">Editar cuartel</AppButton>
                             </Link>
                           </div>
 
                           {isExpanded ? (
-                            <div className="mt-3 rounded-xl border border-[#C9A961]/30 bg-white px-3 py-3 text-xs text-[#6B3A3F]">
+                            <div className="mt-3 rounded-[var(--radius-xl)] border border-[color:var(--border-default)] bg-white px-3 py-3 text-xs text-[color:var(--text-ink-muted)]">
                               {isLoadingDetail ? (
                                 <div>Cargando detalle...</div>
                               ) : detailError ? (
-                                <div className="text-red-700">{detailError}</div>
+                                <NoticeBanner tone="danger">{detailError}</NoticeBanner>
                               ) : (
                                 <div className="grid gap-2">
                                   <div>
-                                    <span className="font-semibold text-[#3D1B1F]">Código:</span>{" "}
+                                    <span className="font-semibold text-[color:var(--text-ink)]">Código:</span>{" "}
                                     {detail?.codigo_cuartel ?? "-"}
                                   </div>
                                   <div>
-                                    <span className="font-semibold text-[#3D1B1F]">Cultivo:</span>{" "}
+                                    <span className="font-semibold text-[color:var(--text-ink)]">Cultivo:</span>{" "}
                                     {detail?.cultivo ?? "-"}
                                   </div>
                                   <div>
-                                    <span className="font-semibold text-[#3D1B1F]">Variedad:</span>{" "}
+                                    <span className="font-semibold text-[color:var(--text-ink)]">Variedad:</span>{" "}
                                     {detail?.variedad ?? "-"}
                                   </div>
                                   <div>
-                                    <span className="font-semibold text-[#3D1B1F]">Superficie:</span>{" "}
+                                    <span className="font-semibold text-[color:var(--text-ink)]">Superficie:</span>{" "}
                                     {detail?.superficie_ha ?? "-"} ha
                                   </div>
                                   <div>
-                                    <span className="font-semibold text-[#3D1B1F]">
+                                    <span className="font-semibold text-[color:var(--text-ink)]">
                                       Sistema productivo:
                                     </span>{" "}
                                     {detail?.sistema_productivo ?? "-"}
                                   </div>
                                   <div>
-                                    <span className="font-semibold text-[#3D1B1F]">
+                                    <span className="font-semibold text-[color:var(--text-ink)]">
                                       Sistema conducción:
                                     </span>{" "}
                                     {detail?.sistema_conduccion ?? "-"}
@@ -348,23 +340,23 @@ const FincaDetail = () => {
                         </>
                       );
                     })()}
-                  </article>
+                  </AppCard>
                 ))}
               </div>
             )}
           </div>
 
           {actionError ? (
-            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <NoticeBanner tone="danger" className="mt-4">
               {actionError}
-            </div>
+            </NoticeBanner>
           ) : null}
           {actionSuccess ? (
-            <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            <NoticeBanner tone="success" className="mt-4">
               {actionSuccess}
-            </div>
+            </NoticeBanner>
           ) : null}
-        </section>
+        </AppCard>
       </div>
     </div>
   );

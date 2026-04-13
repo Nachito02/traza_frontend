@@ -4,6 +4,12 @@ import { fetchTareasByBodega, type Tarea } from "../../features/encargos/api";
 import { fetchProtocoloById, type ProtocoloExpanded } from "../../features/protocolos/api";
 import { useAuthStore } from "../../store/authStore";
 import { useOperacionStore } from "../../store/operacionStore";
+import {
+  AppCard,
+  MetricCard,
+  NoticeBanner,
+  SectionIntro,
+} from "../../components/ui";
 
 type ProcesoProgreso = {
   proceso_id: string;
@@ -27,25 +33,25 @@ function estadoBadge(estado: string | undefined) {
   switch (normalizeTaskEstado(estado)) {
     case "completado":
       return (
-        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+        <span className="rounded-full border border-[color:var(--feedback-success-border)] bg-[color:var(--feedback-success-bg)] px-2 py-0.5 text-[10px] font-semibold text-[color:var(--feedback-success-text)]">
           Completado
         </span>
       );
     case "en_progreso":
       return (
-        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+        <span className="rounded-full border border-[color:var(--feedback-warning-border)] bg-[color:var(--feedback-warning-bg)] px-2 py-0.5 text-[10px] font-semibold text-[color:var(--feedback-warning-text)]">
           En progreso
         </span>
       );
     case "cancelado":
       return (
-        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+        <span className="rounded-full border border-[color:var(--feedback-neutral-border)] bg-[color:var(--feedback-neutral-bg)] px-2 py-0.5 text-[10px] font-semibold text-[color:var(--feedback-neutral-text)]">
           Cancelado
         </span>
       );
     default:
       return (
-        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">
+        <span className="rounded-full border border-[color:var(--border-default)] bg-white px-2 py-0.5 text-[10px] font-semibold text-[color:var(--text-ink-muted)]">
           Pendiente
         </span>
       );
@@ -66,15 +72,15 @@ function procesoEstado(tareas: Tarea[]): "sin_tareas" | "pendiente" | "en_progre
 
 function ProcesoIndicator({ estado }: { estado: ReturnType<typeof procesoEstado> }) {
   if (estado === "completado") {
-    return <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500" title="Completado" />;
+    return <span className="inline-block h-2.5 w-2.5 rounded-full bg-[color:var(--feedback-success)]" title="Completado" />;
   }
   if (estado === "en_progreso") {
-    return <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-400" title="En progreso" />;
+    return <span className="inline-block h-2.5 w-2.5 rounded-full bg-[color:var(--feedback-warning)]" title="En progreso" />;
   }
   if (estado === "pendiente") {
-    return <span className="inline-block h-2.5 w-2.5 rounded-full bg-blue-300" title="Con tareas pendientes" />;
+    return <span className="inline-block h-2.5 w-2.5 rounded-full bg-[color:var(--accent-secondary)]" title="Con tareas pendientes" />;
   }
-  return <span className="inline-block h-2.5 w-2.5 rounded-full bg-gray-200" title="Sin tareas" />;
+  return <span className="inline-block h-2.5 w-2.5 rounded-full bg-[color:var(--feedback-neutral-border)]" title="Sin tareas" />;
 }
 
 function ProcesoRow({ proceso }: { proceso: ProcesoProgreso }) {
@@ -83,33 +89,33 @@ function ProcesoRow({ proceso }: { proceso: ProcesoProgreso }) {
   const activeTasks = getActiveTasks(proceso.tareas);
   const completedTasks = activeTasks.filter((t) => normalizeTaskEstado(t.estado) === "completado").length;
   return (
-    <div className="rounded-lg border border-[#C9A961]/20 bg-[#FFF9F0]">
+    <AppCard as="article" tone="soft" padding="sm" className="overflow-hidden">
       <button
         type="button"
-        className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left"
+        className="flex w-full items-center justify-between gap-3 px-1 py-1 text-left"
         onClick={() => setOpen((v) => !v)}
       >
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex min-w-0 items-center gap-2">
           <ProcesoIndicator estado={estado} />
-          <span className="text-sm font-medium text-[#3D1B1F] truncate">
+          <span className="truncate text-sm font-medium text-[color:var(--text-ink)]">
             {proceso.nombre}
-            {proceso.obligatorio ? <span className="ml-1 text-[10px] text-[#722F37]">*</span> : null}
+            {proceso.obligatorio ? <span className="ml-1 text-[10px] text-[color:var(--accent-primary)]">*</span> : null}
           </span>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex shrink-0 items-center gap-2">
           {activeTasks.length > 0 && (
-            <span className="text-[11px] text-[#7A4A50]">
+            <span className="text-[11px] text-[color:var(--text-ink-muted)]">
               {completedTasks}/{activeTasks.length}
             </span>
           )}
-          <span className="text-[10px] text-[#7A4A50]">{open ? "▲" : "▼"}</span>
+          <span className="text-[10px] text-[color:var(--text-ink-muted)]">{open ? "▲" : "▼"}</span>
         </div>
       </button>
 
       {open && (
-        <div className="border-t border-[#C9A961]/20 px-3 py-2">
+        <div className="mt-3 border-t border-[color:var(--border-default)]/70 px-1 pt-3">
           {proceso.tareas.length === 0 ? (
-            <p className="text-xs text-[#7A4A50]">Sin tareas registradas para este proceso.</p>
+            <p className="text-xs text-[color:var(--text-ink-muted)]">Sin tareas registradas para este proceso.</p>
           ) : (
             <div className="space-y-1">
               {proceso.tareas.map((tarea) => {
@@ -117,12 +123,12 @@ function ProcesoRow({ proceso }: { proceso: ProcesoProgreso }) {
                 return (
                   <div
                     key={tareaId}
-                    className="flex items-center justify-between gap-2 rounded bg-white px-2 py-1"
+                    className="flex items-center justify-between gap-2 rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-white px-3 py-2"
                   >
                     <div className="min-w-0">
-                      <p className="text-xs font-medium text-[#3D1B1F] truncate">{tarea.titulo}</p>
+                      <p className="truncate text-xs font-medium text-[color:var(--text-ink)]">{tarea.titulo}</p>
                       {tarea.fecha_fin && (
-                        <p className="text-[10px] text-[#7A4A50]">
+                        <p className="text-[10px] text-[color:var(--text-ink-muted)]">
                           Vence: {new Date(tarea.fecha_fin).toLocaleDateString("es-AR")}
                         </p>
                       )}
@@ -135,7 +141,7 @@ function ProcesoRow({ proceso }: { proceso: ProcesoProgreso }) {
           )}
         </div>
       )}
-    </div>
+    </AppCard>
   );
 }
 
@@ -210,7 +216,7 @@ export default function ProgresoPage() {
     return (
       <div className="min-h-screen bg-secondary px-6 py-10">
         <div className="mx-auto w-full max-w-6xl">
-          <div className="rounded-2xl bg-primary p-6 text-sm text-text-secondary">Cargando…</div>
+          <NoticeBanner tone="info">Cargando progreso del protocolo…</NoticeBanner>
         </div>
       </div>
     );
@@ -220,12 +226,13 @@ export default function ProgresoPage() {
     return (
       <div className="min-h-screen bg-secondary px-6 py-10">
         <div className="mx-auto w-full max-w-6xl">
-          <div className="rounded-2xl bg-primary p-6 shadow-lg">
-            <p className="text-sm text-text-secondary">
-              No hay protocolo activo. Seleccioná uno desde{" "}
-              <Link to="/bodega" className="underline text-[#722F37]">Bodega</Link>.
-            </p>
-          </div>
+          <NoticeBanner tone="warning">
+            No hay protocolo activo. Seleccioná uno desde{" "}
+            <Link to="/bodega" className="font-semibold text-[color:var(--accent-primary)] hover:underline">
+              Bodega
+            </Link>
+            .
+          </NoticeBanner>
         </div>
       </div>
     );
@@ -235,9 +242,7 @@ export default function ProgresoPage() {
     return (
       <div className="min-h-screen bg-secondary px-6 py-10">
         <div className="mx-auto w-full max-w-6xl">
-          <div className="rounded-2xl bg-primary p-6 shadow-lg">
-            <p className="text-sm text-text-secondary">No se pudo cargar el protocolo.</p>
-          </div>
+          <NoticeBanner tone="danger">No se pudo cargar el protocolo.</NoticeBanner>
         </div>
       </div>
     );
@@ -247,51 +252,96 @@ export default function ProgresoPage() {
 
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
-      <div className="mx-auto w-full max-w-6xl space-y-4">
-        <div>
-          <h1 className="text-3xl font-bold text-text">Progreso</h1>
-          <p className="mt-2 text-sm text-text-secondary">Estado de ejecución del protocolo activo.</p>
-        </div>
-      {/* Resumen */}
-      <section className="rounded-2xl bg-primary p-5 shadow-lg">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold text-text">{protocolo.nombre ?? "Protocolo activo"}</h2>
-            {protocolo.version ? (
-              <p className="text-xs text-text-secondary">v{protocolo.version}</p>
-            ) : null}
+      <div className="mx-auto w-full max-w-6xl space-y-6">
+        <SectionIntro
+          title="Progreso"
+          description="Estado de ejecución del protocolo activo."
+        />
+
+        <AppCard
+          as="section"
+          tone="default"
+          padding="lg"
+          className="bg-[color:var(--surface-hero)] text-[color:var(--text-on-dark)]"
+          header={(
+            <SectionIntro
+              title={protocolo.nombre ?? "Protocolo activo"}
+              description={protocolo.version ? `Versión ${protocolo.version}` : undefined}
+              className="text-[color:var(--text-on-dark)]"
+              descriptionClassName="text-[color:var(--text-on-dark-muted)]"
+              actions={(
+                <span className="rounded-full border border-white/15 bg-white/85 px-3 py-1 text-xs font-semibold text-[color:var(--accent-primary)]">
+                  {pctCompleto}% completado
+                </span>
+              )}
+            />
+          )}
+        >
+          <div className="grid gap-4 md:grid-cols-4">
+            <MetricCard
+              label="Procesos totales"
+              value={totales.total}
+              hint="Base del protocolo activo"
+            />
+            <MetricCard
+              label="Completados"
+              value={totales.completados}
+              tone="success"
+              hint="Procesos cerrados"
+            />
+            <MetricCard
+              label="En progreso"
+              value={totales.enProgreso}
+              tone="warning"
+              hint="Con actividad registrada"
+            />
+            <MetricCard
+              label="Sin iniciar"
+              value={totales.sinTareas}
+              hint="Pendientes o sin tareas"
+            />
           </div>
-          <span className="rounded-full bg-[#F3E2C7] px-3 py-1 text-xs font-semibold text-[#5A2D32]">
-            {pctCompleto}% completado
-          </span>
-        </div>
 
-        {/* Barra de progreso */}
-        <div className="mt-4 h-2 w-full rounded-full bg-gray-200">
-          <div
-            className="h-2 rounded-full bg-emerald-500 transition-all"
-            style={{ width: `${pctCompleto}%` }}
-          />
-        </div>
+          <div className="mt-5">
+            <div className="h-2.5 w-full rounded-full bg-white/15">
+              <div
+                className="h-2.5 rounded-full bg-[color:var(--feedback-success)] transition-all"
+                style={{ width: `${pctCompleto}%` }}
+              />
+            </div>
+            <div className="mt-3 flex flex-wrap gap-4 text-xs text-[color:var(--text-on-dark-muted)]">
+              <span>
+                <span className="font-semibold text-[color:var(--brand-cream-50)]">{totales.completados}</span> completados
+              </span>
+              <span>
+                <span className="font-semibold text-[color:var(--brand-cream-100)]">{totales.enProgreso}</span> en progreso
+              </span>
+              <span>
+                <span className="font-semibold text-white/90">{totales.sinTareas}</span> sin iniciar
+              </span>
+            </div>
+          </div>
+        </AppCard>
 
-        <div className="mt-3 flex flex-wrap gap-4 text-xs text-[#E8D9D0]">
-          <span><span className="font-semibold text-emerald-300">{totales.completados}</span> completados</span>
-          <span><span className="font-semibold text-amber-300">{totales.enProgreso}</span> en progreso</span>
-          <span><span className="font-semibold text-slate-200">{totales.sinTareas}</span> sin iniciar</span>
-          <span><span className="font-semibold text-white">{totales.total}</span> procesos totales</span>
-        </div>
-      </section>
-
-      {/* Etapas y procesos */}
         {grouped.map((etapa) => (
-          <section key={etapa.nombre} className="rounded-2xl bg-primary p-5 shadow-lg">
-            <h3 className="mb-3 text-sm font-bold text-[#F5E9DD] uppercase tracking-wide">{etapa.nombre}</h3>
+          <AppCard
+            key={etapa.nombre}
+            as="section"
+            tone="default"
+            padding="lg"
+            header={(
+              <SectionIntro
+                title={etapa.nombre}
+                description={`${etapa.procesos.length} procesos en esta etapa`}
+              />
+            )}
+          >
             <div className="space-y-2">
               {etapa.procesos.map((proceso) => (
                 <ProcesoRow key={proceso.proceso_id} proceso={proceso} />
               ))}
             </div>
-          </section>
+          </AppCard>
         ))}
       </div>
     </div>

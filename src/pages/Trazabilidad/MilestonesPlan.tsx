@@ -6,6 +6,7 @@ import EventoModal from "./components/EventoModal";
 import UploadModal from "./components/UploadModal";
 import { useParams } from "react-router-dom";
 import ProcessOverview from "./components/ProcessOverview";
+import { AppButton, AppCard, NoticeBanner, SectionIntro } from "../../components/ui";
 
 const MilestonesPlan = () => {
   const { id } = useParams();
@@ -43,27 +44,30 @@ const MilestonesPlan = () => {
   } = useMilestonesPlan();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F9F6F2] via-[#F3E7DA] to-[#EAD8C6] px-6 py-10">
+    <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-5xl">
-        <div className="mb-8">
-          <h1 className="text-3xl text-[#3D1B1F]">Workspace del proceso</h1>
-          <p className="mt-2 text-sm text-[#6B3A3F]">
+        <SectionIntro
+          className="mb-8"
+          title="Workspace del proceso"
+          description={(
+            <>
             Seguí el estado de la trazabilidad, completá procesos y detectá bloqueos antes de cerrar.
-          </p>
-        </div>
+            </>
+          )}
+        />
 
         {loading ? (
-          <div className="rounded-2xl border border-[#C9A961]/30 bg-white/90 p-6 text-center text-sm text-[#6B3A3F]">
+          <NoticeBanner className="p-6 text-center">
             Cargando milestones…
-          </div>
+          </NoticeBanner>
         ) : error ? (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-sm text-red-700">
+          <NoticeBanner tone="danger" className="p-6 text-center">
             {error}
-          </div>
+          </NoticeBanner>
         ) : milestones.length === 0 ? (
-          <div className="rounded-2xl border border-[#C9A961]/30 bg-white/90 p-6 text-center text-sm text-[#6B3A3F]">
+          <NoticeBanner className="p-6 text-center">
             No hay milestones para esta trazabilidad.
-          </div>
+          </NoticeBanner>
         ) : (
           <div className="space-y-8">
             {contextSummary ? (
@@ -86,10 +90,16 @@ const MilestonesPlan = () => {
             />
 
             {selectedStage && (
-              <section className="rounded-2xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4">
-                <h3 className="text-sm font-semibold text-[#722F37]">
-                  Checklist de obligatorios · {selectedStage.name}
-                </h3>
+              <AppCard
+                as="section"
+                tone="soft"
+                padding="sm"
+                header={(
+                  <h3 className="text-sm font-semibold text-[color:var(--accent-primary)]">
+                    Checklist de obligatorios · {selectedStage.name}
+                  </h3>
+                )}
+              >
                 <div className="mt-2 space-y-1">
                   {selectedStage.milestones
                     .filter((m) => m.protocolo_proceso.obligatorio)
@@ -98,12 +108,14 @@ const MilestonesPlan = () => {
                         key={`req-${m.milestone_id}`}
                         className="flex items-center justify-between rounded-lg bg-white px-3 py-2 text-xs"
                       >
-                        <span className="text-[#3D1B1F]">
+                        <span className="text-[color:var(--text-ink)]">
                           {m.protocolo_proceso.orden}. {m.protocolo_proceso.nombre}
                         </span>
                         <span
                           className={`font-semibold ${
-                            m.estado === "completado" ? "text-[#2D6B2D]" : "text-[#8A6B1F]"
+                            m.estado === "completado"
+                              ? "text-[color:var(--feedback-success-text)]"
+                              : "text-[color:var(--feedback-warning-text)]"
                           }`}
                         >
                           {m.estado === "completado" ? "Listo" : "Pendiente"}
@@ -111,12 +123,12 @@ const MilestonesPlan = () => {
                       </div>
                     ))}
                 </div>
-              </section>
+              </AppCard>
             )}
 
             {selectedStage && (
               <div key={selectedStage.name} className="space-y-3">
-                <h3 className="border-b border-[#C9A961]/30 pb-2 text-lg font-bold text-[#722F37]">
+                <h3 className="border-b border-[color:var(--border-default)] pb-2 text-lg font-bold text-[color:var(--accent-primary)]">
                   {selectedStage.name}
                 </h3>
                 {selectedStage.milestones.map((m) => (
@@ -135,13 +147,13 @@ const MilestonesPlan = () => {
         )}
 
         <div className="mt-8 flex justify-end">
-          <button
+          <AppButton
             type="button"
             disabled={obligatorioPendiente}
-            className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:cursor-not-allowed disabled:opacity-60"
+            variant={obligatorioPendiente ? "secondary" : "primary"}
           >
             {obligatorioPendiente ? "Faltan obligatorios para cerrar" : "Lista para cierre"}
-          </button>
+          </AppButton>
         </div>
       </div>
 

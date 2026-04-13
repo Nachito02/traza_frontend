@@ -12,6 +12,15 @@ import {
   upsertBodegaFincaVinculo,
   type BodegaFincaVinculo,
 } from "../../features/users/api";
+import {
+  AppButton,
+  AppCard,
+  AppInput,
+  AppModal,
+  AppSelect,
+  NoticeBanner,
+  SectionIntro,
+} from "../../components/ui";
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
 
@@ -214,12 +223,20 @@ export default function FincasAdmin() {
     <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-6xl space-y-6">
         {formMode === "none" ? (
-        <section className="rounded-2xl bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-[#3D1B1F]">Listado</h2>
-            <div className="flex gap-2">
-              <button
+        <AppCard
+          as="section"
+          tone="default"
+          padding="lg"
+          header={(
+            <SectionIntro
+              title="Listado"
+              description="Administrá las fincas vinculadas a la bodega activa."
+              actions={(
+                <>
+              <AppButton
                 type="button"
+                variant="primary"
+                size="sm"
                 onClick={() => {
                   setEditingId(null);
                   setForm(emptyForm);
@@ -227,23 +244,30 @@ export default function FincasAdmin() {
                   setFormMode("create");
                   setError(null);
                 }}
-                className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37]"
               >
                 Nueva finca
-              </button>
-              <button type="button" onClick={() => void load()} className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37]">
+              </AppButton>
+              <AppButton
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => void load()}
+              >
                 Actualizar listado
-              </button>
-            </div>
-          </div>
+              </AppButton>
+                </>
+              )}
+            />
+          )}
+        >
           <div className="mt-3 space-y-2">
-            {loading ? <div className="text-sm text-[#7A4A50]">Cargando...</div> : items.length === 0 ? <div className="text-sm text-[#7A4A50]">Sin fincas.</div> : items.map((item) => {
+            {loading ? <NoticeBanner>Cargando...</NoticeBanner> : items.length === 0 ? <NoticeBanner>Sin fincas.</NoticeBanner> : items.map((item) => {
               const id = resolveFincaId(item);
               const vinculo = vinculosByFincaId[id];
               return (
-                <article key={id} className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-3">
-                  <div className="text-sm font-semibold text-[#3D1B1F]">{item.nombre ?? item.nombre_finca ?? item.name ?? "Finca"}</div>
-                  <div className="mt-1 text-xs text-[#6B3A3F]">
+                <AppCard key={id} as="article" tone="soft" padding="sm">
+                  <div className="text-sm font-semibold text-[color:var(--text-ink)]">{item.nombre ?? item.nombre_finca ?? item.name ?? "Finca"}</div>
+                  <div className="mt-1 text-xs text-[color:var(--text-ink-muted)]">
                     Vínculo:{" "}
                     {vinculo?.tipo_vinculo === "proveedor_tercero"
                       ? "Proveedor tercero"
@@ -252,109 +276,99 @@ export default function FincasAdmin() {
                         : "Sin definir"}
                   </div>
                   <div className="mt-2 flex gap-2">
-                    <button
+                    <AppButton
                       type="button"
+                      variant="secondary"
+                      size="sm"
                       onClick={() => {
                         const id = String(item.finca_id ?? item.id ?? "");
                         void onEditById(id);
                       }}
-                      className="cursor-pointer rounded border border-[#C9A961]/50 px-2 py-1 text-xs font-semibold text-[#722F37] transition hover:bg-white active:scale-[0.98]"
                     >
                       Editar
-                    </button>
-                    <button type="button" onClick={() => void onDelete(item)} className="rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700">Eliminar</button>
+                    </AppButton>
+                    <AppButton type="button" variant="danger" size="sm" onClick={() => void onDelete(item)}>Eliminar</AppButton>
                   </div>
-                </article>
+                </AppCard>
               );
             })}
           </div>
-          {formMode === "none" && error ? <div className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">{error}</div> : null}
-          {formMode === "none" && success ? <div className="mt-3 rounded border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-700">{success}</div> : null}
-        </section>
+          {formMode === "none" && error ? <NoticeBanner tone="danger" className="mt-3">{error}</NoticeBanner> : null}
+          {formMode === "none" && success ? <NoticeBanner tone="success" className="mt-3">{success}</NoticeBanner> : null}
+        </AppCard>
         ) : null}
 
         {formMode !== "none" ? (
-          <section className="rounded-2xl bg-primary p-6 shadow-lg">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#8B5E34]">
-                  Formulario
-                </p>
-                <h1 className="text-2xl font-bold text-text">
-                  {formMode === "edit" ? "Editar finca" : "Nueva finca"}
-                </h1>
-                <p className="mt-2 text-sm text-text-secondary">
-                  Completá los datos base de la finca y definí el vínculo con la bodega activa.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingId(null);
-                  setForm(emptyForm);
-                  setVinculoForm(emptyVinculoForm);
-                  setFormMode("none");
-                }}
-                className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
-              >
-                Volver al listado
-              </button>
-            </div>
+          <AppCard
+            as="section"
+            tone="default"
+            padding="lg"
+            header={(
+              <SectionIntro
+                title={formMode === "edit" ? "Editar finca" : "Nueva finca"}
+                description="Completá los datos base de la finca y definí el vínculo con la bodega activa."
+                actions={(
+                  <AppButton
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setEditingId(null);
+                      setForm(emptyForm);
+                      setVinculoForm(emptyVinculoForm);
+                      setFormMode("none");
+                    }}
+                  >
+                    Volver al listado
+                  </AppButton>
+                )}
+              />
+            )}
+          >
             {loadingEdit ? (
-              <div className="mt-4 rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] px-3 py-2 text-xs text-[#7A4A50]">
+              <NoticeBanner className="mt-4">
                 Cargando datos completos de la finca...
-              </div>
+              </NoticeBanner>
             ) : null}
-            <div className="mt-4 rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4">
+            <AppCard as="div" tone="soft" padding="md" className="mt-4">
               <div className="grid gap-4 md:grid-cols-2">
-                <label className="space-y-2 text-sm text-[#6B3A3F]">
-                  <span className="font-semibold text-[#3D1B1F]">Nombre de la finca</span>
-                  <input
+                <AppInput
+                  label="Nombre de la finca"
                     value={form.nombre_finca}
                     onChange={(e) => setForm((p) => ({ ...p, nombre_finca: e.target.value }))}
                     placeholder="Finca Los Andes"
-                    className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F]"
+                    uiSize="lg"
                   />
-                </label>
-                <label className="space-y-2 text-sm text-[#6B3A3F]">
-                  <span className="font-semibold text-[#3D1B1F]">Ubicación</span>
-                  <input
+                <AppInput
+                  label="Ubicación"
                     value={form.ubicacion_texto}
                     onChange={(e) => setForm((p) => ({ ...p, ubicacion_texto: e.target.value }))}
                     placeholder="Luján de Cuyo, Mendoza"
-                    className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F]"
+                    uiSize="lg"
                   />
-                </label>
-                <label className="space-y-2 text-sm text-[#6B3A3F]">
-                  <span className="font-semibold text-[#3D1B1F]">RUT</span>
-                  <input
+                <AppInput
+                  label="RUT"
                     value={form.rut}
                     onChange={(e) => setForm((p) => ({ ...p, rut: e.target.value }))}
                     placeholder="RUT-123"
-                    className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F]"
+                    uiSize="lg"
                   />
-                </label>
-                <label className="space-y-2 text-sm text-[#6B3A3F]">
-                  <span className="font-semibold text-[#3D1B1F]">RENSPA</span>
-                  <input
+                <AppInput
+                  label="RENSPA"
                     value={form.renspa}
                     onChange={(e) => setForm((p) => ({ ...p, renspa: e.target.value }))}
                     placeholder="RENSPA-456"
-                    className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F]"
+                    uiSize="lg"
                   />
-                </label>
-                <label className="space-y-2 text-sm text-[#6B3A3F]">
-                  <span className="font-semibold text-[#3D1B1F]">Catastro</span>
-                  <input
+                <AppInput
+                  label="Catastro"
                     value={form.catastro}
                     onChange={(e) => setForm((p) => ({ ...p, catastro: e.target.value }))}
                     placeholder="CAT-789"
-                    className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F]"
+                    uiSize="lg"
                   />
-                </label>
-                <label className="space-y-2 text-sm text-[#6B3A3F]">
-                  <span className="font-semibold text-[#3D1B1F]">Tipo de vínculo</span>
-                  <select
+                <AppSelect
+                  label="Tipo de vínculo"
                     value={vinculoForm.tipo_vinculo}
                     onChange={(e) =>
                       setVinculoForm((prev) => ({
@@ -362,13 +376,11 @@ export default function FincasAdmin() {
                         tipo_vinculo: e.target.value as "propia" | "proveedor_tercero",
                       }))
                     }
-                    className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F]"
                   >
                     <option value="propia">Propia</option>
                     <option value="proveedor_tercero">Proveedor tercero</option>
-                  </select>
-                </label>
-                <label className="flex items-center gap-2 rounded-xl border border-[#C9A961]/30 bg-white px-3 py-2 text-sm text-[#3D1B1F] md:col-span-2">
+                </AppSelect>
+                <label className="flex items-center gap-2 rounded-xl border border-[color:var(--border-default)] bg-white px-3 py-2 text-sm text-[color:var(--text-ink)] md:col-span-2">
                   <input
                     type="checkbox"
                     checked={vinculoForm.activo}
@@ -379,48 +391,57 @@ export default function FincasAdmin() {
                   Vínculo activo
                 </label>
               </div>
-            </div>
+            </AppCard>
             <div className="mt-4 flex flex-wrap gap-2">
-              <button
+              <AppButton
                 type="button"
+                variant="primary"
+                loading={saving}
                 onClick={() => void onSubmit()}
                 disabled={disabled}
-                className="cursor-pointer rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {editingId ? "Guardar" : "Crear"}
-              </button>
-              <button
+              </AppButton>
+              <AppButton
                 type="button"
+                variant="secondary"
                 onClick={() => {
                   setEditingId(null);
                   setForm(emptyForm);
                   setVinculoForm(emptyVinculoForm);
                   setFormMode("none");
                 }}
-                className="cursor-pointer rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-primary active:scale-[0.98]"
               >
                 Cancelar
-              </button>
+              </AppButton>
             </div>
-            {error ? <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div> : null}
-            {success ? <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{success}</div> : null}
-          </section>
+            {error ? <NoticeBanner tone="danger" className="mt-4">{error}</NoticeBanner> : null}
+            {success ? <NoticeBanner tone="success" className="mt-4">{success}</NoticeBanner> : null}
+          </AppCard>
         ) : null}
       </div>
-      {confirmDeleteItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-            <h3 className="text-base font-semibold text-[#3D1B1F]">¿Eliminar finca?</h3>
-            <p className="mt-2 text-xs text-[#7A4A50]">
+      {confirmDeleteItem ? (
+        <AppModal
+          opened
+          onClose={() => setConfirmDeleteItem(null)}
+          title="¿Eliminar finca?"
+          size="sm"
+          footer={(
+            <div className="flex justify-end gap-2">
+              <AppButton type="button" variant="secondary" size="sm" onClick={() => setConfirmDeleteItem(null)}>
+                Cancelar
+              </AppButton>
+              <AppButton type="button" variant="danger" size="sm" onClick={() => void onDeleteConfirm()}>
+                Eliminar
+              </AppButton>
+            </div>
+          )}
+        >
+            <p className="text-xs text-[color:var(--text-ink-muted)]">
               {confirmDeleteItem.nombre ?? confirmDeleteItem.nombre_finca ?? "Esta finca"} — esta acción no se puede deshacer.
             </p>
-            <div className="mt-4 flex justify-end gap-2">
-              <button type="button" onClick={() => setConfirmDeleteItem(null)} className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700">Cancelar</button>
-              <button type="button" onClick={() => void onDeleteConfirm()} className="rounded border border-red-500 bg-red-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-600">Eliminar</button>
-            </div>
-          </div>
-        </div>
-      )}
+        </AppModal>
+      ) : null}
     </div>
   );
 }

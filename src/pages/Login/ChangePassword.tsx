@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Lock } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 import trazaLogo from "../../assets/traza.png";
+import { AppButton, AppCard, AppInput, NoticeBanner } from "../../components/ui";
 
 const ChangePassword = () => {
   const navigate = useNavigate();
@@ -40,98 +41,101 @@ const ChangePassword = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-primary p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
+      <div className="w-full max-w-lg">
+        <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-dark rounded-full mb-4">
             <img src={trazaLogo} alt="Traza" className="h-10 w-auto object-contain" />
           </div>
           <p className="text-cream text-sm">Primera vez que ingresás</p>
         </div>
 
-        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-8">
-          <h2 className="text-wine text-xl sm:text-2xl mb-2 text-center">Activar cuenta</h2>
-          <p className="text-center text-sm text-gray-500 mb-6">
-            Ingresá la contraseña temporal que recibiste por WhatsApp y elegí una nueva.
-          </p>
+        <AppCard
+          as="section"
+          tone="soft"
+          padding="lg"
+          className="rounded-[var(--radius-xl)] bg-white/95 px-8 py-9 backdrop-blur-sm shadow-2xl sm:px-10 sm:py-10"
+          header={(
+            <div className="text-center">
+              <h2 className="text-2xl text-wine sm:text-3xl">Activar cuenta</h2>
+              <p className="mt-2 text-sm text-[color:var(--text-ink-muted)]">
+                Ingresá la contraseña temporal que recibiste por WhatsApp y elegí una nueva.
+              </p>
+            </div>
+          )}
+        >
 
-          <form onSubmit={(e) => void handleSubmit(e)} className="space-y-5">
+          <form onSubmit={(e) => void handleSubmit(e)} className="space-y-6">
             {error && (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-center text-sm font-medium text-red-700">
+              <NoticeBanner tone="danger" className="text-center font-medium">
                 {error}
-              </div>
+              </NoticeBanner>
             )}
 
-            <div>
-              <label htmlFor="currentPassword" className="block text-sm text-wine mb-2">
-                Contraseña temporal
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-wine-light" />
-                <input
-                  id="currentPassword"
-                  type="password"
-                  value={form.currentPassword}
-                  onChange={(e) => setForm((p) => ({ ...p, currentPassword: e.target.value }))}
-                  className="text-wine-light w-full pl-10 pr-4 py-3 border-2 border-gold/30 rounded-lg outline-none transition-colors focus:border-wine"
-                  placeholder="Contraseña recibida por WhatsApp"
-                  autoComplete="current-password"
-                  required
-                />
-              </div>
-            </div>
+            <AppInput
+              id="currentPassword"
+              type="password"
+              label={(
+                <span className="inline-flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-wine-light" />
+                  Contraseña temporal
+                </span>
+              )}
+              value={form.currentPassword}
+              onChange={(e) => setForm((p) => ({ ...p, currentPassword: e.target.value }))}
+              placeholder="Contraseña recibida por WhatsApp"
+              autoComplete="current-password"
+              required
+              uiSize="lg"
+            />
 
-            <div>
-              <label htmlFor="newPassword" className="block text-sm text-wine mb-2">
-                Nueva contraseña
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-wine-light" />
-                <input
-                  id="newPassword"
-                  type="password"
-                  value={form.newPassword}
-                  onChange={(e) => setForm((p) => ({ ...p, newPassword: e.target.value }))}
-                  className="text-wine-light w-full pl-10 pr-4 py-3 border-2 border-gold/30 rounded-lg outline-none transition-colors focus:border-wine"
-                  placeholder="Mínimo 6 caracteres"
-                  autoComplete="new-password"
-                  required
-                />
-              </div>
-            </div>
+            <AppInput
+              id="newPassword"
+              type="password"
+              label={(
+                <span className="inline-flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-wine-light" />
+                  Nueva contraseña
+                </span>
+              )}
+              value={form.newPassword}
+              onChange={(e) => setForm((p) => ({ ...p, newPassword: e.target.value }))}
+              placeholder="Mínimo 6 caracteres"
+              autoComplete="new-password"
+              required
+              uiSize="lg"
+            />
 
-            <div>
-              <label htmlFor="confirm" className="block text-sm text-wine mb-2">
-                Confirmar nueva contraseña
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-wine-light" />
-                <input
-                  id="confirm"
-                  type="password"
-                  value={form.confirm}
-                  onChange={(e) => setForm((p) => ({ ...p, confirm: e.target.value }))}
-                  className="text-wine-light w-full pl-10 pr-4 py-3 border-2 border-gold/30 rounded-lg outline-none transition-colors focus:border-wine"
-                  placeholder="Repetí la nueva contraseña"
-                  autoComplete="new-password"
-                  required
-                />
-              </div>
-            </div>
+            <AppInput
+              id="confirm"
+              type="password"
+              label={(
+                <span className="inline-flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-wine-light" />
+                  Confirmar nueva contraseña
+                </span>
+              )}
+              value={form.confirm}
+              onChange={(e) => setForm((p) => ({ ...p, confirm: e.target.value }))}
+              placeholder="Repetí la nueva contraseña"
+              autoComplete="new-password"
+              required
+              uiSize="lg"
+            />
 
-            <button
+            <AppButton
               type="submit"
+              variant="primary"
+              fullWidth
+              size="lg"
               disabled={saving}
-              className={[
-                "w-full text-white py-3 rounded-lg transition-all duration-200 bg-primary",
-                saving ? "opacity-70 cursor-not-allowed" : "hover:shadow-lg hover:scale-[1.02]",
-              ].join(" ")}
+              loading={saving}
             >
               {saving ? "Guardando…" : "Activar cuenta"}
-            </button>
+            </AppButton>
           </form>
-        </div>
+        </AppCard>
 
-        <div className="text-center mt-6">
+        <div className="text-center mt-8">
           <p className="text-cream text-xs">© 2026 Traza. Todos los derechos reservados.</p>
         </div>
       </div>

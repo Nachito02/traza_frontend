@@ -7,6 +7,15 @@ import {
   patchElaboracionResource,
   type ElaboracionEntity,
 } from "../../features/elaboracion/api";
+import {
+  AppButton,
+  AppCard,
+  AppInput,
+  AppSelect,
+  AppTextarea,
+  NoticeBanner,
+  SectionIntro,
+} from "../../components/ui";
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
 import GenericCrudSection, { type SelectOption } from "./components/GenericCrudSection";
@@ -255,73 +264,86 @@ export default function CortesProductoPage({
       ) : null}
 
       {activeSection === "cortes" ? (
-        <section className="rounded-2xl bg-white p-5 shadow-sm">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h3 className="text-base font-semibold text-[#3D1B1F]">Cortes</h3>
-              <p className="mt-1 text-xs text-[#7A4A50]">
-                Validación aplicada: cada componente requiere vasijaId o loteCosechaId.
-              </p>
-            </div>
-            {!hidePrimaryAction && corteViewMode === "list" ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingId(null);
-                  setForm(emptyCorteForm());
-                  setCorteViewMode("form");
-                }}
-                className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37]"
-              >
-                Nuevo corte
-              </button>
-            ) : null}
-          </div>
+        <AppCard
+          as="section"
+          tone="default"
+          padding="md"
+          header={(
+            <SectionIntro
+              title="Cortes"
+              description="Validación aplicada: cada componente requiere vasijaId o loteCosechaId."
+              actions={
+                !hidePrimaryAction && corteViewMode === "list" ? (
+                  <AppButton
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    onClick={() => {
+                      setEditingId(null);
+                      setForm(emptyCorteForm());
+                      setCorteViewMode("form");
+                    }}
+                  >
+                    Nuevo corte
+                  </AppButton>
+                ) : undefined
+              }
+            />
+          )}
+        >
 
           {hidePrimaryAction || corteViewMode === "form" ? (
             <>
               <div className="mt-3 grid gap-2 md:grid-cols-2">
-                <input
+                <AppInput
+                  label="Fecha"
                   type="date"
                   value={form.fecha}
                   onChange={(event) => setForm((prev) => ({ ...prev, fecha: event.target.value }))}
-                  className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
+                  uiSize="lg"
                 />
-                <input
+                <AppInput
+                  label="Objetivo"
                   type="text"
                   placeholder="Objetivo"
                   value={form.objetivo}
                   onChange={(event) => setForm((prev) => ({ ...prev, objetivo: event.target.value }))}
-                  className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
+                  uiSize="lg"
                 />
-                <input
+                <AppInput
+                  label="Campaña ID"
                   type="text"
                   placeholder="Campaña ID"
                   value={form.campaniaId}
                   onChange={(event) => setForm((prev) => ({ ...prev, campaniaId: event.target.value }))}
-                  className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
+                  uiSize="lg"
                 />
-                <input
+                <AppInput
+                  label="Responsable User ID"
                   type="text"
                   placeholder="Responsable User ID"
                   value={form.responsableUserId}
                   onChange={(event) =>
                     setForm((prev) => ({ ...prev, responsableUserId: event.target.value }))
                   }
-                  className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
+                  uiSize="lg"
                 />
               </div>
-              <textarea
+              <AppTextarea
+                label="Observaciones"
                 value={form.observaciones}
                 onChange={(event) => setForm((prev) => ({ ...prev, observaciones: event.target.value }))}
                 placeholder="Observaciones"
-                className="mt-2 min-h-20 w-full rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
+                className="mt-2"
+                uiSize="lg"
               />
 
               <div className="mt-3 space-y-2">
                 {form.componentes.map((componente, index) => (
-                  <div key={`comp-${index}`} className="grid gap-2 rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2 md:grid-cols-2">
-                    <select
+                  <AppCard key={`comp-${index}`} as="div" tone="soft" padding="sm">
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <AppSelect
+                      label="Vasija"
                       value={componente.vasijaId}
                       onChange={(event) =>
                         setForm((prev) => {
@@ -330,7 +352,6 @@ export default function CortesProductoPage({
                           return { ...prev, componentes };
                         })
                       }
-                      className="rounded border border-[#C9A961]/40 px-2 py-1 text-sm"
                     >
                       <option value="">Vasija (opcional)</option>
                       {vasijaOptions.map((option) => (
@@ -338,8 +359,9 @@ export default function CortesProductoPage({
                           {option.label}
                         </option>
                       ))}
-                    </select>
-                    <input
+                    </AppSelect>
+                    <AppInput
+                      label="Lote cosecha ID"
                       type="text"
                       placeholder="Lote cosecha ID (opcional)"
                       value={componente.loteCosechaId}
@@ -353,9 +375,10 @@ export default function CortesProductoPage({
                           return { ...prev, componentes };
                         })
                       }
-                      className="rounded border border-[#C9A961]/40 px-2 py-1 text-sm"
+                      uiSize="lg"
                     />
-                    <input
+                    <AppInput
+                      label="Volumen l"
                       type="number"
                       placeholder="Volumen l"
                       value={componente.volumen_l}
@@ -366,9 +389,10 @@ export default function CortesProductoPage({
                           return { ...prev, componentes };
                         })
                       }
-                      className="rounded border border-[#C9A961]/40 px-2 py-1 text-sm"
+                      uiSize="lg"
                     />
-                    <input
+                    <AppInput
+                      label="Porcentaje"
                       type="number"
                       placeholder="Porcentaje"
                       value={componente.porcentaje}
@@ -379,28 +403,32 @@ export default function CortesProductoPage({
                           return { ...prev, componentes };
                         })
                       }
-                      className="rounded border border-[#C9A961]/40 px-2 py-1 text-sm"
+                      uiSize="lg"
                     />
-                    <button
+                    <AppButton
                       type="button"
+                      variant="danger"
+                      size="sm"
                       onClick={() =>
                         setForm((prev) => ({
                           ...prev,
                           componentes: prev.componentes.filter((_, rowIndex) => rowIndex !== index),
                         }))
                       }
-                      className="rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700"
                     >
                       Quitar componente
-                    </button>
+                    </AppButton>
                   </div>
+                  </AppCard>
                 ))}
               </div>
 
               {!hidePrimaryAction ? (
                 <div className="mt-2 flex flex-wrap gap-2">
-                  <button
+                  <AppButton
                     type="button"
+                    variant="secondary"
+                    size="sm"
                     onClick={() =>
                       setForm((prev) => ({
                         ...prev,
@@ -410,73 +438,77 @@ export default function CortesProductoPage({
                         ],
                       }))
                     }
-                    className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37]"
                   >
                     Agregar componente
-                  </button>
-                  <button
+                  </AppButton>
+                  <AppButton
                     type="button"
+                    variant="primary"
+                    size="sm"
+                    loading={saving}
                     onClick={() => void submitCorte()}
                     disabled={saving}
-                    className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37] disabled:opacity-60"
                   >
                     {editingId ? "Guardar" : "Crear"}
-                  </button>
-                  <button
+                  </AppButton>
+                  <AppButton
                     type="button"
+                    variant="secondary"
+                    size="sm"
                     onClick={() => {
                       setEditingId(null);
                       setForm(emptyCorteForm());
                       setCorteViewMode("list");
                     }}
-                    className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"
                   >
                     {editingId ? "Cancelar edición" : "Volver al listado"}
-                  </button>
+                  </AppButton>
                 </div>
               ) : null}
             </>
           ) : (
             <div className="mt-3 max-h-72 space-y-2 overflow-auto">
               {loading ? (
-                <div className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2 text-xs text-[#7A4A50]">Cargando...</div>
+                <NoticeBanner>Cargando...</NoticeBanner>
               ) : cortes.length === 0 ? (
-                <div className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2 text-xs text-[#7A4A50]">Sin cortes.</div>
+                <NoticeBanner>Sin cortes.</NoticeBanner>
               ) : (
                 cortes.map((item, index) => {
                   const id = resolveCorteId(item) || `i-${index}`;
                   return (
-                    <article key={id} className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2">
-                      <div className="text-xs font-semibold text-[#5A2D32]">{id}</div>
-                      <pre className="mt-1 max-h-20 overflow-auto rounded bg-white p-2 text-[11px] text-[#3D1B1F]">
+                    <AppCard key={id} as="article" tone="soft" padding="sm">
+                      <div className="text-xs font-semibold text-[color:var(--accent-primary)]">{id}</div>
+                      <pre className="mt-1 max-h-20 overflow-auto rounded bg-white p-2 text-[11px] text-[color:var(--text-ink)]">
                         {JSON.stringify(item, null, 2)}
                       </pre>
                       <div className="mt-2 flex gap-2">
-                        <button
+                        <AppButton
                           type="button"
+                          variant="secondary"
+                          size="sm"
                           onClick={() => editCorte(item)}
-                          className="rounded border border-[#C9A961]/50 px-2 py-1 text-xs font-semibold text-[#722F37]"
                         >
                           Editar
-                        </button>
-                        <button
+                        </AppButton>
+                        <AppButton
                           type="button"
+                          variant="danger"
+                          size="sm"
                           onClick={() => void deleteCorte(item)}
-                          className="rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700"
                         >
                           Eliminar
-                        </button>
+                        </AppButton>
                       </div>
-                    </article>
+                    </AppCard>
                   );
                 })
               )}
             </div>
           )}
 
-          {error ? <div className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">{error}</div> : null}
-          {success ? <div className="mt-3 rounded border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-700">{success}</div> : null}
-        </section>
+          {error ? <NoticeBanner tone="danger" className="mt-3">{error}</NoticeBanner> : null}
+          {success ? <NoticeBanner tone="success" className="mt-3">{success}</NoticeBanner> : null}
+        </AppCard>
       ) : null}
 
       {activeSection === "productos" ? (

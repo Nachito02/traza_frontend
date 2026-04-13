@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import Topbar from "../components/Topbar";
 import { useAuthStore } from "../store/authStore";
 import Aside from "../components/Aside";
+import CorchoBotLauncher from "../components/CorchoBotLauncher";
 
 const AppLayout = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -20,9 +21,8 @@ const AppLayout = () => {
     return <Navigate to="/login" replace />;
   }
   return (
-    
-    <div className="min-h-screen bg-[#F9F6F2]">
-      <div className="mx-auto grid w-full max-w-7xl   md:grid-cols-[240px_1fr]">
+    <div className="min-h-screen bg-[color:var(--surface-soft)]">
+      <div className="mx-auto grid w-full max-w-7xl md:grid-cols-[240px_1fr]">
         <Aside className="hidden md:block" />
 
         <main className="min-w-0">
@@ -38,7 +38,7 @@ const AppLayout = () => {
                   }
                   navigate("/dashboard");
                 }}
-                className="absolute left-4 top-1 z-10 inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium text-wine transition hover:bg-wine/8"
+                className="absolute left-4 top-1 z-10 inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-2 py-1.5 text-sm font-medium text-[color:var(--accent-primary)] transition hover:bg-[color:var(--surface-accent-soft)]"
                 aria-label="Volver"
               >
                 <ArrowLeft className="h-4 w-4" strokeWidth={2} />
@@ -52,7 +52,7 @@ const AppLayout = () => {
 
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          className="fixed inset-0 z-40 bg-[color:var(--surface-overlay)] md:hidden"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
@@ -65,6 +65,8 @@ const AppLayout = () => {
       >
         <Aside className="h-full" onNavigate={() => setMobileMenuOpen(false)} />
       </div>
+
+      <CorchoBotLauncher />
     </div>
   );
 };

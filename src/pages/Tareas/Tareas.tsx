@@ -16,6 +16,15 @@ import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
 import { useOperacionStore } from "../../store/operacionStore";
 import {
+  AppButton,
+  AppCard,
+  AppInput,
+  AppSelect,
+  AppTextarea,
+  NoticeBanner,
+  SectionIntro,
+} from "../../components/ui";
+import {
   fetchProtocoloById,
   fetchProtocolosExpanded,
   type ProtocoloExpanded,
@@ -950,25 +959,43 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
   return (
     <div className={isManagerMode ? "w-full" : "min-h-screen bg-secondary px-6 py-10"}>
       <div className="mx-auto w-full max-w-6xl space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-text">Tareas</h1>
-          <p className="mt-2 text-sm text-text-secondary">
-            {isManagerMode
+        <SectionIntro
+          title="Tareas"
+          description={
+            isManagerMode
               ? "Operación para encargados: registro operativo y asignación de tareas."
-              : "Vista operario: gestión de tareas asignadas a tu usuario."}
-          </p>
-        </div>
+              : "Vista operario: gestión de tareas asignadas a tu usuario."
+          }
+          actions={(
+            <AppButton
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => void refreshTasks()}
+            >
+              Refrescar
+            </AppButton>
+          )}
+        />
 
         {canRenderManagerFlow ? (
-          <section className="rounded-2xl bg-primary p-5 shadow-lg">
-            <h2 className="text-lg font-semibold text-text">Nuevo registro</h2>
-            <p className="mt-1 text-xs text-text-secondary">
-              Usuario actual: {user?.nombre ?? user?.email ?? "Usuario"}
-            </p>
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <AppCard
+            as="section"
+            tone="default"
+            padding="lg"
+            header={(
+              <div>
+                <h2 className="text-lg font-semibold text-text">Nuevo registro</h2>
+                <p className="mt-1 text-xs text-text-secondary">
+                  Usuario actual: {user?.nombre ?? user?.email ?? "Usuario"}
+                </p>
+              </div>
+            )}
+          >
+            <div className="grid gap-4 md:grid-cols-2">
               {managerScope === "bodega" ? (
                 activeProtocolo ? (
-                  <select
+                  <AppSelect
                     value={form.selectedProcesoId}
                     onChange={(e) => {
                       const procesoId = e.target.value;
@@ -982,7 +1009,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                           : "",
                       }));
                     }}
-                    className="w-full rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F] md:col-span-2"
+                    className="md:col-span-2"
                   >
                     <option value="">Seleccionar actividad del protocolo</option>
                     {groupedProtocolProcesses.map((group) => (
@@ -995,14 +1022,14 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                         ))}
                       </optgroup>
                     ))}
-                  </select>
+                  </AppSelect>
                 ) : (
-                  <div className="md:col-span-2 rounded-lg border border-[#C9A961]/40 bg-white/70 px-3 py-3 text-sm text-[#7A4A50]">
+                  <div className="md:col-span-2 rounded-[var(--radius-lg)] border border-[color:var(--border-default)] bg-[color:var(--surface-soft)] px-4 py-3 text-sm text-[color:var(--text-ink-muted)]">
                     Seleccioná un <strong>Protocolo activo</strong> en el encabezado para ver las actividades disponibles.
                   </div>
                 )
               ) : (
-                <select
+                <AppSelect
                   value={form.tareaProtocolo}
                   onChange={(e) => {
                     const selected = e.target.value;
@@ -1015,7 +1042,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                       titulo: task?.titulo ?? "",
                     }));
                   }}
-                  className="w-full rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F] md:col-span-2"
+                  className="md:col-span-2"
                 >
                   <option value="">Seleccionar tarea del protocolo</option>
                   {groupedProtocoloTaskOptions.map((group) => (
@@ -1027,9 +1054,9 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                       ))}
                     </optgroup>
                   ))}
-                </select>
+                </AppSelect>
               )}
-              <select
+              <AppSelect
                 value={form.prioridad}
                 onChange={(e) =>
                   setForm((prev) => ({
@@ -1037,20 +1064,18 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                     prioridad: e.target.value as "baja" | "media" | "alta",
                   }))
                 }
-                className="w-full rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
               >
                 <option value="baja">baja</option>
                 <option value="media">media</option>
                 <option value="alta">alta</option>
-              </select>
+              </AppSelect>
               {managerScope === "finca" ? (
                 <>
-                  <select
+                  <AppSelect
                     value={form.fincaId}
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, fincaId: e.target.value, cuartelId: "" }))
                     }
-                    className="w-full rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
                   >
                     <option value="">Seleccionar finca</option>
                     {fincas.map((finca) => {
@@ -1062,11 +1087,10 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                         </option>
                       );
                     })}
-                  </select>
-                  <select
+                  </AppSelect>
+                  <AppSelect
                     value={form.cuartelId}
                     onChange={(e) => setForm((prev) => ({ ...prev, cuartelId: e.target.value }))}
-                    className="w-full rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
                     disabled={!form.fincaId}
                   >
                     <option value="">Seleccionar cuartel</option>
@@ -1078,15 +1102,14 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                         </option>
                       );
                     })}
-                  </select>
+                  </AppSelect>
                 </>
               ) : null}
-              <select
+              <AppSelect
                 value={form.assigneeKey}
                 onChange={(e) =>
                   setForm((prev) => ({ ...prev, assigneeKey: e.target.value }))
                 }
-                className="w-full rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
               >
                 <option value="">Asignar a... (opcional)</option>
                 {assigneeOptions.length > 0 ? (
@@ -1103,163 +1126,163 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                     </optgroup>
                   </>
                 ) : null}
-              </select>
-              <input
+              </AppSelect>
+              <AppInput
                 type="datetime-local"
                 value={form.fechaFin}
                 onChange={(e) =>
                   setForm((prev) => ({ ...prev, fechaFin: e.target.value }))
                 }
-                className="w-full rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
               />
-              <textarea
+              <AppTextarea
                 value={form.descripcion}
                 onChange={(e) =>
                   setForm((prev) => ({ ...prev, descripcion: e.target.value }))
                 }
                 placeholder="Descripción (opcional)"
-                className="w-full md:col-span-2 min-h-24 rounded-lg border border-[#C9A961]/40 bg-white/95 px-3 py-2 text-sm text-[#3D1B1F]"
+                className="md:col-span-2"
+                uiSize="lg"
               />
             </div>
             {managerScope === "bodega" && selectedCatalogTask ? (
-              <div className="mt-6 rounded-xl border border-[#C9A961]/40 bg-white/70 p-3">
+              <div className="mt-6 rounded-[var(--radius-lg)] border border-[color:var(--border-default)] bg-[color:var(--surface-soft)] p-3">
                 {renderEmbeddedOperacionForm(selectedCatalogTask.id)}
               </div>
             ) : null}
-            <button
-              type="button"
-              onClick={() => void onCreate()}
-              disabled={saving}
-              className="mt-6 rounded-lg border border-[#722F37]/40 bg-[#722F37] px-3 py-2 text-xs font-semibold text-[#FFF9F0] transition hover:bg-[#5D232A] disabled:cursor-not-allowed disabled:opacity-60"
-            >
+            <div className="mt-6">
+              <AppButton type="button" onClick={() => void onCreate()} disabled={saving} loading={saving}>
               {saving ? "Guardando..." : "Registrar tarea"}
-            </button>
-          </section>
+              </AppButton>
+            </div>
+          </AppCard>
         ) : isManagerMode ? (
-          <section className="rounded-2xl bg-primary p-5 shadow-lg">
-            <h2 className="text-lg font-semibold text-text">Sin permisos de encargado</h2>
-            <p className="mt-1 text-xs text-text-secondary">
+          <AppCard
+            as="section"
+            tone="default"
+            padding="lg"
+            header={<h2 className="text-lg font-semibold text-text">Sin permisos de encargado</h2>}
+          >
+            <p className="text-xs text-text-secondary">
               Para asignar tareas necesitás rol de encargado de finca o de bodega.
             </p>
-          </section>
+          </AppCard>
         ) : (
          <></>
         )}
 
-        {error && (
-          <div className="rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-        {notice && (
-          <div className="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-            {notice}
-          </div>
-        )}
+        {error ? <NoticeBanner tone="danger">{error}</NoticeBanner> : null}
+        {notice ? <NoticeBanner tone="success">{notice}</NoticeBanner> : null}
 
-        <section className="rounded-2xl bg-primary p-5 shadow-lg">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-text">Pendientes</h2>
-            <button
-              type="button"
-              onClick={() => void refreshTasks()}
-              className="rounded-lg border border-[#C9A961]/40 bg-white px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE]"
-            >
-              Refrescar
-            </button>
-          </div>
-
+        <AppCard
+          as="section"
+          tone="default"
+          padding="lg"
+          header={(
+            <SectionIntro
+              title="Pendientes"
+              description={
+                isManagerMode
+                  ? "Seguimiento de tareas creadas y registros pendientes por completar."
+                  : "Tus tareas activas, listas para registrar avances y finalizarlas."
+              }
+            />
+          )}
+        >
+          <div>
           {loading ? (
-            <div className="text-sm text-text-secondary">Cargando tareas…</div>
+            <NoticeBanner tone="info">Cargando tareas…</NoticeBanner>
           ) : tasks.length === 0 ? (
-            <div className="text-sm text-text-secondary">No hay tareas pendientes.</div>
+            <NoticeBanner tone="info">No hay tareas pendientes.</NoticeBanner>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {tasks.map((task) => {
                 const taskId = String(task.tarea_id ?? task.id ?? "");
                 const isExpanded = expandedTaskId === taskId;
                 const catalogTaskId = getMatchedCatalogTaskId(task.titulo, getEventoTipoForTask(task));
                 return (
-                  <article
+                  <AppCard
                     key={taskId}
-                    className="rounded-lg border border-[#C9A961]/30 bg-[#FFF9F0] px-3 py-2"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold text-[#3D1B1F]">{task.titulo}</div>
-                        <div className="mt-1 text-xs text-[#7A4A50]">
-                          Prioridad: {task.prioridad ?? "media"} · Estado: {task.estado ?? "pendiente"}
+                    as="article"
+                    tone="soft"
+                    padding="md"
+                    header={(
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-semibold text-[color:var(--text-ink)]">{task.titulo}</div>
+                          <div className="mt-1 text-xs text-[color:var(--text-ink-muted)]">
+                            Prioridad: {task.prioridad ?? "media"} · Estado: {task.estado ?? "pendiente"}
+                          </div>
+                          {task.descripcion && (
+                            <div className="mt-1 text-xs text-[color:var(--text-ink)]/80">{task.descripcion}</div>
+                          )}
+                          {task.fecha_fin && (
+                            <div className="mt-1 text-xs text-[color:var(--text-ink-muted)]">Vence: {task.fecha_fin}</div>
+                          )}
                         </div>
-                        {task.descripcion && (
-                          <div className="mt-1 text-xs text-[#6B3A3F]">{task.descripcion}</div>
-                        )}
-                        {task.fecha_fin && (
-                          <div className="mt-1 text-xs text-[#7A4A50]">Vence: {task.fecha_fin}</div>
-                        )}
+                        <AppButton
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            if (isExpanded) {
+                              setExpandedTaskId(null);
+                            } else {
+                              openExpandedTask(taskId, task);
+                            }
+                          }}
+                        >
+                          {isExpanded ? "Cerrar" : "Abrir tarea"}
+                        </AppButton>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                        if (isExpanded) {
-                          setExpandedTaskId(null);
-                        } else {
-                          openExpandedTask(taskId, task);
-                        }
-                      }}
-                        className="shrink-0 rounded-lg border border-[#C9A961]/40 px-3 py-1.5 text-xs font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE]"
-                      >
-                        {isExpanded ? "Cerrar" : "Abrir tarea"}
-                      </button>
-                    </div>
-
+                    )}
+                  >
                     {isExpanded && (() => {
                       const eventoTipo = getEventoTipoForTask(task);
                       const catalogId = catalogTaskId ?? (eventoTipo ? getMatchedCatalogTaskId(task.titulo, eventoTipo) : null);
                       const eventoConfig = eventoTipo ? EVENTO_CONFIG[eventoTipo] : null;
                       return (
-                        <div className="mt-3 rounded-xl border border-[#C9A961]/40 bg-white/70 p-3">
+                        <div className="rounded-[var(--radius-lg)] border border-[color:var(--border-default)] bg-white/90 p-4 shadow-[var(--shadow-inset-soft)]">
                           {catalogId ? (
                             renderEmbeddedOperacionForm(catalogId)
                           ) : eventoConfig ? (
                             <div className="space-y-3">
-                              <h4 className="text-sm font-semibold text-[#3D1B1F]">
+                              <h4 className="text-sm font-semibold text-[color:var(--text-ink)]">
                                 {eventoConfig.label}
                               </h4>
 
-                              {/* Historial de registros */}
                               {expandedTaskEntriesLoading ? (
-                                <p className="text-[11px] text-[#7A4A50]">Cargando registros…</p>
+                                <p className="text-[11px] text-[color:var(--text-ink-muted)]">Cargando registros…</p>
                               ) : expandedTaskEntries.length > 0 ? (
-                                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2">
-                                  <p className="mb-1 text-[11px] font-semibold text-emerald-800">
+                                <div className="rounded-[var(--radius-md)] border border-[color:var(--feedback-success-border)] bg-[color:var(--feedback-success-bg)] p-2">
+                                  <p className="mb-1 text-[11px] font-semibold text-[color:var(--feedback-success-text)]">
                                     Registros guardados ({expandedTaskEntries.length})
                                   </p>
                                   {expandedTaskEntries.map((entry, i) => (
-                                    <div key={entry.entradaId ?? i} className="mt-1 rounded bg-white px-2 py-1 text-[11px] text-emerald-700">
+                                    <div
+                                      key={entry.entradaId ?? i}
+                                      className="mt-1 rounded-[var(--radius-sm)] bg-white px-2 py-1 text-[11px] text-[color:var(--feedback-success-text)]"
+                                    >
                                       #{i + 1} · {new Date(entry.fecha).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
                                       {entry.creadoPor?.nombre ? ` · ${entry.creadoPor.nombre}` : ""}
-                                      {entry.descripcion ? <span className="ml-1 text-emerald-600">— {entry.descripcion}</span> : null}
+                                      {entry.descripcion ? <span className="ml-1 text-[color:var(--feedback-success)]">— {entry.descripcion}</span> : null}
                                     </div>
                                   ))}
                                 </div>
                               ) : null}
 
-                              {/* Formulario para nuevo registro */}
                               {eventoConfig.fields.map((field) => (
                                 <div key={field.name}>
-                                  <label className="mb-1 block text-xs font-medium text-[#722F37]">
-                                    {field.label}{field.required ? " *" : ""}
-                                  </label>
                                   {field.type === "textarea" ? (
-                                    <textarea
-                                      className="min-h-20 w-full rounded-lg border border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                                    <AppTextarea
+                                      label={`${field.label}${field.required ? " *" : ""}`}
+                                      uiSize="lg"
                                       value={expandedTaskForm[field.name] ?? ""}
                                       onChange={(e) => setExpandedTaskForm((prev) => ({ ...prev, [field.name]: e.target.value }))}
                                       placeholder={field.placeholder}
                                     />
                                   ) : field.type === "select" ? (
-                                    <select
-                                      className="w-full rounded-lg border border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                                    <AppSelect
+                                      label={`${field.label}${field.required ? " *" : ""}`}
                                       value={expandedTaskForm[field.name] ?? ""}
                                       onChange={(e) => setExpandedTaskForm((prev) => ({ ...prev, [field.name]: e.target.value }))}
                                     >
@@ -1267,10 +1290,10 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                                       {(field.options ?? []).map((opt) => (
                                         <option key={opt.value} value={opt.value}>{opt.label}</option>
                                       ))}
-                                    </select>
+                                    </AppSelect>
                                   ) : field.type === "user_select" ? (
-                                    <select
-                                      className="w-full rounded-lg border border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                                    <AppSelect
+                                      label={`${field.label}${field.required ? " *" : ""}`}
                                       value={expandedTaskForm[field.name] ?? ""}
                                       onChange={(e) => setExpandedTaskForm((prev) => ({ ...prev, [field.name]: e.target.value }))}
                                     >
@@ -1278,12 +1301,12 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                                       {operariosCampo.map((op) => (
                                         <option key={op.user_id} value={op.user_id}>{op.nombre}</option>
                                       ))}
-                                    </select>
+                                    </AppSelect>
                                   ) : (
-                                    <input
+                                    <AppInput
+                                      label={`${field.label}${field.required ? " *" : ""}`}
                                       type={field.type}
                                       step={field.step}
-                                      className="w-full rounded-lg border border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
                                       value={expandedTaskForm[field.name] ?? ""}
                                       onChange={(e) => setExpandedTaskForm((prev) => ({ ...prev, [field.name]: e.target.value }))}
                                       placeholder={field.placeholder}
@@ -1292,34 +1315,42 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                                 </div>
                               ))}
 
-                              {expandedTaskError && (
-                                <p className="text-xs text-red-600">{expandedTaskError}</p>
-                              )}
-                              {expandedTaskNotice && (
-                                <p className="text-xs text-emerald-700">{expandedTaskNotice}</p>
-                              )}
+                              {expandedTaskError ? (
+                                <NoticeBanner tone="danger" className="text-xs">
+                                  {expandedTaskError}
+                                </NoticeBanner>
+                              ) : null}
+                              {expandedTaskNotice ? (
+                                <NoticeBanner tone="success" className="text-xs">
+                                  {expandedTaskNotice}
+                                </NoticeBanner>
+                              ) : null}
 
                               <div className="flex flex-wrap items-center gap-2 pt-1">
-                                <button
+                                <AppButton
                                   type="button"
+                                  variant="secondary"
+                                  size="sm"
                                   onClick={() => void onSubmitTaskEvent(task)}
                                   disabled={expandedTaskSaving}
-                                  className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:opacity-60"
+                                  loading={expandedTaskSaving}
                                 >
                                   {expandedTaskSaving ? "Guardando..." : expandedTaskEntries.length > 0 ? "Registrar otro" : "Registrar"}
-                                </button>
-                                <button
+                                </AppButton>
+                                <AppButton
                                   type="button"
+                                  variant="primary"
+                                  size="sm"
                                   onClick={() => void onFinalizeTask(task)}
                                   disabled={expandedTaskFinalizing || expandedTaskSaving}
-                                  className="rounded-lg border border-[#722F37]/40 bg-[#722F37] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#5D232A] disabled:opacity-60"
+                                  loading={expandedTaskFinalizing}
                                 >
                                   {expandedTaskFinalizing ? "Finalizando..." : "Finalizar tarea"}
-                                </button>
+                                </AppButton>
                               </div>
                             </div>
                           ) : (
-                            <p className="text-xs text-[#7A4A50]">
+                            <p className="text-xs text-[color:var(--text-ink-muted)]">
                               Tipo de actividad no soportado todavía.
                             </p>
                           )}
@@ -1328,21 +1359,26 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                     })()}
 
                     {canRenderManagerFlow && (
-                      <button
-                        type="button"
-                        onClick={() => void onDeleteTask(task)}
-                        disabled={deletingTaskId === taskId}
-                        className="mt-2 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60"
-                      >
-                        {deletingTaskId === taskId ? "Eliminando..." : "Eliminar tarea"}
-                      </button>
+                      <div className="mt-3">
+                        <AppButton
+                          type="button"
+                          variant="danger"
+                          size="sm"
+                          onClick={() => void onDeleteTask(task)}
+                          disabled={deletingTaskId === taskId}
+                          loading={deletingTaskId === taskId}
+                        >
+                          {deletingTaskId === taskId ? "Eliminando..." : "Eliminar tarea"}
+                        </AppButton>
+                      </div>
                     )}
-                  </article>
+                  </AppCard>
                 );
               })}
             </div>
           )}
-        </section>
+          </div>
+        </AppCard>
       </div>
     </div>
   );

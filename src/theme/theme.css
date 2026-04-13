@@ -1,0 +1,113 @@
+:root {
+  color-scheme: dark;
+
+  /* Brand primitives */
+  --brand-wine-950: #08131d;
+  --brand-wine-900: #102433;
+  --brand-wine-800: #17384b;
+  --brand-wine-700: #225470;
+  --brand-wine-600: #2f7295;
+  --brand-wine-500: #4e93b7;
+  --brand-sand-600: #a88444;
+  --brand-sand-500: #c8a96b;
+  --brand-cream-50: #f8fafc;
+  --brand-cream-100: #edf2f7;
+  --brand-cream-200: #d9e3ed;
+  --brand-slate-500: #708397;
+  --brand-white: #ffffff;
+  --brand-success-500: #2f855a;
+  --brand-warning-500: #9a6a1f;
+  --brand-danger-500: #b83232;
+
+  /* Semantic surfaces */
+  --app-bg: var(--brand-wine-950);
+  --surface-base: var(--brand-wine-800);
+  --surface-base-soft: rgba(23, 56, 75, 0.32);
+  --surface-hero: #122b3a;
+  --surface-muted: var(--brand-cream-50);
+  --surface-soft: rgba(255, 249, 240, 0.96);
+  --surface-accent-soft: var(--brand-cream-100);
+  --surface-overlay: rgba(8, 19, 29, 0.74);
+
+  /* Semantic text */
+  --text-primary: var(--brand-white);
+  --text-secondary: var(--brand-slate-500);
+  --text-on-dark: var(--brand-cream-50);
+  --text-on-dark-muted: rgba(237, 242, 247, 0.82);
+  --text-ink: var(--brand-wine-900);
+  --text-ink-muted: #607487;
+  --text-accent: var(--brand-wine-600);
+
+  /* Semantic borders */
+  --border-subtle: rgba(200, 169, 107, 0.18);
+  --border-default: rgba(200, 169, 107, 0.34);
+  --border-strong: var(--brand-sand-500);
+
+  /* Semantic actions */
+  --accent-primary: var(--brand-wine-600);
+  --accent-primary-hover: var(--brand-wine-700);
+  --accent-secondary: var(--brand-sand-500);
+  --action-ghost-bg: var(--brand-cream-50);
+  --action-ghost-hover: var(--brand-cream-100);
+
+  /* Feedback */
+  --feedback-success: var(--brand-success-500);
+  --feedback-warning: var(--brand-warning-500);
+  --feedback-danger: var(--brand-danger-500);
+  --feedback-neutral: var(--brand-wine-900);
+  --feedback-success-bg: #ecfdf3;
+  --feedback-success-border: #a7f3d0;
+  --feedback-success-text: #166534;
+  --feedback-warning-bg: #fffbeb;
+  --feedback-warning-border: #fcd34d;
+  --feedback-warning-text: #92400e;
+  --feedback-danger-bg: #fef2f2;
+  --feedback-danger-border: #f5b3b3;
+  --feedback-danger-text: #a61f1f;
+  --feedback-neutral-bg: rgba(248, 250, 252, 0.94);
+  --feedback-neutral-border: rgba(200, 169, 107, 0.28);
+  --feedback-neutral-text: var(--text-ink-muted);
+
+  /* Typography */
+  --font-body: "Work Sans", sans-serif;
+  --font-heading: "Red Hat Display", sans-serif;
+  --font-accent: "Geist", sans-serif;
+
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-md: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.5rem;
+  --font-size-2xl: 1.875rem;
+  --font-size-3xl: 2.25rem;
+
+  /* Radius */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-pill: 9999px;
+
+  /* Shadows */
+  --shadow-soft: 0 12px 28px rgba(8, 19, 29, 0.14);
+  --shadow-raised: 0 18px 40px rgba(8, 19, 29, 0.18);
+  --shadow-inset-soft: inset 0 1px 0 rgba(248, 250, 252, 0.4);
+
+  /* Motion */
+  --motion-fast: 150ms;
+  --motion-base: 220ms;
+  --motion-slow: 320ms;
+  --motion-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* Legacy aliases kept during migration */
+  --color-primary: var(--surface-base);
+  --color-secondary: var(--app-bg);
+  --color-crem: var(--brand-cream-200);
+  --color-cream: var(--brand-cream-100);
+  --color-text: var(--text-primary);
+  --color-dark: var(--text-ink);
+  --color-text-dark-secondary: var(--text-ink);
+  --color-wine: var(--accent-primary);
+  --color-wine-light: var(--brand-wine-500);
+  --color-gold: var(--accent-secondary);
+}

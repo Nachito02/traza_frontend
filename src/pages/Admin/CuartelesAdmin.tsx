@@ -11,6 +11,14 @@ import {
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
 import { useFincasStore } from "../../features/fincas/store";
+import {
+  AppButton,
+  AppCard,
+  AppInput,
+  AppSelect,
+  NoticeBanner,
+  SectionIntro,
+} from "../../components/ui";
 
 type FormState = {
   fincaId: string;
@@ -262,88 +270,90 @@ export default function CuartelesAdmin() {
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-6xl space-y-6">
-        <section className="rounded-2xl bg-primary p-6 shadow-lg">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="space-y-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#8B5E34]">
-                  Administración
-                </p>
-                <h1 className="text-3xl font-bold text-text">Cuarteles</h1>
-                <p className="mt-2 max-w-3xl text-sm text-text-secondary">
-                  Revisá el listado por finca y seguí con altas o ediciones desde un flujo separado,
-                  manteniendo la misma lógica visual que usamos en fincas.
-                </p>
+        <AppCard
+          as="section"
+          tone="default"
+          padding="lg"
+          header={(
+            <SectionIntro
+              title="Cuarteles"
+              description="Revisá el listado por finca y seguí con altas o ediciones desde un flujo separado."
+              actions={
+                formMode === "none" ? (
+                  <>
+                    <AppButton
+                      type="button"
+                      variant="primary"
+                      size="sm"
+                      onClick={() => {
+                        setEditingId(null);
+                        setForm({ ...emptyForm, fincaId: fincaIdParam || "" });
+                        setFormMode("create");
+                        setError(null);
+                        setSuccess(null);
+                        setSearchParams((prev) => {
+                          const next = new URLSearchParams(prev);
+                          next.set("create", "1");
+                          if (fincaIdParam) next.set("fincaId", fincaIdParam);
+                          return next;
+                        });
+                      }}
+                    >
+                      Nuevo cuartel
+                    </AppButton>
+                    <AppButton
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => void load()}
+                    >
+                      Actualizar listado
+                    </AppButton>
+                  </>
+                ) : undefined
+              }
+            />
+          )}
+        >
+          <div className="flex flex-wrap gap-2">
+            <AppCard as="div" tone="soft" padding="sm">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--accent-secondary)]">
+                Contexto
               </div>
-              <div className="flex flex-wrap gap-2">
-                <div className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] px-4 py-3">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8B5E34]">
-                    Contexto
-                  </div>
-                  <div className="mt-1 text-sm font-semibold text-[#3D1B1F]">{selectedFincaLabel}</div>
-                </div>
-                <div className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] px-4 py-3">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8B5E34]">
-                    Cuarteles
-                  </div>
-                  <div className="mt-1 text-sm font-semibold text-[#3D1B1F]">
-                    {loading ? "Cargando..." : `${items.length} registrados`}
-                  </div>
-                </div>
+              <div className="mt-1 text-sm font-semibold text-[color:var(--text-ink)]">{selectedFincaLabel}</div>
+            </AppCard>
+            <AppCard as="div" tone="soft" padding="sm">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--accent-secondary)]">
+                Cuarteles
               </div>
-            </div>
-
-            {formMode === "none" ? (
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingId(null);
-                    setForm({ ...emptyForm, fincaId: fincaIdParam || "" });
-                    setFormMode("create");
-                    setError(null);
-                    setSuccess(null);
-                    setSearchParams((prev) => {
-                      const next = new URLSearchParams(prev);
-                      next.set("create", "1");
-                      if (fincaIdParam) next.set("fincaId", fincaIdParam);
-                      return next;
-                    });
-                  }}
-                  className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary cursor-pointer"
-                >
-                  Nuevo cuartel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void load()}
-                  className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary cursor-pointer"
-                >
-                  Actualizar listado
-                </button>
+              <div className="mt-1 text-sm font-semibold text-[color:var(--text-ink)]">
+                {loading ? "Cargando..." : `${items.length} registrados`}
               </div>
-            ) : null}
+            </AppCard>
           </div>
-        </section>
+
+        </AppCard>
 
         {formMode === "none" ? (
-          <section className="rounded-2xl bg-primary p-6 shadow-lg">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-semibold text-text">Listado de cuarteles</h2>
-                <p className="text-xs text-text-secondary">
-                  Entrá al detalle o editá cada cuartel sin mezclar el formulario con el listado.
-                </p>
-              </div>
-            </div>
+          <AppCard
+            as="section"
+            tone="default"
+            padding="lg"
+            header={(
+              <SectionIntro
+                title="Listado de cuarteles"
+                description="Entrá al detalle o editá cada cuartel sin mezclar el formulario con el listado."
+              />
+            )}
+          >
 
             <div className="mt-4 space-y-3">
               {loading ? (
-                <div className="text-sm text-[#7A4A50]">Cargando...</div>
+                <NoticeBanner>Cargando...</NoticeBanner>
               ) : items.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-[#C9A961]/40 bg-[#FFF9F0] px-4 py-5 text-sm text-[#7A4A50]">
+                <NoticeBanner>
                   Sin cuarteles para este contexto.
-                </div>
+                </NoticeBanner>
               ) : (
                 items.map((item, index) => {
                   const id = String(item.cuartel_id ?? item.id ?? `i-${index}`);
@@ -352,99 +362,104 @@ export default function CuartelesAdmin() {
                   const detailError = detailErrorById[id];
                   const isLoadingDetail = loadingDetailId === id;
                   return (
-                    <article
+                    <AppCard
                       key={id}
-                      className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4 shadow-sm"
+                      as="article"
+                      tone="soft"
+                      padding="md"
                     >
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
-                          <div className="text-sm font-semibold text-[#3D1B1F]">
+                          <div className="text-sm font-semibold text-[color:var(--text-ink)]">
                             {item.codigo_cuartel}
                           </div>
-                          <div className="mt-1 text-xs text-[#6B3A3F]">
+                          <div className="mt-1 text-xs text-[color:var(--text-ink-muted)]">
                             {fincaById[item.fincaId] ?? item.fincaId}
                           </div>
                         </div>
-                        <div className="rounded-full border border-[#C9A961]/40 px-2.5 py-1 text-[11px] font-semibold text-[#722F37]">
+                        <div className="rounded-full border border-[color:var(--border-default)] px-2.5 py-1 text-[11px] font-semibold text-[color:var(--accent-primary)]">
                           {item.cultivo ?? "vid"}
                         </div>
                       </div>
 
-                      <div className="mt-3 grid gap-2 text-xs text-[#6B3A3F] md:grid-cols-2">
-                        <div className="rounded-lg border border-[#C9A961]/20 bg-white/70 px-3 py-2">
-                          <span className="font-semibold text-[#3D1B1F]">Variedad:</span>{" "}
+                      <div className="mt-3 grid gap-2 text-xs text-[color:var(--text-ink-muted)] md:grid-cols-2">
+                        <div className="rounded-lg border border-[color:var(--border-default)] bg-white/70 px-3 py-2">
+                          <span className="font-semibold text-[color:var(--text-ink)]">Variedad:</span>{" "}
                           {item.variedad || "-"}
                         </div>
-                        <div className="rounded-lg border border-[#C9A961]/20 bg-white/70 px-3 py-2">
-                          <span className="font-semibold text-[#3D1B1F]">Superficie:</span>{" "}
+                        <div className="rounded-lg border border-[color:var(--border-default)] bg-white/70 px-3 py-2">
+                          <span className="font-semibold text-[color:var(--text-ink)]">Superficie:</span>{" "}
                           {item.superficie_ha ?? "-"} ha
                         </div>
                       </div>
 
                       <div className="mt-3 flex flex-wrap gap-2">
-                        <button
+                        <AppButton
                           type="button"
+                          variant="secondary"
+                          size="sm"
                           onClick={() => void onEditById(id, item.fincaId)}
-                          className="cursor-pointer rounded border border-[#C9A961]/50 px-2 py-1 text-xs font-semibold text-[#722F37] transition hover:bg-[#FFF9F0] active:scale-[0.98]"
                         >
                           Editar
-                        </button>
-                        <button
+                        </AppButton>
+                        <AppButton
                           type="button"
+                          variant="secondary"
+                          size="sm"
                           onClick={() => void onToggleDetail(id)}
-                          className="cursor-pointer rounded border border-[#C9A961]/50 px-2 py-1 text-xs font-semibold text-[#722F37] transition hover:bg-[#FFF9F0] active:scale-[0.98]"
                         >
                           {isExpanded ? "Ocultar detalle" : "Ver detalle"}
-                        </button>
-                        <button
+                        </AppButton>
+                        <AppButton
                           type="button"
+                          variant="danger"
+                          size="sm"
                           onClick={() => void onDelete(item)}
-                          className="cursor-pointer rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-50 active:scale-[0.98]"
                         >
                           Eliminar
-                        </button>
+                        </AppButton>
                       </div>
 
                       {isExpanded ? (
-                        <div className="mt-3 rounded-xl border border-[#C9A961]/30 bg-white px-3 py-3 text-xs text-[#6B3A3F]">
+                        <div className="mt-3 rounded-xl border border-[color:var(--border-default)] bg-white px-3 py-3 text-xs text-[color:var(--text-ink-muted)]">
                           {isLoadingDetail ? (
                             <div>Cargando detalle...</div>
                           ) : detailError ? (
-                            <div className="text-red-700">{detailError}</div>
+                            <div className="text-[color:var(--feedback-danger-text)]">{detailError}</div>
                           ) : (
                             <div className="grid gap-2 md:grid-cols-2">
                               <div>
-                                <span className="font-semibold text-[#3D1B1F]">
+                                <span className="font-semibold text-[color:var(--text-ink)]">
                                   Código:
                                 </span>{" "}
                                 {detail?.codigo_cuartel ?? "-"}
                               </div>
                               <div>
-                                <span className="font-semibold text-[#3D1B1F]">
+                                <span className="font-semibold text-[color:var(--text-ink)]">
                                   Cultivo:
                                 </span>{" "}
                                 {detail?.cultivo ?? "-"}
                               </div>
                               <div>
-                                <span className="font-semibold text-[#3D1B1F]">
+                                <span className="font-semibold text-[color:var(--text-ink)]">
                                   Variedad:
                                 </span>{" "}
                                 {detail?.variedad ?? "-"}
                               </div>
                               <div>
-                                <span className="font-semibold text-[#3D1B1F]">
+                                <span className="font-semibold text-[color:var(--text-ink)]">
                                   Superficie:
                                 </span>{" "}
                                 {detail?.superficie_ha ?? "-"} ha
                               </div>
                               <div>
-                                <span className="font-semibold text-[#3D1B1F]">
+                                <span className="font-semibold text-[color:var(--text-ink)]">
                                   Sistema productivo:
                                 </span>{" "}
                                 {detail?.sistema_productivo ?? "-"}
                               </div>
                               <div>
-                                <span className="font-semibold text-[#3D1B1F]">
+                                <span className="font-semibold text-[color:var(--text-ink)]">
                                   Sistema conducción:
                                 </span>{" "}
                                 {detail?.sistema_conduccion ?? "-"}
@@ -453,68 +468,57 @@ export default function CuartelesAdmin() {
                           )}
                         </div>
                       ) : null}
-                    </article>
+                    </AppCard>
                   );
                 })
               )}
             </div>
 
-            {error ? (
-              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {error}
-              </div>
-            ) : null}
-            {success ? (
-              <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                {success}
-              </div>
-            ) : null}
-          </section>
+            {error ? <NoticeBanner tone="danger" className="mt-4">{error}</NoticeBanner> : null}
+            {success ? <NoticeBanner tone="success" className="mt-4">{success}</NoticeBanner> : null}
+          </AppCard>
         ) : null}
 
         {formMode !== "none" ? (
-          <section className="rounded-2xl bg-primary p-6 shadow-lg">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#8B5E34]">
-                  Formulario
-                </p>
-                <h1 className="text-2xl font-bold text-text">
-                  {formMode === "edit" ? "Editar cuartel" : "Nuevo cuartel"}
-                </h1>
-                <p className="mt-2 text-sm text-text-secondary">
-                  Completá los datos base del cuartel para dejarlo listo dentro de la finca
-                  seleccionada.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingId(null);
-                  setForm(emptyForm);
-                  setFormMode("none");
-                  clearFormQueryState();
-                }}
-                className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary cursor-pointer"
-              >
-                Volver al listado
-              </button>
-            </div>
+          <AppCard
+            as="section"
+            tone="default"
+            padding="lg"
+            header={(
+              <SectionIntro
+                title={formMode === "edit" ? "Editar cuartel" : "Nuevo cuartel"}
+                description="Completá los datos base del cuartel para dejarlo listo dentro de la finca seleccionada."
+                actions={(
+                  <AppButton
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setEditingId(null);
+                      setForm(emptyForm);
+                      setFormMode("none");
+                      clearFormQueryState();
+                    }}
+                  >
+                    Volver al listado
+                  </AppButton>
+                )}
+              />
+            )}
+          >
             {loadingEdit ? (
-              <div className="mt-4 rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] px-3 py-2 text-xs text-[#7A4A50]">
+              <NoticeBanner className="mt-4">
                 Cargando datos completos del cuartel...
-              </div>
+              </NoticeBanner>
             ) : null}
-            <div className="mt-4 rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4">
+            <AppCard as="div" tone="soft" padding="md" className="mt-4">
               <div className="grid gap-4 md:grid-cols-2">
-                <label className="space-y-2 text-sm text-[#6B3A3F]">
-                  <span className="font-semibold text-[#3D1B1F]">Finca</span>
-                  <select
+                <AppSelect
+                  label="Finca"
                     value={form.fincaId}
                     onChange={(event) =>
                       setForm((prev) => ({ ...prev, fincaId: event.target.value }))
                     }
-                    className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F]"
                     disabled={formMode === "edit"}
                   >
                     <option value="">Seleccionar finca</option>
@@ -526,22 +530,18 @@ export default function CuartelesAdmin() {
                         </option>
                       );
                     })}
-                  </select>
-                </label>
-                <label className="space-y-2 text-sm text-[#6B3A3F]">
-                  <span className="font-semibold text-[#3D1B1F]">Código de cuartel</span>
-                  <input
+                </AppSelect>
+                <AppInput
+                  label="Código de cuartel"
                     value={form.codigo_cuartel}
                     onChange={(e) =>
                       setForm((p) => ({ ...p, codigo_cuartel: e.target.value }))
                     }
                     placeholder="Ej. C-01"
-                    className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F]"
+                    uiSize="lg"
                   />
-                </label>
-                <label className="space-y-2 text-sm text-[#6B3A3F]">
-                  <span className="font-semibold text-[#3D1B1F]">Superficie (ha)</span>
-                  <input
+                <AppInput
+                  label="Superficie (ha)"
                     type="number"
                     step="0.01"
                     value={form.superficie_ha}
@@ -549,88 +549,73 @@ export default function CuartelesAdmin() {
                       setForm((p) => ({ ...p, superficie_ha: e.target.value }))
                     }
                     placeholder="0.00"
-                    className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F]"
+                    uiSize="lg"
                   />
-                </label>
-                <label className="space-y-2 text-sm text-[#6B3A3F]">
-                  <span className="font-semibold text-[#3D1B1F]">Cultivo</span>
-                  <input
+                <AppInput
+                  label="Cultivo"
                     value={form.cultivo}
                     onChange={(e) =>
                       setForm((p) => ({ ...p, cultivo: e.target.value }))
                     }
                     placeholder="vid"
-                    className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F]"
+                    uiSize="lg"
                   />
-                </label>
-                <label className="space-y-2 text-sm text-[#6B3A3F]">
-                  <span className="font-semibold text-[#3D1B1F]">Variedad</span>
-                  <input
+                <AppInput
+                  label="Variedad"
                     value={form.variedad}
                     onChange={(e) =>
                       setForm((p) => ({ ...p, variedad: e.target.value }))
                     }
                     placeholder="Malbec"
-                    className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F]"
+                    uiSize="lg"
                   />
-                </label>
-                <label className="space-y-2 text-sm text-[#6B3A3F]">
-                  <span className="font-semibold text-[#3D1B1F]">Sistema productivo</span>
-                  <input
+                <AppInput
+                  label="Sistema productivo"
                     value={form.sistema_productivo}
                     onChange={(e) =>
                       setForm((p) => ({ ...p, sistema_productivo: e.target.value }))
                     }
                     placeholder="Convencional, orgánico..."
-                    className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F]"
+                    uiSize="lg"
                   />
-                </label>
-                <label className="space-y-2 text-sm text-[#6B3A3F] md:col-span-2">
-                  <span className="font-semibold text-[#3D1B1F]">Sistema de conducción</span>
-                  <input
+                <AppInput
+                  label="Sistema de conducción"
+                  className="md:col-span-2"
                     value={form.sistema_conduccion}
                     onChange={(e) =>
                       setForm((p) => ({ ...p, sistema_conduccion: e.target.value }))
                     }
                     placeholder="Espaldera, parral..."
-                    className="w-full rounded-xl border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F]"
+                    uiSize="lg"
                   />
-                </label>
               </div>
-            </div>
+            </AppCard>
             <div className="mt-4 flex flex-wrap gap-2">
-              <button
+              <AppButton
                 type="button"
+                variant="primary"
+                loading={saving}
                 onClick={() => void onSubmit()}
                 disabled={saving || !activeBodegaId}
-                className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text hover:bg-primary cursor-pointer transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {editingId ? "Guardar" : "Crear"}
-              </button>
-              <button
+              </AppButton>
+              <AppButton
                 type="button"
+                variant="secondary"
                 onClick={() => {
                   setEditingId(null);
                   setForm(emptyForm);
                   setFormMode("none");
                   clearFormQueryState();
                 }}
-                className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-primary cursor-pointer transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Cancelar
-              </button>
+              </AppButton>
             </div>
-            {error ? (
-              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {error}
-              </div>
-            ) : null}
-            {success ? (
-              <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                {success}
-              </div>
-            ) : null}
-          </section>
+            {error ? <NoticeBanner tone="danger" className="mt-4">{error}</NoticeBanner> : null}
+            {success ? <NoticeBanner tone="success" className="mt-4">{success}</NoticeBanner> : null}
+          </AppCard>
         ) : null}
       </div>
     </div>

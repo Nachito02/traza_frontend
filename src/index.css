@@ -1,19 +1,64 @@
 @import url('https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Red+Hat+Display:ital,wght@0,300..900;1,300..900&family=Work+Sans:ital,wght@0,100..900;1,100..900&display=swap');
 
 @import "tailwindcss";
+@import "./theme/theme.css";
 
 @theme {
-  --color-primary: #490e0e;
-  --color-secondary: #201212;
-  --color-crem: #ecddcd;
-  --color-cream: #F5E6D3;
-  --color-text : #ffffff;
-  --color-dark:#3D1B1F;
-  --color-text-dark-secondary:#3D1B1F;
-  --color-wine: #722F37;
-  --color-wine-light: #8B4049;
-  --color-gold: #C9A961;
+  --color-primary: var(--surface-base);
+  --color-secondary: var(--app-bg);
+  --color-crem: var(--brand-cream-200);
+  --color-cream: var(--surface-accent-soft);
+  --color-text: var(--text-primary);
+  --color-dark: var(--text-ink);
+  --color-text-dark-secondary: var(--text-ink);
+  --color-wine: var(--accent-primary);
+  --color-wine-light: var(--brand-wine-500);
+  --color-gold: var(--accent-secondary);
+  --color-text-secondary: var(--text-secondary);
 
-  --color-text-secondary: #64748B;
-  --font-sans: 'Work Sans', sans-serif;
+  /* New semantic aliases */
+  --color-app-bg: var(--app-bg);
+  --color-surface: var(--surface-base);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-soft: var(--surface-accent-soft);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-default: var(--border-default);
+  --color-border-strong: var(--border-strong);
+  --color-text-ink: var(--text-ink);
+  --color-text-muted-ink: var(--text-ink-muted);
+  --color-accent-primary: var(--accent-primary);
+  --color-accent-secondary: var(--accent-secondary);
+  --color-success: var(--feedback-success);
+  --color-warning: var(--feedback-warning);
+  --color-danger: var(--feedback-danger);
+
+  --font-sans: var(--font-body);
+  --font-heading: var(--font-heading);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --shadow-soft: var(--shadow-soft);
+  --shadow-raised: var(--shadow-raised);
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  background: var(--app-bg);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
 }
