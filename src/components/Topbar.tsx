@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { LogOut, Menu } from "lucide-react";
+import { AppButton, AppSelect } from "./ui";
 import { useAuthStore } from "../store/authStore";
 import { useCampaniaStore } from "../store/campaniaStore";
 
@@ -57,13 +58,13 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
   }, [activeBodegaId]);
 
   return (
-    <header className="w-full  bg-secondary  px-6">
-      <div className="mx-auto flex w-full  items-center justify-between  py-4">
+    <header className="w-full bg-[color:var(--surface-base)] px-6 text-[color:var(--text-on-dark)]">
+      <div className="mx-auto flex w-full items-center justify-between py-4">
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={onOpenMenu}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-white/20 text-text md:hidden"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-white/10 text-[color:var(--text-on-dark)] transition hover:bg-white/15 md:hidden"
             aria-label="Abrir menú"
           >
             <Menu className="h-5 w-5" />
@@ -71,14 +72,14 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="hidden items-center gap-4 text-xs text-[#6B3A3F] md:flex">
-            <div className="text-text">Bodega:</div>
+          <div className="hidden items-center gap-4 text-xs text-[color:var(--text-on-dark-muted)] md:flex">
+            <div className="text-[color:var(--text-on-dark)]">Bodega:</div>
             {canSwitchBodega ? (
-              <div className="flex items-center gap-2">
-                <select
+              <div className="min-w-[180px]">
+                <AppSelect
                   value={String(activeBodegaId ?? "")}
                   onChange={(event) => setActiveBodega(event.target.value)}
-                  className="rounded border border-[#C9A961]/40 bg-white px-2 py-1 text-xs text-[#3D1B1F]"
+                  uiSize="sm"
                 >
                   <option value="">Seleccionar</option>
                   {bodegas.map((bodega) => (
@@ -86,17 +87,17 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
                       {bodega.nombre}
                     </option>
                   ))}
-                </select>
+                </AppSelect>
               </div>
             ) : (
-              <div className="font-medium text-text">
+              <div className="font-medium text-[color:var(--text-on-dark)]">
                 {activeBodega?.nombre ?? "Sin seleccionar"}
               </div>
             )}
             <div>
-              <span className=" text-text">Campaña:</span>{" "}
+              <span className="text-[color:var(--text-on-dark)]">Campaña:</span>{" "}
               {campanias.length > 0 ? (
-                <select
+                <AppSelect
                   value={activeCampaniaId}
                   onChange={(event) => {
                     const selectedId = event.target.value;
@@ -114,7 +115,8 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
                       setActiveCampania("", "");
                     }
                   }}
-                  className="rounded border border-[#C9A961]/40 bg-white px-2 py-1 text-xs text-[#3D1B1F]"
+                  uiSize="sm"
+                  className="inline-block min-w-[180px] align-middle"
                 >
                   {campanias.map((campania) => {
                     const id = String(campania.campania_id ?? campania.id ?? "");
@@ -124,29 +126,30 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
                       </option>
                     );
                   })}
-                </select>
+                </AppSelect>
               ) : (
-                <span className="font-medium text-text">
+                <span className="font-medium text-[color:var(--text-on-dark)]">
                   {activeCampania?.nombre ?? "Sin campaña activa"}
                 </span>
               )}
             </div>
             <div>
-              <span className=" text-text">Usuario:</span>{" "}
-              <span className="font-medium  text-text">
+              <span className="text-[color:var(--text-on-dark)]">Usuario:</span>{" "}
+              <span className="font-medium text-[color:var(--text-on-dark)]">
                 {user?.nombre ?? user?.email ?? "Usuario"}
               </span>
             </div>
           </div>
-          <button
+          <AppButton
             type="button"
             onClick={() => void logout()}
             disabled={isLoading}
-            className="inline-flex items-center gap-2 rounded-lg border border-[#C9A961]/40 px-3 py-2 text-sm text-text transition hover:border-[#C9A961] hover:bg-[#F8F3EE]"
+            variant="secondary"
+            size="sm"
+            leftSection={<LogOut className="h-4 w-4" />}
           >
-            <LogOut className="h-4 w-4" />
             Salir
-          </button>
+          </AppButton>
         </div>
       </div>
     </header>

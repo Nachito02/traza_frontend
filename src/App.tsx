@@ -100,7 +100,7 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-[#722F37]">
+      <div className="flex min-h-screen items-center justify-center text-[color:var(--accent-primary)]">
         Cargando sesión…
       </div>
     );

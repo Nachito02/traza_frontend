@@ -1,4 +1,5 @@
 import { Link, NavLink, Outlet } from "react-router-dom";
+import { AppCard, SectionIntro } from "../../components/ui";
 
 const LINKS = [
   { to: "/bodega/recepcion", label: "Recepción" },
@@ -13,33 +14,38 @@ export default function ElaboracionLayout() {
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-7xl space-y-6">
-        <header className="rounded-2xl bg-primary/30 p-6 shadow-sm">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h1 className="text-3xl font-bold text-text">Bodega</h1>
-              <p className="mt-2 text-sm text-text-secondary">
-                Flujo operativo completo: recepción, control, elaboración, fraccionamiento y trazabilidad
-                de producto final.
-              </p>
-            </div>
-            <Link
-              to="/bodega/vasijas"
-              className="rounded-lg border border-[#C9A961] bg-[#FFF9F0] px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:bg-[#F7EEDB]"
-            >
-              Crear vasija
-            </Link>
-          </div>
-          <nav className="mt-4 flex flex-wrap gap-2">
+        <AppCard
+          as="section"
+          tone="default"
+          padding="lg"
+          className="bg-[color:var(--surface-hero)] text-[color:var(--text-on-dark)]"
+          header={(
+            <SectionIntro
+              title="Bodega"
+              description="Flujo operativo completo: recepción, control, elaboración, fraccionamiento y trazabilidad de producto final."
+              descriptionClassName="text-[color:var(--text-on-dark-muted)]"
+              actions={(
+                <Link
+                  to="/bodega/vasijas"
+                  className="inline-flex min-h-10 items-center justify-center rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-[color:var(--surface-base)] px-4 py-2 text-xs font-semibold text-[color:var(--accent-primary)] shadow-[var(--shadow-inset-soft)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)] hover:border-[color:var(--accent-secondary)] hover:bg-[color:var(--action-ghost-hover)]"
+                >
+                  Crear vasija
+                </Link>
+              )}
+            />
+          )}
+        >
+          <nav className="flex flex-wrap gap-2">
             {LINKS.map((link) => (
               <NavLink
                 key={link.to}
                 to={link.to}
                 className={({ isActive }) =>
                   [
-                    "rounded-lg border px-3 py-2 text-xs font-semibold transition",
+                    "inline-flex min-h-10 items-center justify-center rounded-[var(--radius-md)] border px-3 py-2 text-xs font-semibold shadow-[var(--shadow-inset-soft)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)]",
                     isActive
-                      ? "border-[#C9A961] bg-[#FFF9F0] text-[#722F37]"
-                      : "border-[#C9A961]/40 bg-white/80 text-[#7A4A50] hover:bg-[#FFF9F0]",
+                      ? "border-[color:var(--accent-secondary)] bg-[color:var(--surface-base)] text-[color:var(--accent-primary)]"
+                      : "border-[color:var(--border-default)] bg-white/90 text-[color:var(--text-ink-muted)] hover:border-[color:var(--accent-secondary)] hover:bg-[color:var(--surface-base)] hover:text-[color:var(--accent-primary)]",
                   ].join(" ")
                 }
               >
@@ -47,7 +53,7 @@ export default function ElaboracionLayout() {
               </NavLink>
             ))}
           </nav>
-        </header>
+        </AppCard>
 
         <Outlet />
       </div>

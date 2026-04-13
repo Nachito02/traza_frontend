@@ -2,6 +2,13 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchProtocolos, type Protocolo } from "../../features/protocolos/api";
 import { useOperacionStore } from "../../store/operacionStore";
+import {
+  AppButton,
+  AppCard,
+  AppSelect,
+  NoticeBanner,
+  SectionIntro,
+} from "../../components/ui";
 
 const RESOURCES = [
   {
@@ -40,28 +47,29 @@ export default function BodegaHome() {
 
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
-      <div className="mx-auto w-full max-w-6xl">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-text">Administracion de bodega</h1>
-          <p className="mt-2 text-sm text-text-secondary">
-            Gestioná los recursos maestros y accesos operativos de la bodega activa.
-          </p>
-        </div>
+      <div className="mx-auto w-full max-w-6xl space-y-6">
+        <SectionIntro
+          title="Administración de bodega"
+          description="Gestioná los recursos maestros y el contexto operativo de la bodega activa."
+        />
 
-        <section className="mb-8 rounded-2xl bg-primary p-6 shadow-lg">
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold text-text">Configuración operativa</h2>
-            <p className="text-xs text-text-secondary">
-              El protocolo activo determina las actividades disponibles en Operación.
-            </p>
-          </div>
+        <AppCard
+          as="section"
+          tone="default"
+          padding="lg"
+          header={(
+            <SectionIntro
+              title="Configuración operativa"
+              description="El protocolo activo determina las actividades disponibles en Operación."
+            />
+          )}
+        >
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-semibold text-text">Protocolo activo:</label>
-              <select
+            <div className="min-w-[280px]">
+              <AppSelect
+                label="Protocolo activo"
                 value={activeProtocoloId ?? ""}
                 onChange={(e) => setActiveProtocoloId(e.target.value || null)}
-                className="rounded-lg border border-[#C9A961]/40 bg-white px-3 py-2 text-sm text-[#3D1B1F]"
               >
                 <option value="">Sin protocolo seleccionado</option>
                 {protocolos.map((p) => {
@@ -75,66 +83,75 @@ export default function BodegaHome() {
                     </option>
                   );
                 })}
-              </select>
+              </AppSelect>
             </div>
             {activeProtocolo ? (
-              <span className="rounded-full bg-[#EED9BC] px-3 py-1 text-xs font-semibold text-[#5A2D32]">
+              <span className="rounded-full border border-[color:var(--border-default)] bg-[color:var(--surface-soft)] px-3 py-1 text-xs font-semibold text-[color:var(--accent-primary)]">
                 {[activeProtocolo.nombre, activeProtocolo.version ? `v${activeProtocolo.version}` : null]
                   .filter(Boolean)
                   .join(" ")}
               </span>
             ) : (
-              <span className="text-xs text-amber-700">
+              <NoticeBanner tone="warning" className="max-w-xl">
                 Sin protocolo — las tareas en Operación no tendrán actividades disponibles.
-              </span>
+              </NoticeBanner>
             )}
           </div>
-        </section>
+        </AppCard>
 
-        <section className="mb-8 rounded-2xl bg-primary p-6 shadow-lg">
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold text-text">Administrar recursos</h2>
-            <p className="text-xs text-text">
-              Entrá primero al listado del recurso y después continuá con altas, ediciones o bajas.
-            </p>
-          </div>
+        <AppCard
+          as="section"
+          tone="default"
+          padding="lg"
+          header={(
+            <SectionIntro
+              title="Administrar recursos"
+              description="Entrá primero al listado del recurso y después continuá con altas, ediciones o bajas."
+            />
+          )}
+        >
           <div className="grid gap-4 md:grid-cols-3">
             {RESOURCES.map((resource) => (
-              <article
+              <AppCard
                 key={resource.title}
-                className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4 transition hover:bg-white"
+                as="article"
+                tone="interactive"
+                padding="md"
               >
-                <h2 className="text-base font-semibold text-[#3D1B1F]">{resource.title}</h2>
-                <p className="mt-1 text-xs text-[#7A4A50]">{resource.description}</p>
-                <div className="mt-2 text-[11px] text-[#8B4049]/80">
+                <h2 className="text-base font-semibold text-[color:var(--text-ink)]">{resource.title}</h2>
+                <p className="mt-1 text-xs text-[color:var(--text-ink-muted)]">{resource.description}</p>
+                <div className="mt-2 text-[11px] text-[color:var(--accent-primary)]/80">
                   Ver listado y gestionar registros
                 </div>
-                <Link
-                  to={resource.to}
-                  className="mt-4 inline-flex rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:bg-white"
-                >
-                  {resource.action}
-                </Link>
-              </article>
+                <div className="mt-4">
+                  <Link to={resource.to}>
+                    <AppButton variant="secondary" size="sm">
+                      {resource.action}
+                    </AppButton>
+                  </Link>
+                </div>
+              </AppCard>
             ))}
           </div>
-        </section>
+        </AppCard>
 
-        <section className="rounded-2xl bg-primary p-6 shadow-lg">
-          <h2 className="text-lg font-semibold text-text">Eventos operativos</h2>
-          <p className="mt-1 text-xs text-text">
-            El registro diario de recepción, controles, operaciones y fraccionamiento vive en la
-            pestaña Operación.
-          </p>
+        <AppCard
+          as="section"
+          tone="default"
+          padding="lg"
+          header={(
+            <SectionIntro
+              title="Eventos operativos"
+              description="El registro diario de recepción, controles, operaciones y fraccionamiento vive en la pestaña Operación."
+            />
+          )}
+        >
           <div className="mt-4">
-            <Link
-              to="/operacion"
-              className="inline-flex rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
-            >
-              Ir a Operación
+            <Link to="/operacion">
+              <AppButton variant="primary" size="sm">Ir a Operación</AppButton>
             </Link>
           </div>
-        </section>
+        </AppCard>
       </div>
     </div>
   );

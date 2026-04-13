@@ -7,6 +7,15 @@ import {
   patchCampania,
   type Campania,
 } from "../../features/campanias/api";
+import {
+  AppButton,
+  AppCard,
+  AppInput,
+  AppModal,
+  AppSelect,
+  NoticeBanner,
+  SectionIntro,
+} from "../../components/ui";
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
 
@@ -51,6 +60,7 @@ export default function CampaniasAdmin() {
   const [detailErrorById, setDetailErrorById] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [confirmDeleteItem, setConfirmDeleteItem] = useState<Campania | null>(null);
 
   const load = async () => {
     if (!activeBodegaId) {
@@ -157,7 +167,13 @@ export default function CampaniasAdmin() {
   const onDelete = async (item: Campania) => {
     const id = String(item.campania_id ?? item.id ?? "");
     if (!id) return;
-    if (!window.confirm(`¿Eliminar campaña ${id}?`)) return;
+    setConfirmDeleteItem(item);
+  };
+
+  const onDeleteConfirm = async () => {
+    if (!confirmDeleteItem) return;
+    const id = String(confirmDeleteItem.campania_id ?? confirmDeleteItem.id ?? "");
+    setConfirmDeleteItem(null);
     try {
       await deleteCampania(id);
       setSuccess("Campaña eliminada.");
@@ -192,37 +208,48 @@ export default function CampaniasAdmin() {
     <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-6xl space-y-6">
         {formMode === "none" ? (
-          <section className="rounded-2xl bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-[#3D1B1F]">Campañas</h2>
-              <div className="flex gap-2">
-                <button
+          <AppCard
+            as="section"
+            tone="default"
+            padding="lg"
+            header={(
+              <SectionIntro
+                title="Campañas"
+                description="Administrá campañas, revisá su vigencia y actualizá sus fechas sin salir del módulo."
+                actions={(
+                  <>
+                <AppButton
                   type="button"
+                  variant="primary"
+                  size="sm"
                   onClick={() => {
                     setEditingId(null);
                     setForm(emptyForm);
                     setFormMode("create");
                     setError(null);
                   }}
-                  className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37]"
                 >
                   Nueva campaña
-                </button>
-                <button
+                </AppButton>
+                <AppButton
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   onClick={() => void load()}
-                  className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37]"
                 >
                   Actualizar listado
-                </button>
-              </div>
-            </div>
+                </AppButton>
+                  </>
+                )}
+              />
+            )}
+          >
 
             <div className="mt-3 space-y-2">
               {loading ? (
-                <div className="text-sm text-[#7A4A50]">Cargando...</div>
+                <NoticeBanner>Cargando...</NoticeBanner>
               ) : items.length === 0 ? (
-                <div className="text-sm text-[#7A4A50]">Sin campañas.</div>
+                <NoticeBanner>Sin campañas.</NoticeBanner>
               ) : (
                 items.map((item) => {
                   const id = String(item.campania_id ?? item.id ?? "");
@@ -231,98 +258,166 @@ export default function CampaniasAdmin() {
                   const detailError = detailErrorById[id];
                   const isLoadingDetail = loadingDetailId === id;
                   return (
-                    <article key={id} className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-3">
-                      <div className="text-sm font-semibold text-[#3D1B1F]">{item.nombre}</div>
-                      <div className="text-xs text-[#6B3A3F]">
+                    <AppCard key={id} as="article" tone="soft" padding="sm">
+                      <div className="text-sm font-semibold text-[color:var(--text-ink)]">{item.nombre}</div>
+                      <div className="text-xs text-[color:var(--text-ink-muted)]">
                         {toInputDate(item.fecha_inicio)} a {toInputDate(item.fecha_fin)} · {item.estado}
                       </div>
                       <div className="mt-2 flex flex-wrap gap-2">
-                        <button
+                        <AppButton
                           type="button"
+                          variant="secondary"
+                          size="sm"
                           onClick={() => void onEditById(id)}
-                          className="cursor-pointer rounded border border-[#C9A961]/50 px-2 py-1 text-xs font-semibold text-[#722F37] transition hover:bg-white active:scale-[0.98]"
                         >
                           Editar
-                        </button>
-                        <button
+                        </AppButton>
+                        <AppButton
                           type="button"
+                          variant="secondary"
+                          size="sm"
                           onClick={() => void onToggleDetail(id)}
-                          className="cursor-pointer rounded border border-[#C9A961]/50 px-2 py-1 text-xs font-semibold text-[#722F37] transition hover:bg-white active:scale-[0.98]"
                         >
                           {isExpanded ? "Ocultar detalle" : "Ver detalle"}
-                        </button>
-                        <button
+                        </AppButton>
+                        <AppButton
                           type="button"
+                          variant="danger"
+                          size="sm"
                           onClick={() => void onDelete(item)}
-                          className="cursor-pointer rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-50 active:scale-[0.98]"
                         >
                           Eliminar
-                        </button>
+                        </AppButton>
                       </div>
 
                       {isExpanded ? (
-                        <div className="mt-2 rounded border border-[#C9A961]/30 bg-white px-3 py-2 text-xs text-[#6B3A3F]">
+                        <div className="mt-2 rounded border border-[color:var(--border-default)] bg-white px-3 py-2 text-xs text-[color:var(--text-ink-muted)]">
                           {isLoadingDetail ? (
                             <div>Cargando detalle...</div>
                           ) : detailError ? (
-                            <div className="text-red-700">{detailError}</div>
+                            <div className="text-[color:var(--feedback-danger-text)]">{detailError}</div>
                           ) : (
                             <div className="grid gap-1">
                               <div>
-                                <span className="font-semibold text-[#3D1B1F]">Nombre:</span> {detail?.nombre ?? "-"}
+                                <span className="font-semibold text-[color:var(--text-ink)]">Nombre:</span> {detail?.nombre ?? "-"}
                               </div>
                               <div>
-                                <span className="font-semibold text-[#3D1B1F]">Fecha inicio:</span> {toInputDate(detail?.fecha_inicio)}
+                                <span className="font-semibold text-[color:var(--text-ink)]">Fecha inicio:</span> {toInputDate(detail?.fecha_inicio)}
                               </div>
                               <div>
-                                <span className="font-semibold text-[#3D1B1F]">Fecha fin:</span> {toInputDate(detail?.fecha_fin)}
+                                <span className="font-semibold text-[color:var(--text-ink)]">Fecha fin:</span> {toInputDate(detail?.fecha_fin)}
                               </div>
                               <div>
-                                <span className="font-semibold text-[#3D1B1F]">Estado:</span> {detail?.estado ?? "-"}
+                                <span className="font-semibold text-[color:var(--text-ink)]">Estado:</span> {detail?.estado ?? "-"}
                               </div>
                             </div>
                           )}
                         </div>
                       ) : null}
-                    </article>
+                    </AppCard>
                   );
                 })
               )}
             </div>
 
-            {error ? <div className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">{error}</div> : null}
-            {success ? <div className="mt-3 rounded border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-700">{success}</div> : null}
-          </section>
+            {error ? <NoticeBanner tone="danger" className="mt-3">{error}</NoticeBanner> : null}
+            {success ? <NoticeBanner tone="success" className="mt-3">{success}</NoticeBanner> : null}
+          </AppCard>
         ) : null}
 
         {formMode !== "none" ? (
-          <section className="rounded-2xl bg-white p-6 shadow-sm">
-            <h1 className="text-2xl font-bold text-[#3D1B1F]">
-              {formMode === "edit" ? "Editar campaña" : "Nueva campaña"}
-            </h1>
+          <AppCard
+            as="section"
+            tone="default"
+            padding="lg"
+            header={(
+              <SectionIntro
+                title={formMode === "edit" ? "Editar campaña" : "Nueva campaña"}
+                description="Definí nombre, fechas y estado de la campaña para dejar el contexto productivo ordenado."
+                actions={(
+                  <AppButton
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => { setEditingId(null); setForm(emptyForm); setFormMode("none"); }}
+                  >
+                    Volver al listado
+                  </AppButton>
+                )}
+              />
+            )}
+          >
             {loadingEdit ? (
-              <div className="mt-3 rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2 text-xs text-[#7A4A50]">
+              <NoticeBanner className="mt-3">
                 Cargando datos completos de la campaña...
-              </div>
+              </NoticeBanner>
             ) : null}
             <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <input value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} placeholder="Nombre campaña" className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm" />
-              <select value={form.estado} onChange={(e) => setForm((p) => ({ ...p, estado: e.target.value as "abierta" | "cerrada" }))} className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm">
+              <AppInput
+                label="Nombre"
+                value={form.nombre}
+                onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))}
+                placeholder="Nombre campaña"
+                uiSize="lg"
+              />
+              <AppSelect
+                label="Estado"
+                value={form.estado}
+                onChange={(e) => setForm((p) => ({ ...p, estado: e.target.value as "abierta" | "cerrada" }))}
+              >
                 <option value="abierta">abierta</option>
                 <option value="cerrada">cerrada</option>
-              </select>
-              <input type="date" value={form.fecha_inicio} onChange={(e) => setForm((p) => ({ ...p, fecha_inicio: e.target.value }))} className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm" />
-              <input type="date" value={form.fecha_fin} onChange={(e) => setForm((p) => ({ ...p, fecha_fin: e.target.value }))} className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm" />
+              </AppSelect>
+              <AppInput
+                label="Fecha inicio"
+                type="date"
+                value={form.fecha_inicio}
+                onChange={(e) => setForm((p) => ({ ...p, fecha_inicio: e.target.value }))}
+                uiSize="lg"
+              />
+              <AppInput
+                label="Fecha fin"
+                type="date"
+                value={form.fecha_fin}
+                onChange={(e) => setForm((p) => ({ ...p, fecha_fin: e.target.value }))}
+                uiSize="lg"
+              />
             </div>
             <div className="mt-3 flex gap-2">
-              <button type="button" onClick={() => void onSubmit()} disabled={saving || !activeBodegaId} className="cursor-pointer rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37] transition hover:bg-[#FFF9F0] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60">{editingId ? "Guardar" : "Crear"}</button>
-              <button type="button" onClick={() => { setEditingId(null); setForm(emptyForm); setFormMode("none"); }} className="cursor-pointer rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 active:scale-[0.98]">Cancelar</button>
+              <AppButton type="button" variant="primary" onClick={() => void onSubmit()} disabled={saving || !activeBodegaId} loading={saving}>
+                {editingId ? "Guardar" : "Crear"}
+              </AppButton>
+              <AppButton type="button" variant="secondary" onClick={() => { setEditingId(null); setForm(emptyForm); setFormMode("none"); }}>
+                Cancelar
+              </AppButton>
             </div>
-            {error ? <div className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">{error}</div> : null}
-            {success ? <div className="mt-3 rounded border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-700">{success}</div> : null}
-          </section>
+            {error ? <NoticeBanner tone="danger" className="mt-3">{error}</NoticeBanner> : null}
+            {success ? <NoticeBanner tone="success" className="mt-3">{success}</NoticeBanner> : null}
+          </AppCard>
         ) : null}
       </div>
+      {confirmDeleteItem ? (
+        <AppModal
+          opened
+          onClose={() => setConfirmDeleteItem(null)}
+          title="¿Eliminar campaña?"
+          size="sm"
+          footer={(
+            <div className="flex justify-end gap-2">
+              <AppButton type="button" variant="secondary" size="sm" onClick={() => setConfirmDeleteItem(null)}>
+                Cancelar
+              </AppButton>
+              <AppButton type="button" variant="danger" size="sm" onClick={() => void onDeleteConfirm()}>
+                Eliminar
+              </AppButton>
+            </div>
+          )}
+        >
+          <p className="text-xs text-[color:var(--text-ink-muted)]">
+            {confirmDeleteItem.nombre ?? "Esta campaña"} — esta acción no se puede deshacer.
+          </p>
+        </AppModal>
+      ) : null}
     </div>
   );
 }

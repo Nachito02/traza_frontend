@@ -18,6 +18,16 @@ import {
   updateProceso,
   updateProtocolo,
 } from "../../features/protocolos/api";
+import {
+  AppButton,
+  AppCard,
+  AppInput,
+  AppModal,
+  AppSelect,
+  AppTextarea,
+  NoticeBanner,
+  SectionIntro,
+} from "../../components/ui";
 import { getApiErrorMessage } from "../../lib/api";
 import { resolveModuleAccess } from "../../lib/permissions";
 import { useAuthStore } from "../../store/authStore";
@@ -521,193 +531,220 @@ export default function ProtocolosAdmin() {
     <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-6xl space-y-6">
         {formMode === "none" ? (
-          <section className="rounded-2xl bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-[#3D1B1F]">Protocolos</h2>
-              <div className="flex gap-2">
-                <button
+          <AppCard
+            as="section"
+            tone="default"
+            padding="lg"
+            header={(
+              <SectionIntro
+                title="Protocolos"
+                description="Administrá la estructura base de protocolos, versiones y su configuración general."
+                actions={(
+                  <>
+                <AppButton
                   type="button"
+                  variant="primary"
+                  size="sm"
                   onClick={() => {
                     setEditingId(null);
                     setForm(emptyForm);
                     setFormMode("create");
                     setError(null);
                   }}
-                  className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37]"
                 >
                   Nuevo protocolo
-                </button>
-                <button
+                </AppButton>
+                <AppButton
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   onClick={() => void load()}
-                  className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37]"
                 >
                   Actualizar listado
-                </button>
-              </div>
-            </div>
+                </AppButton>
+                  </>
+                )}
+              />
+            )}
+          >
 
             <div className="mt-3 space-y-2">
               {loading ? (
-                <div className="text-sm text-[#7A4A50]">Cargando...</div>
+                <NoticeBanner>Cargando...</NoticeBanner>
               ) : items.length === 0 ? (
-                <div className="text-sm text-[#7A4A50]">Sin protocolos.</div>
+                <NoticeBanner>Sin protocolos.</NoticeBanner>
               ) : (
                 items.map((item) => {
                   const id = resolveId(item);
                   return (
-                    <article key={id} className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-3">
-                      <div className="text-sm font-semibold text-[#3D1B1F]">{item.nombre ?? "Sin nombre"}</div>
+                    <AppCard key={id} as="article" tone="soft" padding="sm">
+                      <div className="text-sm font-semibold text-[color:var(--text-ink)]">{item.nombre ?? "Sin nombre"}</div>
                       {item.version ? (
-                        <div className="text-xs text-[#6B3A3F]">Versión: {item.version}</div>
+                        <div className="text-xs text-[color:var(--text-ink-muted)]">Versión: {item.version}</div>
                       ) : null}
                       {item.descripcion ? (
-                        <div className="mt-1 text-xs text-[#6B3A3F]">{item.descripcion}</div>
+                        <div className="mt-1 text-xs text-[color:var(--text-ink-muted)]">{item.descripcion}</div>
                       ) : null}
                       <div className="mt-2 flex gap-2">
-                        <button
+                        <AppButton
                           type="button"
+                          variant="secondary"
+                          size="sm"
                           onClick={() => void onEditById(id)}
-                          className="rounded border border-[#C9A961]/50 px-2 py-1 text-xs font-semibold text-[#722F37] transition hover:bg-white"
                         >
                           Editar
-                        </button>
-                        <button
+                        </AppButton>
+                        <AppButton
                           type="button"
+                          variant="danger"
+                          size="sm"
                           onClick={() => setConfirmDeleteItem(item)}
-                          className="rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-50"
                         >
                           Eliminar
-                        </button>
+                        </AppButton>
                       </div>
-                    </article>
+                    </AppCard>
                   );
                 })
               )}
             </div>
 
-            {error ? <div className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">{error}</div> : null}
-            {success ? <div className="mt-3 rounded border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-700">{success}</div> : null}
-          </section>
+            {error ? <NoticeBanner tone="danger" className="mt-3">{error}</NoticeBanner> : null}
+            {success ? <NoticeBanner tone="success" className="mt-3">{success}</NoticeBanner> : null}
+          </AppCard>
         ) : null}
 
         {formMode !== "none" ? (
-          <section className="rounded-2xl bg-white p-6 shadow-sm">
-            <h1 className="text-2xl font-bold text-[#3D1B1F]">
-              {formMode === "edit" ? "Editar protocolo" : "Nuevo protocolo"}
-            </h1>
+          <AppCard
+            as="section"
+            tone="default"
+            padding="lg"
+            header={(
+              <SectionIntro
+                title={formMode === "edit" ? "Editar protocolo" : "Nuevo protocolo"}
+                description="Definí nombre, versión y descripción del protocolo antes de trabajar etapas y procesos."
+                actions={(
+                  <AppButton
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setEditingId(null);
+                      setForm(emptyForm);
+                      setExpanded(null);
+                      setFormMode("none");
+                    }}
+                  >
+                    Cancelar edición
+                  </AppButton>
+                )}
+              />
+            )}
+          >
 
             {loadingEdit ? (
-              <div className="mt-3 rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2 text-xs text-[#7A4A50]">
+              <NoticeBanner className="mt-3">
                 Cargando datos del protocolo...
-              </div>
+              </NoticeBanner>
             ) : null}
 
             <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <input
+              <AppInput
+                label="Nombre"
                 value={form.nombre}
                 onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))}
                 placeholder="Nombre *"
-                className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
+                uiSize="lg"
               />
-              <input
+              <AppInput
+                label="Versión"
                 value={form.version}
                 onChange={(e) => setForm((p) => ({ ...p, version: e.target.value }))}
                 placeholder="Versión *"
-                className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
+                uiSize="lg"
               />
-              <textarea
+              <AppTextarea
+                label="Descripción"
                 value={form.descripcion}
                 onChange={(e) => setForm((p) => ({ ...p, descripcion: e.target.value }))}
                 placeholder="Descripción"
                 rows={3}
-                className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm md:col-span-2"
+                className="md:col-span-2"
+                uiSize="lg"
               />
             </div>
 
             <div className="mt-3 flex gap-2">
-              <button
+              <AppButton
                 type="button"
+                variant="primary"
+                loading={saving}
                 onClick={() => void onSubmit()}
                 disabled={saving}
-                className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37] disabled:opacity-60"
               >
                 {editingId ? "Guardar" : "Crear"}
-              </button>
-              <button
+              </AppButton>
+              <AppButton
                 type="button"
+                variant="secondary"
                 onClick={() => {
                   setEditingId(null);
                   setForm(emptyForm);
                   setExpanded(null);
                   setFormMode("none");
                 }}
-                className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"
               >
                 Cancelar
-              </button>
+              </AppButton>
             </div>
 
-            {error ? <div className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">{error}</div> : null}
-            {success ? <div className="mt-3 rounded border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-700">{success}</div> : null}
+            {error ? <NoticeBanner tone="danger" className="mt-3">{error}</NoticeBanner> : null}
+            {success ? <NoticeBanner tone="success" className="mt-3">{success}</NoticeBanner> : null}
 
             {editingId ? (
-              <div className="mt-6 rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4">
+              <div className="mt-6 rounded-[var(--radius-xl)] border border-[color:var(--border-default)] bg-[color:var(--surface-soft)] p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <h2 className="text-base font-semibold text-[#3D1B1F]">Etapas y procesos</h2>
-                    <p className="mt-1 text-xs text-[#7A4A50]">
+                    <h2 className="text-base font-semibold text-[color:var(--text-ink)]">Etapas y procesos</h2>
+                    <p className="mt-1 text-xs text-[color:var(--text-ink-muted)]">
                       Definí procesos, evento tipo y plantilla de campos obligatorios por tarea.
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button
+                    <AppButton
                       type="button"
+                      variant={processViewMode === "cards" ? "secondary" : "ghost"}
+                      size="sm"
                       onClick={() => setProcessViewMode("cards")}
-                      className={`rounded border px-2 py-1 text-xs font-semibold ${
-                        processViewMode === "cards"
-                          ? "border-[#C9A961] bg-white text-[#722F37]"
-                          : "border-[#C9A961]/40 text-[#7A4A50]"
-                      }`}
                     >
                       Tarjetas
-                    </button>
-                    <button
+                    </AppButton>
+                    <AppButton
                       type="button"
+                      variant={processViewMode === "table" ? "secondary" : "ghost"}
+                      size="sm"
                       onClick={() => setProcessViewMode("table")}
-                      className={`rounded border px-2 py-1 text-xs font-semibold ${
-                        processViewMode === "table"
-                          ? "border-[#C9A961] bg-white text-[#722F37]"
-                          : "border-[#C9A961]/40 text-[#7A4A50]"
-                      }`}
                     >
                       Tabla compacta
-                    </button>
+                    </AppButton>
                   </div>
                 </div>
 
                 <div className="mt-3 grid gap-2 md:grid-cols-[1fr_120px_auto]">
-                  <input
+                  <AppInput
                     value={newEtapa.nombre}
                     onChange={(e) => setNewEtapa((prev) => ({ ...prev, nombre: e.target.value }))}
                     placeholder="Nueva etapa"
-                    className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
                   />
-                  <input
+                  <AppInput
                     type="number"
                     value={newEtapa.orden}
                     onChange={(e) => setNewEtapa((prev) => ({ ...prev, orden: e.target.value }))}
                     placeholder="Orden"
-                    className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
                   />
-                  <button
-                    type="button"
-                    disabled={saving}
-                    onClick={() => void onCreateEtapa()}
-                    className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37] disabled:opacity-60"
-                  >
+                  <AppButton type="button" variant="secondary" size="sm" disabled={saving} onClick={() => void onCreateEtapa()}>
                     Agregar etapa
-                  </button>
+                  </AppButton>
                 </div>
 
                 <div className="mt-4 space-y-3">
@@ -726,9 +763,9 @@ export default function ProtocolosAdmin() {
                         .sort((a, b) => Number(a.orden ?? 999) - Number(b.orden ?? 999));
 
                       return (
-                        <div key={etapaId} className="rounded-lg border border-[#C9A961]/30 bg-white p-3">
+                        <div key={etapaId} className="rounded-[var(--radius-lg)] border border-[color:var(--border-default)] bg-white p-3">
                           <div className="grid gap-2 md:grid-cols-[1fr_120px_auto_auto]">
-                            <input
+                            <AppInput
                               value={etapaDraft.nombre}
                               onChange={(e) =>
                                 setEtapaDraftById((prev) => ({
@@ -737,9 +774,8 @@ export default function ProtocolosAdmin() {
                                 }))
                               }
                               placeholder="Nombre etapa"
-                              className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
                             />
-                            <input
+                            <AppInput
                               type="number"
                               value={etapaDraft.orden}
                               onChange={(e) =>
@@ -749,31 +785,20 @@ export default function ProtocolosAdmin() {
                                 }))
                               }
                               placeholder="Orden"
-                              className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
                             />
-                            <button
-                              type="button"
-                              disabled={saving}
-                              onClick={() => void onUpdateEtapa(etapaId)}
-                              className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37] disabled:opacity-60"
-                            >
+                            <AppButton type="button" variant="secondary" size="sm" disabled={saving} onClick={() => void onUpdateEtapa(etapaId)}>
                               Guardar etapa
-                            </button>
-                            <button
-                              type="button"
-                              disabled={saving}
-                              onClick={() => void onDeleteEtapa(etapaId)}
-                              className="rounded border border-red-300 px-3 py-2 text-xs font-semibold text-red-700 disabled:opacity-60"
-                            >
+                            </AppButton>
+                            <AppButton type="button" variant="danger" size="sm" disabled={saving} onClick={() => void onDeleteEtapa(etapaId)}>
                               Eliminar etapa
-                            </button>
+                            </AppButton>
                           </div>
 
                           <div className="mt-3 space-y-2">
-                            <h3 className="text-xs font-semibold text-[#6B3A3F]">Procesos</h3>
+                            <h3 className="text-xs font-semibold text-[color:var(--text-accent)]">Procesos</h3>
 
-                            <div className="grid gap-2 rounded border border-[#C9A961]/20 bg-[#FFF9F0] p-2 md:grid-cols-[1fr_90px_1fr_auto]">
-                              <input
+                            <div className="grid gap-2 rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-[color:var(--surface-soft)] p-2 md:grid-cols-[1fr_90px_1fr_auto]">
+                              <AppInput
                                 value={newProceso.nombre}
                                 onChange={(e) =>
                                   setNewProcesoByEtapa((prev) => ({
@@ -782,9 +807,8 @@ export default function ProtocolosAdmin() {
                                   }))
                                 }
                                 placeholder="Nuevo proceso"
-                                className="rounded border border-[#C9A961]/40 px-2 py-2 text-sm"
                               />
-                              <input
+                              <AppInput
                                 type="number"
                                 value={newProceso.orden}
                                 onChange={(e) =>
@@ -794,9 +818,8 @@ export default function ProtocolosAdmin() {
                                   }))
                                 }
                                 placeholder="Orden"
-                                className="rounded border border-[#C9A961]/40 px-2 py-2 text-sm"
                               />
-                              <select
+                              <AppSelect
                                 value={newProceso.evento_tipo}
                                 onChange={(e) =>
                                   setNewProcesoByEtapa((prev) => ({
@@ -813,11 +836,10 @@ export default function ProtocolosAdmin() {
                                       plantilla_json:
                                         newProceso.plantilla_json.trim().length > 0
                                           ? newProceso.plantilla_json
-                                          : stringifyPlantilla(buildDefaultPlantillaFromEvento(e.target.value)),
+                                        : stringifyPlantilla(buildDefaultPlantillaFromEvento(e.target.value)),
                                     },
                                   }))
                                 }
-                                className="rounded border border-[#C9A961]/40 px-2 py-2 text-sm"
                               >
                                 <option value="">Tipo de evento</option>
                                 {Object.keys(EVENTO_CONFIG).map((tipo) => (
@@ -825,19 +847,14 @@ export default function ProtocolosAdmin() {
                                     {tipo}
                                   </option>
                                 ))}
-                              </select>
-                              <button
-                                type="button"
-                                disabled={saving}
-                                onClick={() => void onCreateProceso(etapaId)}
-                                className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37] disabled:opacity-60"
-                              >
+                              </AppSelect>
+                              <AppButton type="button" variant="secondary" size="sm" disabled={saving} onClick={() => void onCreateProceso(etapaId)}>
                                 Agregar
-                              </button>
+                              </AppButton>
                             </div>
                             {newProceso.evento_tipo ? (
-                              <div className="rounded border border-[#C9A961]/20 bg-white p-2">
-                                <div className="mb-1 text-xs font-semibold text-[#6B3A3F]">
+                              <div className="rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-white p-2">
+                                <div className="mb-1 text-xs font-semibold text-[color:var(--text-accent)]">
                                   Plantilla de campos obligatorios para este proceso
                                 </div>
                                 <div className="grid gap-1 md:grid-cols-2">
@@ -846,7 +863,7 @@ export default function ProtocolosAdmin() {
                                     return (
                                       <label
                                         key={`new-field-${etapaId}-${field.name}`}
-                                        className="flex items-center gap-2 text-xs text-[#3D1B1F]"
+                                        className="flex items-center gap-2 text-xs text-[color:var(--text-ink)]"
                                       >
                                         <input
                                           type="checkbox"
@@ -871,11 +888,11 @@ export default function ProtocolosAdmin() {
                                 </div>
                               </div>
                             ) : null}
-                            <div className="rounded border border-[#C9A961]/20 bg-white p-2">
-                              <div className="mb-1 text-xs font-semibold text-[#6B3A3F]">
+                            <div className="rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-white p-2">
+                              <div className="mb-1 text-xs font-semibold text-[color:var(--text-accent)]">
                                 Plantilla JSON del proceso (campo, type, required, unit, enum)
                               </div>
-                              <textarea
+                              <AppTextarea
                                 value={newProceso.plantilla_json}
                                 onChange={(e) =>
                                   setNewProcesoByEtapa((prev) => ({
@@ -884,14 +901,14 @@ export default function ProtocolosAdmin() {
                                   }))
                                 }
                                 placeholder={stringifyPlantilla(buildDefaultPlantillaFromEvento(newProceso.evento_tipo || "riego"))}
-                                className="min-h-28 w-full rounded border border-[#C9A961]/40 px-2 py-2 font-mono text-xs text-[#3D1B1F]"
+                                textareaClassName="font-mono text-xs"
                               />
                             </div>
 
                             {processViewMode === "table" ? (
-                              <div className="overflow-x-auto rounded border border-[#C9A961]/20">
+                              <div className="overflow-x-auto rounded-[var(--radius-md)] border border-[color:var(--border-default)]">
                                 <table className="min-w-full text-xs">
-                                  <thead className="bg-[#FFF9F0] text-[#6B3A3F]">
+                                  <thead className="bg-[color:var(--surface-soft)] text-[color:var(--text-accent)]">
                                     <tr>
                                       <th className="px-2 py-2 text-left">Proceso</th>
                                       <th className="px-2 py-2 text-left">Orden</th>
@@ -925,9 +942,9 @@ export default function ProtocolosAdmin() {
                                         .join(", ");
 
                                       return [
-                                        <tr key={`${procesoId}-row`} className="border-t border-[#C9A961]/20">
+                                        <tr key={`${procesoId}-row`} className="border-t border-[color:var(--border-default)]">
                                           <td className="px-2 py-2">
-                                            <input
+                                            <AppInput
                                               value={draft.nombre}
                                               onChange={(e) =>
                                                 setProcesoDraftById((prev) => ({
@@ -935,11 +952,12 @@ export default function ProtocolosAdmin() {
                                                   [procesoId]: { ...draft, nombre: e.target.value },
                                                 }))
                                               }
-                                              className="w-full rounded border border-[#C9A961]/40 px-2 py-1"
+                                              className="w-full"
+                                              uiSize="sm"
                                             />
                                           </td>
                                           <td className="px-2 py-2">
-                                            <input
+                                            <AppInput
                                               type="number"
                                               value={draft.orden}
                                               onChange={(e) =>
@@ -948,11 +966,12 @@ export default function ProtocolosAdmin() {
                                                   [procesoId]: { ...draft, orden: e.target.value },
                                                 }))
                                               }
-                                              className="w-20 rounded border border-[#C9A961]/40 px-2 py-1"
+                                              className="w-20"
+                                              uiSize="sm"
                                             />
                                           </td>
                                           <td className="px-2 py-2">
-                                            <select
+                                            <AppSelect
                                               value={draft.evento_tipo}
                                               onChange={(e) =>
                                                 setProcesoDraftById((prev) => {
@@ -979,7 +998,7 @@ export default function ProtocolosAdmin() {
                                                   };
                                                 })
                                               }
-                                              className="rounded border border-[#C9A961]/40 px-2 py-1"
+                                              uiSize="sm"
                                             >
                                               <option value="">Tipo de evento</option>
                                               {Object.keys(EVENTO_CONFIG).map((tipo) => (
@@ -987,38 +1006,28 @@ export default function ProtocolosAdmin() {
                                                   {tipo}
                                                 </option>
                                               ))}
-                                            </select>
+                                            </AppSelect>
                                           </td>
-                                          <td className="px-2 py-2 text-[#7A4A50]">
+                                          <td className="px-2 py-2 text-[color:var(--text-ink-muted)]">
                                             {requiredFields || "sin campos requeridos"}
                                           </td>
                                           <td className="px-2 py-2">
                                             <div className="flex gap-1">
-                                              <button
-                                                type="button"
-                                                disabled={saving}
-                                                onClick={() => void onUpdateProceso(procesoId)}
-                                                className="rounded border border-[#C9A961]/50 px-2 py-1 font-semibold text-[#722F37] disabled:opacity-60"
-                                              >
+                                              <AppButton type="button" variant="secondary" size="sm" disabled={saving} onClick={() => void onUpdateProceso(procesoId)}>
                                                 Guardar
-                                              </button>
-                                              <button
-                                                type="button"
-                                                disabled={saving}
-                                                onClick={() => void onDeleteProceso(procesoId)}
-                                                className="rounded border border-red-300 px-2 py-1 font-semibold text-red-700 disabled:opacity-60"
-                                              >
+                                              </AppButton>
+                                              <AppButton type="button" variant="danger" size="sm" disabled={saving} onClick={() => void onDeleteProceso(procesoId)}>
                                                 Eliminar
-                                              </button>
+                                              </AppButton>
                                             </div>
                                           </td>
                                         </tr>,
-                                        <tr key={`${procesoId}-json`} className="border-t border-[#C9A961]/10 bg-[#FFFCF7]">
+                                        <tr key={`${procesoId}-json`} className="border-t border-[color:var(--border-subtle)] bg-white">
                                           <td colSpan={5} className="px-2 py-2">
-                                            <div className="mb-1 text-[11px] font-semibold text-[#6B3A3F]">
+                                            <div className="mb-1 text-[11px] font-semibold text-[color:var(--text-accent)]">
                                               Plantilla JSON (campos + formatos)
                                             </div>
-                                            <textarea
+                                            <AppTextarea
                                               value={draft.plantilla_json}
                                               onChange={(e) =>
                                                 setProcesoDraftById((prev) => ({
@@ -1026,7 +1035,8 @@ export default function ProtocolosAdmin() {
                                                   [procesoId]: { ...draft, plantilla_json: e.target.value },
                                                 }))
                                               }
-                                              className="min-h-24 w-full rounded border border-[#C9A961]/40 px-2 py-2 font-mono text-[11px] text-[#3D1B1F]"
+                                              textareaClassName="font-mono text-[11px]"
+                                              uiSize="sm"
                                             />
                                           </td>
                                         </tr>,
@@ -1059,9 +1069,9 @@ export default function ProtocolosAdmin() {
                                   );
 
                                   return (
-                                    <div key={procesoId} className="rounded border border-[#C9A961]/20 bg-white p-2">
+                                    <div key={procesoId} className="rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-white p-2">
                                       <div className="grid gap-2 md:grid-cols-[1fr_90px_1fr_auto_auto]">
-                                        <input
+                                        <AppInput
                                           value={draft.nombre}
                                           onChange={(e) =>
                                             setProcesoDraftById((prev) => ({
@@ -1069,9 +1079,9 @@ export default function ProtocolosAdmin() {
                                               [procesoId]: { ...draft, nombre: e.target.value },
                                             }))
                                           }
-                                          className="rounded border border-[#C9A961]/40 px-2 py-2 text-sm"
+                                          uiSize="sm"
                                         />
-                                        <input
+                                        <AppInput
                                           type="number"
                                           value={draft.orden}
                                           onChange={(e) =>
@@ -1080,9 +1090,9 @@ export default function ProtocolosAdmin() {
                                               [procesoId]: { ...draft, orden: e.target.value },
                                             }))
                                           }
-                                          className="rounded border border-[#C9A961]/40 px-2 py-2 text-sm"
+                                          uiSize="sm"
                                         />
-                                        <select
+                                        <AppSelect
                                           value={draft.evento_tipo}
                                           onChange={(e) =>
                                             setProcesoDraftById((prev) => {
@@ -1109,7 +1119,7 @@ export default function ProtocolosAdmin() {
                                               };
                                             })
                                           }
-                                          className="rounded border border-[#C9A961]/40 px-2 py-2 text-sm"
+                                          uiSize="sm"
                                         >
                                           <option value="">Tipo de evento</option>
                                           {Object.keys(EVENTO_CONFIG).map((tipo) => (
@@ -1117,29 +1127,19 @@ export default function ProtocolosAdmin() {
                                               {tipo}
                                             </option>
                                           ))}
-                                        </select>
-                                        <button
-                                          type="button"
-                                          disabled={saving}
-                                          onClick={() => void onUpdateProceso(procesoId)}
-                                          className="rounded border border-[#C9A961]/50 px-2 py-2 text-xs font-semibold text-[#722F37] disabled:opacity-60"
-                                        >
+                                        </AppSelect>
+                                        <AppButton type="button" variant="secondary" size="sm" disabled={saving} onClick={() => void onUpdateProceso(procesoId)}>
                                           Guardar
-                                        </button>
-                                        <button
-                                          type="button"
-                                          disabled={saving}
-                                          onClick={() => void onDeleteProceso(procesoId)}
-                                          className="rounded border border-red-300 px-2 py-2 text-xs font-semibold text-red-700 disabled:opacity-60"
-                                        >
+                                        </AppButton>
+                                        <AppButton type="button" variant="danger" size="sm" disabled={saving} onClick={() => void onDeleteProceso(procesoId)}>
                                           Eliminar
-                                        </button>
+                                        </AppButton>
                                       </div>
-                                      <div className="mt-2 rounded border border-[#C9A961]/20 bg-[#FFFCF7] p-2">
-                                        <div className="mb-1 text-xs font-semibold text-[#6B3A3F]">
+                                      <div className="mt-2 rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-[color:var(--surface-soft)] p-2">
+                                        <div className="mb-1 text-xs font-semibold text-[color:var(--text-accent)]">
                                           Plantilla JSON (campos + formatos)
                                         </div>
-                                        <textarea
+                                        <AppTextarea
                                           value={draft.plantilla_json}
                                           onChange={(e) =>
                                             setProcesoDraftById((prev) => ({
@@ -1147,7 +1147,8 @@ export default function ProtocolosAdmin() {
                                               [procesoId]: { ...draft, plantilla_json: e.target.value },
                                             }))
                                           }
-                                          className="min-h-24 w-full rounded border border-[#C9A961]/40 px-2 py-2 font-mono text-[11px] text-[#3D1B1F]"
+                                          textareaClassName="font-mono text-[11px]"
+                                          uiSize="sm"
                                         />
                                       </div>
                                       {draft.evento_tipo ? (
@@ -1155,7 +1156,7 @@ export default function ProtocolosAdmin() {
                                           {getFieldOptions(draft.evento_tipo, plantillaIteracion).map((field) => (
                                             <label
                                               key={`${procesoId}-field-${field.name}`}
-                                              className="flex items-center gap-2 text-xs text-[#3D1B1F]"
+                                              className="flex items-center gap-2 text-xs text-[color:var(--text-ink)]"
                                             >
                                               <input
                                                 type="checkbox"
@@ -1178,7 +1179,7 @@ export default function ProtocolosAdmin() {
                                           ))}
                                         </div>
                                       ) : null}
-                                      <div className="mt-2 text-xs text-[#7A4A50]">
+                                      <div className="mt-2 text-xs text-[color:var(--text-ink-muted)]">
                                         Campos obligatorios de plantilla: {requiredFields.length > 0 ? requiredFields.join(", ") : "sin campos requeridos"}
                                       </div>
                                     </div>
@@ -1193,35 +1194,41 @@ export default function ProtocolosAdmin() {
                 </div>
               </div>
             ) : null}
-          </section>
+          </AppCard>
         ) : null}
       </div>
 
       {confirmDeleteItem ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-            <h3 className="text-base font-semibold text-[#3D1B1F]">¿Eliminar protocolo?</h3>
-            <p className="mt-2 text-xs text-[#7A4A50]">
-              {confirmDeleteItem.nombre ?? "Este protocolo"} - esta acción no se puede deshacer.
-            </p>
-            <div className="mt-4 flex justify-end gap-2">
-              <button
+        <AppModal
+          opened
+          onClose={() => setConfirmDeleteItem(null)}
+          title="¿Eliminar protocolo?"
+          size="sm"
+          footer={(
+            <div className="flex justify-end gap-2">
+              <AppButton
                 type="button"
+                variant="secondary"
+                size="sm"
                 onClick={() => setConfirmDeleteItem(null)}
-                className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"
               >
                 Cancelar
-              </button>
-              <button
+              </AppButton>
+              <AppButton
                 type="button"
+                variant="danger"
+                size="sm"
                 onClick={() => void onDeleteConfirm()}
-                className="rounded border border-red-500 bg-red-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-600"
               >
                 Eliminar
-              </button>
+              </AppButton>
             </div>
-          </div>
-        </div>
+          )}
+        >
+          <p className="text-xs text-[color:var(--text-ink-muted)]">
+            {confirmDeleteItem.nombre ?? "Este protocolo"} - esta acción no se puede deshacer.
+          </p>
+        </AppModal>
       ) : null}
     </div>
   );

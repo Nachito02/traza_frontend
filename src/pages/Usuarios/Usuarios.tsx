@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { AppButton, AppCard, AppInput, AppSelect, NoticeBanner, SectionIntro } from "../../components/ui";
 import { fetchFincaById, fetchFincas, type Finca } from "../../features/fincas/api";
 import {
   createAuthUser,
@@ -760,22 +761,20 @@ const Usuarios = () => {
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-6xl space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-text">Usuarios y roles</h1>
-          <p className="mt-2 text-sm text-text-secondary">
-            Gestión de roles globales, roles por bodega y roles por finca.
-          </p>
-        </div>
+        <SectionIntro
+          title="Usuarios y roles"
+          description="Gestión de roles globales, roles por bodega y roles por finca."
+        />
 
         {crudMode === "none" ? (
-        <section className="rounded-2xl bg-primary p-5 shadow-lg">
+        <AppCard as="section" padding="md">
           <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
-            <input
+            <AppInput
               type="text"
               value={filterName}
               onChange={(e) => setFilterName(e.target.value)}
               placeholder="Filtrar por nombre de bodega (query: ?name=...)"
-              className="w-full rounded-lg border border-[#C9A961]/40 bg-white/90 px-3 py-2 text-sm text-[#3D1B1F] outline-none"
+              className="w-full"
               list="bodega-name-suggestions"
             />
             <datalist id="bodega-name-suggestions">
@@ -786,81 +785,81 @@ const Usuarios = () => {
             <button
               type="button"
               onClick={() => void onSubmitFilter()}
-              className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-text transition hover:bg-primary"
+              className="hidden"
             >
                 Buscar
               </button>
+            <AppButton type="button" variant="secondary" onClick={() => void onSubmitFilter()}>
+              Buscar
+            </AppButton>
             <button
               type="button"
               onClick={() => void onClearFilter()}
-              className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-text transition hover:bg-primary"
+              className="hidden"
             >
                 Limpiar
               </button>
+            <AppButton type="button" variant="secondary" onClick={() => void onClearFilter()}>
+              Limpiar
+            </AppButton>
           </div>
-        </section>
+        </AppCard>
         ) : null}
 
-        <section className="rounded-2xl bg-primary p-5 shadow-lg">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-semibold text-text">
-                  {crudMode === "edit" ? "Editar usuario" : "Administración de usuarios"}
-                </h2>
-                <p className="mt-1 text-xs text-text-secondary">
-                  {crudMode === "none"
-                    ? "Primero revisás el listado y después seguís con alta, edición o baja."
-                    : "Completá el formulario y luego volvés al listado."}
-                </p>
-              </div>
-              {crudMode === "none" && canManageUserCrud ? (
-                <button
-                  type="button"
-                  onClick={onStartCreate}
-                  className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
-                >
-                  Nuevo usuario
-                </button>
-              ) : null}
-            </div>
+        <AppCard
+          as="section"
+          padding="md"
+          header={(
+            <SectionIntro
+              title={crudMode === "edit" ? "Editar usuario" : "Administración de usuarios"}
+              description={
+                crudMode === "none"
+                  ? "Primero revisás el listado y después seguís con alta, edición o baja."
+                  : "Completá el formulario y luego volvés al listado."
+              }
+              actions={
+                crudMode === "none" && canManageUserCrud ? (
+                  <AppButton type="button" variant="secondary" size="sm" onClick={onStartCreate}>
+                    Nuevo usuario
+                  </AppButton>
+                ) : null
+              }
+            />
+          )}
+        >
 
             {!canManageUserCrud ? (
-              <div className="text-xs text-text-secondary">
+              <NoticeBanner>
                 No tenés permisos para CRUD de usuarios. Requiere `admin_bodega`, `encargado_bodega` o `admin_sistema`.
-              </div>
+              </NoticeBanner>
             ) : crudMode !== "none" ? (
-              <div className="grid gap-2 rounded-lg border border-[#C9A961]/30 bg-[#FFF9F0] p-3 md:grid-cols-2">
-                <input
+              <div className="grid gap-2 rounded-[var(--radius-lg)] border border-[color:var(--border-default)] bg-[color:var(--surface-soft)] p-3 md:grid-cols-2">
+                <AppInput
                   value={crudForm.nombre}
                   onChange={(e) => setCrudForm((prev) => ({ ...prev, nombre: e.target.value }))}
                   placeholder="Nombre"
-                  className="rounded border border-[#C9A961]/40 px-2 py-2 text-sm text-[#3D1B1F]"
                 />
-                <input
+                <AppInput
                   value={crudForm.email}
                   onChange={(e) => setCrudForm((prev) => ({ ...prev, email: e.target.value }))}
                   placeholder="Email"
-                  className="rounded border border-[#C9A961]/40 px-2 py-2 text-sm text-[#3D1B1F]"
                 />
-                <input
+                <AppInput
                   type="password"
                   value={crudForm.password}
                   onChange={(e) => setCrudForm((prev) => ({ ...prev, password: e.target.value }))}
                   placeholder={crudMode === "create" ? "Password" : "Password (opcional)"}
-                  className="rounded border border-[#C9A961]/40 px-2 py-2 text-sm text-[#3D1B1F]"
                 />
-                <input
+                <AppInput
                   type="tel"
                   value={crudForm.whatsapp}
                   onChange={(e) => setCrudForm((prev) => ({ ...prev, whatsapp: e.target.value }))}
                   placeholder="WhatsApp E.164 (ej: +5491112345678)"
-                  className="rounded border border-[#C9A961]/40 px-2 py-2 text-sm text-[#3D1B1F]"
                 />
                 {isAdminSistema ? (
-                  <select
+                  <AppSelect
                     value={crudForm.bodegaId}
                     onChange={(e) => setCrudForm((prev) => ({ ...prev, bodegaId: e.target.value }))}
-                    className="rounded border border-[#C9A961]/40 px-2 py-2 text-sm text-[#3D1B1F]"
                   >
                     <option value="">Seleccionar bodega</option>
                     {bodegas.map((bodega) => (
@@ -868,13 +867,13 @@ const Usuarios = () => {
                         {bodega.nombre}
                       </option>
                     ))}
-                  </select>
+                  </AppSelect>
                 ) : (
-                  <div className="rounded border border-[#C9A961]/40 bg-white px-2 py-2 text-xs text-[#7A4A50]">
+                  <div className="rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-white px-3 py-2 text-xs text-[color:var(--text-ink-muted)]">
                     Bodega: {bodegas.find((b) => String(b.bodega_id) === String(activeBodegaId))?.nombre ?? "Bodega activa"}
                   </div>
                 )}
-                <label className="flex items-center gap-2 rounded border border-[#C9A961]/40 bg-white px-2 py-2 text-sm text-[#3D1B1F]">
+                <label className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-white px-3 py-2 text-sm text-[color:var(--text-ink)]">
                   <input
                     type="checkbox"
                     checked={crudForm.is_active}
@@ -883,12 +882,12 @@ const Usuarios = () => {
                   Usuario activo
                 </label>
                 <div className="md:col-span-2">
-                  <p className="mb-1 text-xs font-semibold text-[#6B3A3F]">Roles en bodega (alta)</p>
-                  <div className="flex flex-wrap gap-3 rounded border border-[#C9A961]/30 bg-white p-2">
+                  <p className="mb-1 text-xs font-semibold text-[color:var(--text-accent)]">Roles en bodega (alta)</p>
+                  <div className="flex flex-wrap gap-3 rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-white p-3">
                     {ROLES_BODEGA.map((role) => {
                       const checked = crudForm.rolesEnBodega.includes(role);
                       return (
-                        <label key={`crud-${role}`} className="flex items-center gap-2 text-xs text-[#3D1B1F]">
+                        <label key={`crud-${role}`} className="flex items-center gap-2 text-xs text-[color:var(--text-ink)]">
                           <input
                             type="checkbox"
                             checked={checked}
@@ -908,146 +907,130 @@ const Usuarios = () => {
                   </div>
                 </div>
                 <div className="md:col-span-2 flex gap-2">
-                  <button
-                    type="button"
-                    disabled={crudSaving}
-                    onClick={() => void onSubmitCrud()}
-                    className="rounded border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] disabled:opacity-60"
-                  >
+                  <AppButton type="button" variant="secondary" size="sm" disabled={crudSaving} onClick={() => void onSubmitCrud()}>
                     {crudSaving
                       ? "Guardando..."
                       : crudMode === "edit"
                         ? "Guardar cambios"
                         : "Crear usuario"}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={crudSaving}
-                    onClick={resetCrud}
-                    className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-60"
-                  >
+                  </AppButton>
+                  <AppButton type="button" variant="ghost" size="sm" disabled={crudSaving} onClick={resetCrud}>
                     Volver
-                  </button>
+                  </AppButton>
                 </div>
 
               </div>
             ) : (
-              <div className="text-xs text-text-secondary">
+              <NoticeBanner>
                 Podés crear usuarios nuevos o editar/baja desde cada tarjeta.
-              </div>
+              </NoticeBanner>
             )}
-          </section>
+          </AppCard>
 
         {canManageBodegaRoles && crudMode === "none" ? (
-          <section className="rounded-2xl bg-primary p-5 shadow-lg">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-semibold text-text">Operarios de campo</h2>
-                <p className="text-xs text-text-secondary">Personas sin cuenta en el sistema que pueden ser asignadas a tareas.</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => { setOperariosOpen((prev) => !prev); setOperariosError(null); setOperariosNotice(null); }}
-                className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
-              >
-                {operariosOpen ? "Cancelar" : "Nuevo operario"}
-              </button>
-            </div>
+          <AppCard
+            as="section"
+            padding="md"
+            header={(
+              <SectionIntro
+                title="Operarios de campo"
+                description="Personas sin cuenta en el sistema que pueden ser asignadas a tareas."
+                actions={(
+                  <AppButton
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => { setOperariosOpen((prev) => !prev); setOperariosError(null); setOperariosNotice(null); }}
+                  >
+                    {operariosOpen ? "Cancelar" : "Nuevo operario"}
+                  </AppButton>
+                )}
+              />
+            )}
+          >
 
             {operariosOpen ? (
-              <div className="grid gap-2 rounded-lg border border-[#C9A961]/30 bg-[#FFF9F0] p-3 md:grid-cols-2">
-                <input
+              <div className="grid gap-2 rounded-[var(--radius-lg)] border border-[color:var(--border-default)] bg-[color:var(--surface-soft)] p-3 md:grid-cols-2">
+                <AppInput
                   value={operariosForm.nombre}
                   onChange={(e) => setOperariosForm((prev) => ({ ...prev, nombre: e.target.value }))}
                   placeholder="Nombre y apellido *"
-                  className="rounded border border-[#C9A961]/40 px-2 py-2 text-sm text-[#3D1B1F]"
                 />
-                <input
+                <AppInput
                   type="tel"
                   value={operariosForm.whatsapp_e164}
                   onChange={(e) => setOperariosForm((prev) => ({ ...prev, whatsapp_e164: e.target.value }))}
                   placeholder="WhatsApp E.164 (ej: +5491112345678)"
-                  className="rounded border border-[#C9A961]/40 px-2 py-2 text-sm text-[#3D1B1F]"
                 />
                 <div className="md:col-span-2 flex gap-2">
-                  <button
-                    type="button"
-                    disabled={operariosSaving}
-                    onClick={() => void onCreateOperario()}
-                    className="rounded border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] disabled:opacity-60"
-                  >
+                  <AppButton type="button" variant="secondary" size="sm" disabled={operariosSaving} onClick={() => void onCreateOperario()}>
                     {operariosSaving ? "Creando..." : "Crear operario"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setOperariosOpen(false); setOperariosForm({ nombre: "", whatsapp_e164: "" }); }}
-                    className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"
-                  >
+                  </AppButton>
+                  <AppButton type="button" variant="ghost" size="sm" onClick={() => { setOperariosOpen(false); setOperariosForm({ nombre: "", whatsapp_e164: "" }); }}>
                     Cancelar
-                  </button>
+                  </AppButton>
                 </div>
               </div>
             ) : null}
 
-            {operariosError ? <div className="mt-2 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">{operariosError}</div> : null}
-            {operariosNotice ? <div className="mt-2 rounded border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-700">{operariosNotice}</div> : null}
+            {operariosError ? <NoticeBanner tone="danger" className="mt-2">{operariosError}</NoticeBanner> : null}
+            {operariosNotice ? <NoticeBanner tone="success" className="mt-2">{operariosNotice}</NoticeBanner> : null}
 
             <div className="mt-3 space-y-2">
               {operarios.length === 0 ? (
-                <div className="text-xs text-text-secondary">Sin operarios de campo registrados para esta bodega.</div>
+                <NoticeBanner>Sin operarios de campo registrados para esta bodega.</NoticeBanner>
               ) : (
                 operarios.map((op) => (
-                  <div key={op.user_id} className="flex items-center justify-between rounded-lg border border-[#C9A961]/30 bg-white px-3 py-2">
+                  <div key={op.user_id} className="flex items-center justify-between rounded-[var(--radius-lg)] border border-[color:var(--border-default)] bg-white px-3 py-2">
                     <div>
-                      <span className="text-sm font-semibold text-[#3D1B1F]">{op.nombre}</span>
+                      <span className="text-sm font-semibold text-[color:var(--text-ink)]">{op.nombre}</span>
                       {op.whatsapp_e164 ? (
-                        <span className="ml-2 text-xs text-[#7A4A50]">{op.whatsapp_e164}</span>
+                        <span className="ml-2 text-xs text-[color:var(--text-ink-muted)]">{op.whatsapp_e164}</span>
                       ) : null}
                       {!op.is_active ? (
-                        <span className="ml-2 rounded-full bg-slate-200 px-2 py-0.5 text-xs text-slate-600">Inactivo</span>
+                        <span className="ml-2 rounded-full border border-[color:var(--feedback-neutral-border)] bg-[color:var(--feedback-neutral-bg)] px-2 py-0.5 text-xs text-[color:var(--feedback-neutral-text)]">Inactivo</span>
                       ) : null}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => void onDeleteOperario(op)}
-                      className="rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700"
-                    >
+                    <AppButton type="button" variant="danger" size="sm" onClick={() => void onDeleteOperario(op)}>
                       Desactivar
-                    </button>
+                    </AppButton>
                   </div>
                 ))
               )}
             </div>
-          </section>
+          </AppCard>
         ) : null}
 
         {error && (
-          <div className="rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <NoticeBanner tone="danger">
             {error}
-          </div>
+          </NoticeBanner>
         )}
         {notice && (
-          <div className="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+          <NoticeBanner tone="success">
             {notice}
-          </div>
+          </NoticeBanner>
         )}
 
         {crudMode === "none" ? (
-        <section className="rounded-2xl bg-primary p-5 shadow-lg">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold text-text">Listado de usuarios</h2>
-              <p className="text-xs text-text-secondary">
-                {queryName
+        <AppCard
+          as="section"
+          padding="md"
+          header={(
+            <SectionIntro
+              title="Listado de usuarios"
+              description={
+                queryName
                   ? `Resultado filtrado por: ${queryName}`
-                  : "Usuarios disponibles para la bodega y filtros actuales."}
-              </p>
-            </div>
-          </div>
+                  : "Usuarios disponibles para la bodega y filtros actuales."
+              }
+            />
+          )}
+        >
           {loading ? (
-            <div className="text-sm text-text-secondary">Cargando usuarios…</div>
+            <NoticeBanner>Cargando usuarios…</NoticeBanner>
           ) : users.length === 0 ? (
-            <div className="text-sm text-text-secondary">No hay usuarios para el filtro actual.</div>
+            <NoticeBanner>No hay usuarios para el filtro actual.</NoticeBanner>
           ) : (
             <div className="space-y-4">
               {users.map((user) => {
@@ -1069,26 +1052,26 @@ const Usuarios = () => {
                 return (
                   <article
                     key={user.id}
-                    className="rounded-xl border border-[#C9A961]/30 bg-white/95 p-4"
+                    className="rounded-[var(--radius-xl)] border border-[color:var(--border-default)] bg-white/95 p-4"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <div className="text-sm font-semibold text-[#3D1B1F]">{user.nombre}</div>
-                        <div className="text-xs text-[#7A4A50]">
+                        <div className="text-sm font-semibold text-[color:var(--text-ink)]">{user.nombre}</div>
+                        <div className="text-xs text-[color:var(--text-ink-muted)]">
                           {user.email ?? "Sin email"} · ID: {user.id}
                         </div>
                         {user.whatsapp_e164 ? (
-                          <div className="text-xs text-[#7A4A50]">WhatsApp: {user.whatsapp_e164}</div>
+                          <div className="text-xs text-[color:var(--text-ink-muted)]">WhatsApp: {user.whatsapp_e164}</div>
                         ) : null}
                       </div>
                       <div className="flex items-center gap-2">
                         {user.must_change_password ? (
-                          <div className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">
+                          <div className="rounded-full border border-[color:var(--feedback-warning-border)] bg-[color:var(--feedback-warning-bg)] px-2 py-1 text-xs font-semibold text-[color:var(--feedback-warning-text)]">
                             Pendiente de activación
                           </div>
                         ) : null}
                         {user.roles_globales.includes("bot_agent") ? (
-                          <div className="rounded-full bg-violet-100 px-2 py-1 text-xs font-semibold text-violet-700">
+                          <div className="rounded-full border border-[color:var(--border-default)] bg-[color:var(--surface-soft)] px-2 py-1 text-xs font-semibold text-[color:var(--accent-primary)]">
                             Bot
                           </div>
                         ) : null}
@@ -1096,8 +1079,8 @@ const Usuarios = () => {
                           className={[
                             "rounded-full px-2 py-1 text-xs font-semibold",
                             user.is_active
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-slate-200 text-slate-700",
+                              ? "border border-[color:var(--feedback-success-border)] bg-[color:var(--feedback-success-bg)] text-[color:var(--feedback-success-text)]"
+                              : "border border-[color:var(--feedback-neutral-border)] bg-[color:var(--feedback-neutral-bg)] text-[color:var(--feedback-neutral-text)]",
                           ].join(" ")}
                         >
                           {user.is_active ? "Activo" : "Inactivo"}
@@ -1107,18 +1090,30 @@ const Usuarios = () => {
                             <button
                               type="button"
                               onClick={() => onStartEditUser(user)}
-                              className="rounded border border-[#C9A961]/40 px-2 py-1 text-xs font-semibold text-[#722F37]"
+                              className="hidden"
                             >
                               Editar
                             </button>
+                            <AppButton type="button" variant="secondary" size="sm" onClick={() => onStartEditUser(user)}>
+                              Editar
+                            </AppButton>
                             <button
                               type="button"
                               disabled={deletingUserId === user.id}
                               onClick={() => void onDeleteUser(user)}
-                              className="rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700 disabled:opacity-60"
+                              className="hidden"
                             >
                               {deletingUserId === user.id ? "Procesando..." : "Baja"}
                             </button>
+                            <AppButton
+                              type="button"
+                              variant="danger"
+                              size="sm"
+                              disabled={deletingUserId === user.id}
+                              onClick={() => void onDeleteUser(user)}
+                            >
+                              {deletingUserId === user.id ? "Procesando..." : "Baja"}
+                            </AppButton>
                           </>
                         ) : null}
                       </div>
@@ -1127,25 +1122,21 @@ const Usuarios = () => {
                     {(() => {
                       const editor = rolesEditorByUser[user.id] ?? { open: false, scope: "bodega" as const };
                       return (
-                        <div className="mt-3 rounded-lg border border-[#C9A961]/20 bg-[#FFF9F0] p-3">
+                        <div className="mt-3 rounded-[var(--radius-lg)] border border-[color:var(--border-default)] bg-[color:var(--surface-soft)] p-3">
                           <div className="flex items-center justify-between gap-2">
-                            <p className="text-xs font-semibold text-[#6B3A3F]">Roles del usuario</p>
-                            <button
-                              type="button"
-                              onClick={() => toggleRolesEditor(user.id)}
-                              className="rounded border border-[#C9A961]/40 px-2 py-1 text-xs font-semibold text-[#722F37]"
-                            >
+                            <p className="text-xs font-semibold text-[color:var(--text-accent)]">Roles del usuario</p>
+                            <AppButton type="button" variant="secondary" size="sm" onClick={() => toggleRolesEditor(user.id)}>
                               {editor.open ? "Cerrar" : "Editar roles"}
-                            </button>
+                            </AppButton>
                           </div>
 
-                          <div className="mt-2 grid gap-2 text-xs text-[#7A4A50] md:grid-cols-3">
+                          <div className="mt-2 grid gap-2 text-xs text-[color:var(--text-ink-muted)] md:grid-cols-3">
                             <div>
-                              <span className="font-semibold text-[#3D1B1F]">Globales:</span>{" "}
+                              <span className="font-semibold text-[color:var(--text-ink)]">Globales:</span>{" "}
                               {user.roles_globales.length > 0 ? user.roles_globales.join(", ") : "Sin roles"}
                             </div>
                             <div>
-                              <span className="font-semibold text-[#3D1B1F]">Bodega:</span>{" "}
+                              <span className="font-semibold text-[color:var(--text-ink)]">Bodega:</span>{" "}
                               {user.bodegas.length > 0
                                 ? user.bodegas
                                     .map((bodega) => `${bodega.nombre} (${extractBodegaRoles(bodega).join(", ") || "sin roles"})`)
@@ -1153,7 +1144,7 @@ const Usuarios = () => {
                                 : "Sin bodegas vinculadas"}
                             </div>
                             <div>
-                              <span className="font-semibold text-[#3D1B1F]">Finca:</span>{" "}
+                              <span className="font-semibold text-[color:var(--text-ink)]">Finca:</span>{" "}
                               {(user.fincas ?? []).length > 0
                                 ? (user.fincas ?? [])
                                     .map((finca) => {
@@ -1170,8 +1161,8 @@ const Usuarios = () => {
                           </div>
 
                           {editor.open ? (
-                            <div className="mt-3 space-y-2 rounded border border-[#C9A961]/30 bg-white p-3">
-                              <select
+                            <div className="mt-3 space-y-2 rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-white p-3">
+                              <AppSelect
                                 value={editor.scope}
                                 onChange={(e) =>
                                   setRolesEditorByUser((prev) => ({
@@ -1183,15 +1174,14 @@ const Usuarios = () => {
                                     },
                                   }))
                                 }
-                                className="rounded border border-[#C9A961]/40 px-2 py-2 text-sm text-[#3D1B1F]"
                               >
                                 <option value="bodega">Bodega</option>
                                 <option value="finca">Finca</option>
-                              </select>
+                              </AppSelect>
 
                               {editor.scope === "bodega" ? (
                                 <div className="space-y-2">
-                                  <select
+                                  <AppSelect
                                     value={bodegaForm.bodegaId}
                                     onChange={(e) => {
                                       const selectedBodegaId = e.target.value;
@@ -1210,7 +1200,7 @@ const Usuarios = () => {
                                         },
                                       }));
                                     }}
-                                    className="w-full rounded border border-[#C9A961]/40 px-2 py-2 text-sm text-[#3D1B1F]"
+                                    className="w-full"
                                     disabled={!canManageBodegaRolesForTarget}
                                   >
                                     <option value="">Seleccionar bodega</option>
@@ -1219,12 +1209,12 @@ const Usuarios = () => {
                                         {bodega.nombre}
                                       </option>
                                     ))}
-                                  </select>
+                                  </AppSelect>
                                   <div className="space-y-1">
                                     {ROLES_BODEGA.map((role) => {
                                       const checked = bodegaForm.rolesEnBodega.includes(role);
                                       return (
-                                        <label key={`${user.id}-bodega-edit-${role}`} className="flex items-center gap-2 text-xs text-[#3D1B1F]">
+                                        <label key={`${user.id}-bodega-edit-${role}`} className="flex items-center gap-2 text-xs text-[color:var(--text-ink)]">
                                           <input
                                             type="checkbox"
                                             checked={checked}
@@ -1248,18 +1238,13 @@ const Usuarios = () => {
                                       );
                                     })}
                                   </div>
-                                  <button
-                                    type="button"
-                                    disabled={isBusy || !canManageBodegaRolesForTarget}
-                                    onClick={() => void onAssignBodegaRole(user.id)}
-                                    className="rounded border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] disabled:opacity-60"
-                                  >
+                                  <AppButton type="button" variant="secondary" size="sm" disabled={isBusy || !canManageBodegaRolesForTarget} onClick={() => void onAssignBodegaRole(user.id)}>
                                     Guardar roles bodega
-                                  </button>
+                                  </AppButton>
                                 </div>
                               ) : (
                                 <div className="space-y-2">
-                                  <select
+                                  <AppSelect
                                     value={fincaForm.fincaId}
                                     onChange={(e) => {
                                       const selectedFincaId = e.target.value;
@@ -1280,7 +1265,7 @@ const Usuarios = () => {
                                         },
                                       }));
                                     }}
-                                    className="w-full rounded border border-[#C9A961]/40 px-2 py-2 text-sm text-[#3D1B1F]"
+                                    className="w-full"
                                     disabled={!canManageFincaRolesForTarget}
                                   >
                                     <option value="">Seleccionar finca</option>
@@ -1294,12 +1279,12 @@ const Usuarios = () => {
                                           {finca.label}
                                         </option>
                                       ))}
-                                  </select>
+                                  </AppSelect>
                                   <div className="space-y-1">
                                     {ROLES_FINCA.map((role) => {
                                       const checked = fincaForm.rolesEnFinca.includes(role);
                                       return (
-                                        <label key={`${user.id}-finca-edit-${role}`} className="flex items-center gap-2 text-xs text-[#3D1B1F]">
+                                        <label key={`${user.id}-finca-edit-${role}`} className="flex items-center gap-2 text-xs text-[color:var(--text-ink)]">
                                           <input
                                             type="checkbox"
                                             checked={checked}
@@ -1323,22 +1308,17 @@ const Usuarios = () => {
                                       );
                                     })}
                                   </div>
-                                  <button
-                                    type="button"
-                                    disabled={isBusy || !canManageFincaRolesForTarget}
-                                    onClick={() => void onAssignFincaRole(user.id)}
-                                    className="rounded border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] disabled:opacity-60"
-                                  >
+                                  <AppButton type="button" variant="secondary" size="sm" disabled={isBusy || !canManageFincaRolesForTarget} onClick={() => void onAssignFincaRole(user.id)}>
                                     Guardar roles finca
-                                  </button>
+                                  </AppButton>
                                 </div>
                               )}
 
                               {isAdminSistema ? (
-                                <div className="border-t border-[#C9A961]/30 pt-2">
-                                  <p className="mb-1 text-xs font-semibold text-[#6B3A3F]">Rol global</p>
+                                <div className="border-t border-[color:var(--border-default)] pt-2">
+                                  <p className="mb-1 text-xs font-semibold text-[color:var(--text-accent)]">Rol global</p>
                                   <div className="flex gap-2">
-                                    <select
+                                    <AppSelect
                                       value={globalRole}
                                       onChange={(e) =>
                                         setGlobalRoleByUser((prev) => ({
@@ -1346,30 +1326,19 @@ const Usuarios = () => {
                                           [user.id]: e.target.value,
                                         }))
                                       }
-                                      className="rounded border border-[#C9A961]/40 px-2 py-2 text-sm text-[#3D1B1F]"
                                     >
                                       {ROLES_GLOBALES.map((role) => (
                                         <option key={role} value={role}>
                                           {role}
                                         </option>
                                       ))}
-                                    </select>
-                                    <button
-                                      type="button"
-                                      disabled={isBusy}
-                                      onClick={() => void onSetGlobalRole(user.id, true)}
-                                      className="rounded border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] disabled:opacity-60"
-                                    >
+                                    </AppSelect>
+                                    <AppButton type="button" variant="secondary" size="sm" disabled={isBusy} onClick={() => void onSetGlobalRole(user.id, true)}>
                                       Asignar global
-                                    </button>
-                                    <button
-                                      type="button"
-                                      disabled={isBusy}
-                                      onClick={() => void onSetGlobalRole(user.id, false)}
-                                      className="rounded border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-[#722F37] disabled:opacity-60"
-                                    >
+                                    </AppButton>
+                                    <AppButton type="button" variant="ghost" size="sm" disabled={isBusy} onClick={() => void onSetGlobalRole(user.id, false)}>
                                       Quitar global
-                                    </button>
+                                    </AppButton>
                                   </div>
                                 </div>
                               ) : null}
@@ -1383,7 +1352,7 @@ const Usuarios = () => {
               })}
             </div>
           )}
-        </section>
+        </AppCard>
         ) : null}
       </div>
     </div>

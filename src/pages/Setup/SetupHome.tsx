@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { AppCard, SectionIntro } from "../../components/ui";
 
 const steps = [
   {
@@ -30,28 +31,24 @@ const steps = [
 
 const SetupHome = () => {
   return (
-    <div className="min-h-screen bg-linear-to-br from-[#F9F6F2] via-[#F3E7DA] to-[#EAD8C6] px-6 py-10">
-      <div className="mx-auto w-full max-w-4xl">
-        <div className="mb-8">
-          <h1 className="text-3xl text-[#3D1B1F]">Setup guiado</h1>
-          <p className="mt-2 text-sm text-[#6B3A3F]">
-            Completa estos pasos para empezar a operar trazabilidades.
-          </p>
-        </div>
+    <div className="min-h-screen bg-secondary px-6 py-10">
+      <div className="mx-auto w-full max-w-5xl space-y-6">
+        <SectionIntro
+          title="Setup guiado"
+          description="Completá estos pasos para dejar lista la estructura base y empezar a operar trazabilidades."
+        />
 
         <div className="grid gap-4 md:grid-cols-2">
           {steps.map((step) => (
             <Link
               key={step.title}
               to={step.to}
-              className="rounded-2xl border border-[#C9A961]/40 bg-white/90 p-6 shadow-lg transition hover:-translate-y-0.5 hover:border-[#C9A961] hover:shadow-xl"
+              className="block"
             >
-              <div className="text-lg font-semibold text-[#3D1B1F]">
-                {step.title}
-              </div>
-              <div className="mt-2 text-sm text-[#7A4A50]">
-                {step.description}
-              </div>
+              <AppCard tone="interactive" padding="lg" className="h-full">
+                <div className="text-lg font-semibold text-text">{step.title}</div>
+                <div className="mt-2 text-sm text-text-secondary">{step.description}</div>
+              </AppCard>
             </Link>
           ))}
         </div>

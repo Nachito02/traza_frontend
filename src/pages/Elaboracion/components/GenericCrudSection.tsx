@@ -7,6 +7,16 @@ import {
   type ElaboracionEntity,
   type ElaboracionResourceKey,
 } from "../../../features/elaboracion/api";
+import {
+  AppButton,
+  AppCard,
+  AppInput,
+  AppModal,
+  AppSelect,
+  AppTextarea,
+  NoticeBanner,
+  SectionIntro,
+} from "../../../components/ui";
 import { getApiErrorMessage } from "../../../lib/api";
 
 export type SelectOption = {
@@ -368,14 +378,10 @@ export default function GenericCrudSection({
   const renderFeedback = () => (
     <>
       {error ? (
-        <div className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-          {error}
-        </div>
+        <NoticeBanner tone="danger" className="mt-3">{error}</NoticeBanner>
       ) : null}
       {success ? (
-        <div className="mt-3 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-          {success}
-        </div>
+        <NoticeBanner tone="success" className="mt-3">{success}</NoticeBanner>
       ) : null}
     </>
   );
@@ -383,13 +389,9 @@ export default function GenericCrudSection({
   const renderList = () => (
     <div className="mt-3 max-h-72 space-y-2 overflow-auto">
       {loading ? (
-        <div className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2 text-xs text-[#7A4A50]">
-          Cargando registros...
-        </div>
+        <NoticeBanner>Cargando registros...</NoticeBanner>
       ) : items.length === 0 ? (
-        <div className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2 text-xs text-[#7A4A50]">
-          Sin registros.
-        </div>
+        <NoticeBanner>Sin registros.</NoticeBanner>
       ) : (
         items.map((item, index) => {
           const itemId = idResolver ? idResolver(item) : resolveId(item);
@@ -408,10 +410,10 @@ export default function GenericCrudSection({
             .filter((row): row is { key: string; label: string; value: string } => row !== null)
             .slice(0, 5);
           return (
-            <article key={displayId} className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2">
-              <div className="text-xs font-semibold text-[#5A2D32]">ID: {displayId}</div>
+            <AppCard key={displayId} as="article" tone="soft" padding="sm">
+              <div className="text-xs font-semibold text-[color:var(--accent-primary)]">ID: {displayId}</div>
               {previewRows.length > 0 ? (
-                <div className="mt-2 grid gap-1 rounded bg-white p-2 text-xs text-[#3D1B1F]">
+                <div className="mt-2 grid gap-1 rounded bg-white p-2 text-xs text-[color:var(--text-ink)]">
                   {previewRows.map((row) => (
                     <div key={row.key}>
                       <span className="font-semibold">{row.label}:</span> {row.value}
@@ -420,22 +422,24 @@ export default function GenericCrudSection({
                 </div>
               ) : null}
               <div className="mt-2 flex gap-2">
-                <button
+                <AppButton
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   onClick={() => onEdit(item)}
-                  className="rounded border border-[#C9A961]/50 px-2 py-1 text-xs font-semibold text-[#722F37]"
                 >
                   Editar
-                </button>
-                <button
+                </AppButton>
+                <AppButton
                   type="button"
+                  variant="danger"
+                  size="sm"
                   onClick={() => onDelete(item)}
-                  className="rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700"
                 >
                   Eliminar
-                </button>
+                </AppButton>
               </div>
-            </article>
+            </AppCard>
           );
         })
       )}
@@ -446,33 +450,36 @@ export default function GenericCrudSection({
     <>
       <div className="mt-3 grid gap-3 md:grid-cols-2">
         {fields.map((field) => (
-          <label key={field.name} className="text-xs text-[#722F37]">
-            <span className="mb-1 block font-semibold">{field.label}</span>
+          <div key={field.name}>
             {field.type === "textarea" ? (
-              <textarea
+              <AppTextarea
+                label={field.label}
                 value={String(values[field.name] ?? "")}
                 onChange={(event) =>
                   setValues((prev) => ({ ...prev, [field.name]: event.target.value }))
                 }
                 placeholder={field.placeholder}
-                className="min-h-20 w-full rounded border border-[#C9A961]/40 px-3 py-2 text-sm text-[#3D1B1F]"
+                uiSize="lg"
               />
             ) : field.type === "checkbox" ? (
-              <input
-                type="checkbox"
-                checked={Boolean(values[field.name])}
-                onChange={(event) =>
-                  setValues((prev) => ({ ...prev, [field.name]: event.target.checked }))
-                }
-                className="h-4 w-4"
-              />
+              <label className="flex min-h-11 items-center gap-2 rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-white px-4 py-2 text-sm text-[color:var(--text-ink)]">
+                <input
+                  type="checkbox"
+                  checked={Boolean(values[field.name])}
+                  onChange={(event) =>
+                    setValues((prev) => ({ ...prev, [field.name]: event.target.checked }))
+                  }
+                  className="h-4 w-4"
+                />
+                {field.label}
+              </label>
             ) : field.type === "select" ? (
-              <select
+              <AppSelect
+                label={field.label}
                 value={String(values[field.name] ?? "")}
                 onChange={(event) =>
                   setValues((prev) => ({ ...prev, [field.name]: event.target.value }))
                 }
-                className="w-full rounded border border-[#C9A961]/40 px-3 py-2 text-sm text-[#3D1B1F]"
               >
                 <option value="">Seleccionar...</option>
                 {(field.options ?? []).map((option) => (
@@ -480,92 +487,102 @@ export default function GenericCrudSection({
                     {option.label}
                   </option>
                 ))}
-              </select>
+              </AppSelect>
             ) : (
-              <input
+              <AppInput
+                label={field.label}
                 type={field.type}
                 value={String(values[field.name] ?? "")}
                 onChange={(event) =>
                   setValues((prev) => ({ ...prev, [field.name]: event.target.value }))
                 }
                 placeholder={field.placeholder}
-                className="w-full rounded border border-[#C9A961]/40 px-3 py-2 text-sm text-[#3D1B1F]"
+                uiSize="lg"
               />
             )}
-          </label>
+          </div>
         ))}
       </div>
 
       {!hidePrimaryAction ? (
         <div className="mt-3 flex flex-wrap justify-end gap-2">
-          <button
+          <AppButton
             type="button"
+            variant="primary"
+            loading={saving}
             onClick={() => void onSubmit()}
             disabled={saving}
-            className="rounded border border-[#722F37] bg-[#722F37] px-3 py-2 text-xs font-semibold text-[#FFF9F0] shadow-sm transition hover:bg-[#8A3A45] disabled:opacity-60"
           >
             {editingId ? "Guardar" : "Crear"}
-          </button>
-          <button
+          </AppButton>
+          <AppButton
             type="button"
+            variant="secondary"
             onClick={onCancelForm}
-            className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"
           >
             {editingId ? "Cancelar edición" : "Volver al listado"}
-          </button>
+          </AppButton>
         </div>
       ) : null}
     </>
   );
 
   return (
-    <section className="rounded-2xl bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="text-base font-semibold text-[#3D1B1F]">{title}</h3>
-          <p className="mt-1 text-xs text-[#7A4A50]">{description}</p>
-        </div>
-        {separatedLayout && viewMode === "list" && !hidePrimaryAction ? (
-          <button
-            type="button"
-            onClick={onStartCreate}
-            className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37]"
-          >
-            Nuevo registro
-          </button>
-        ) : null}
-      </div>
+    <AppCard
+      as="section"
+      tone="default"
+      padding="md"
+      header={(
+        <SectionIntro
+          title={title}
+          description={description}
+          actions={
+            separatedLayout && viewMode === "list" && !hidePrimaryAction ? (
+              <AppButton type="button" variant="primary" size="sm" onClick={onStartCreate}>
+                Nuevo registro
+              </AppButton>
+            ) : undefined
+          }
+        />
+      )}
+    >
 
       {separatedLayout ? (viewMode === "form" ? renderForm() : renderList()) : renderForm()}
 
       {renderFeedback()}
 
       {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-            <h3 className="text-base font-semibold text-[#3D1B1F]">¿Eliminar registro?</h3>
-            <p className="mt-2 text-xs text-[#7A4A50]">
-              Esta acción no se puede deshacer.
-            </p>
-            <div className="mt-4 flex justify-end gap-2">
-              <button
+        <AppModal
+          opened
+          onClose={() => setConfirmDelete(null)}
+          title="¿Eliminar registro?"
+          size="sm"
+          footer={(
+            <div className="flex justify-end gap-2">
+              <AppButton
                 type="button"
+                variant="secondary"
+                size="sm"
                 onClick={() => setConfirmDelete(null)}
-                className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"
               >
                 Cancelar
-              </button>
-              <button
+              </AppButton>
+              <AppButton
                 type="button"
+                variant="danger"
+                size="sm"
                 onClick={() => void onDeleteConfirm()}
-                className="rounded border border-red-500 bg-red-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-600"
               >
                 Eliminar
-              </button>
+              </AppButton>
             </div>
-          </div>
-        </div>
+          )}
+        >
+          <p className="text-xs text-[color:var(--text-ink-muted)]">
+            Esta acción no se puede deshacer.
+          </p>
+        </AppModal>
       )}
-    </section>
+    </AppCard>
   );
 }

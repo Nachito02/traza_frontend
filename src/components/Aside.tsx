@@ -46,8 +46,8 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
   ];
 
   return (
-    <aside className={`bg-secondary p-4 shadow-sm ${className}`}>
-      <div className="mb-4 flex items-center gap-2 rounded-lg bg-dark px-2 py-2">
+    <aside className={`bg-[color:var(--surface-base)] p-4 text-[color:var(--text-on-dark)] shadow-sm ${className}`}>
+      <div className="mb-4 flex items-center gap-2 rounded-lg bg-[color:var(--surface-hero)] px-2 py-2">
 
         <img src={trazaLogo} alt="Traza" className="h-7 w-auto object-contain" />
       </div>
@@ -58,7 +58,12 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
             to={link.to}
             onClick={onNavigate}
             className={({ isActive }) =>
-              ["block rounded-lg px-3 py-2 text-sm transition-colors", isActive ? "bg-primary text-text" : "text-text hover:bg-primary"].join(" ")
+              [
+                "block rounded-lg px-3 py-2 text-sm transition-colors",
+                isActive
+                  ? "bg-[color:var(--accent-primary)] text-[color:var(--text-primary)]"
+                  : "text-[color:var(--text-on-dark)] hover:bg-white/10",
+              ].join(" ")
             }
           >
             <div className="flex items-center gap-2">{link.icon}{link.label}</div>
@@ -66,7 +71,7 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
         ))}
         <div
           title="Próximamente"
-          className="flex cursor-not-allowed items-center gap-2 rounded-lg px-3 py-2 text-sm text-text/40 select-none"
+          className="flex cursor-not-allowed items-center gap-2 rounded-lg px-3 py-2 text-sm text-[color:var(--text-on-dark-muted)]/50 select-none"
         >
           <GitPullRequest />
           Trazabilidad

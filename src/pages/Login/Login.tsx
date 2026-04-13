@@ -3,6 +3,7 @@ import { Lock, Mail } from "lucide-react";
 import * as Yup from "yup";
 import { Link } from "react-router-dom";
 import trazaLogo from "../../assets/traza.png";
+import { AppButton, AppCard, AppInput, NoticeBanner } from "../../components/ui";
 import { useLogin, type LoginValues } from "../../hooks/useLogin";
 
 const LoginSchema = Yup.object({
@@ -19,10 +20,8 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-primary p-4">
-      <div className="w-full max-w-md">
-
-        {/* Header */}
-        <div className="text-center mb-8">
+      <div className="w-full max-w-lg">
+        <div className="mb-10 text-center">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-dark rounded-full mb-4">
             <img src={trazaLogo} alt="Traza" className="h-10 w-auto object-contain" />
           </div>
@@ -35,11 +34,17 @@ const Login = () => {
           </div>
         </div>
 
-        {/* Formulario */}
-        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-8">
-          <h2 className="text-wine text-xl sm:text-2xl mb-6 text-center">
+        <AppCard
+          as="section"
+          tone="soft"
+          padding="lg"
+          className="rounded-[var(--radius-xl)] bg-white/95 px-8 py-9 backdrop-blur-sm shadow-2xl sm:px-10 sm:py-10"
+          header={(
+            <h2 className="text-center text-2xl text-wine sm:text-3xl">
             Iniciar Sesión
-          </h2>
+            </h2>
+          )}
+        >
 
           <Formik
             initialValues={INITIAL_VALUES}
@@ -56,98 +61,67 @@ const Login = () => {
               isSubmitting,
               status,
             }) => (
-              <form onSubmit={handleSubmit} className="space-y-5">
-                {/* Error de autenticación */}
+              <form onSubmit={handleSubmit} className="space-y-6">
                 {(status || authError) && (
-                  <div
-                    role="alert"
-                    className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-center text-sm font-medium text-red-700"
-                  >
+                  <NoticeBanner tone="danger" role="alert" className="text-center font-medium">
                     {status || authError}
-                  </div>
+                  </NoticeBanner>
                 )}
 
-                {/* Email */}
-                <div>
-                  <label htmlFor="email" className="block text-sm text-wine mb-2">
-                    Correo Electrónico
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-wine-light" aria-hidden="true" />
-                    <input
-                      id="email"
-                      name="email"
-                      type="email"
-                      value={values.email}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                      className={[
-                        "text-wine-light w-full pl-10 pr-4 py-3 border-2 rounded-lg outline-none transition-colors",
-                        touched.email && errors.email
-                          ? "border-red-300 focus:border-red-500"
-                          : "border-gold/30 focus:border-wine",
-                      ].join(" ")}
-                      placeholder="tu@email.com"
-                      autoComplete="email"
-                    />
-                  </div>
-                  {touched.email && errors.email && (
-                    <p className="mt-2 text-xs font-medium text-red-600">
-                      {errors.email}
-                    </p>
+                <AppInput
+                  id="email"
+                  name="email"
+                  type="email"
+                  label={(
+                    <span className="inline-flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-wine-light" aria-hidden="true" />
+                      Correo Electrónico
+                    </span>
                   )}
-                </div>
+                  value={values.email}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  placeholder="tu@email.com"
+                  autoComplete="email"
+                  error={touched.email ? errors.email : undefined}
+                  uiSize="lg"
+                />
 
-                {/* Contraseña */}
-                <div>
-                  <label htmlFor="password" className="block text-sm text-wine mb-2">
-                    Contraseña
-                  </label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-wine-light" aria-hidden="true" />
-                    <input
-                      id="password"
-                      name="password"
-                      type="password"
-                      value={values.password}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                      className={[
-                        "text-wine-light w-full pl-10 pr-4 py-3 border-2 rounded-lg outline-none transition-colors",
-                        touched.password && errors.password
-                          ? "border-red-300 focus:border-red-500"
-                          : "border-gold/30 focus:border-wine",
-                      ].join(" ")}
-                      placeholder="••••••••"
-                      autoComplete="current-password"
-                    />
-                  </div>
-                  {touched.password && errors.password && (
-                    <p className="mt-2 text-xs font-medium text-red-600">
-                      {errors.password}
-                    </p>
+                <AppInput
+                  id="password"
+                  name="password"
+                  type="password"
+                  label={(
+                    <span className="inline-flex items-center gap-2">
+                      <Lock className="h-4 w-4 text-wine-light" aria-hidden="true" />
+                      Contraseña
+                    </span>
                   )}
-                </div>
+                  value={values.password}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  error={touched.password ? errors.password : undefined}
+                  uiSize="lg"
+                />
 
-                {/* Botón de submit */}
-                <button
+                <AppButton
                   type="submit"
+                  variant="primary"
+                  fullWidth
+                  size="lg"
                   disabled={isSubmitting}
-                  className={[
-                    "w-full text-white py-3 rounded-lg transition-all duration-200 bg-primary",
-                    isSubmitting
-                      ? "opacity-70 cursor-not-allowed"
-                      : "hover:shadow-lg hover:scale-[1.02]",
-                  ].join(" ")}
+                  loading={isSubmitting}
                 >
                   {isSubmitting ? "Ingresando…" : "Iniciar Sesión"}
-                </button>
+                </AppButton>
               </form>
             )}
           </Formik>
 
-          <div className="text-center mt-6">
-            <p className="text-gray-600 text-sm">
+          <div className="mt-8 text-center">
+            <p className="text-sm text-[color:var(--text-ink-muted)]">
               ¿No tenés una cuenta?{" "}
               <Link
                 to="/registro"
@@ -157,10 +131,9 @@ const Login = () => {
               </Link>
             </p>
           </div>
-        </div>
+        </AppCard>
 
-        {/* Footer */}
-        <div className="text-center mt-6">
+        <div className="text-center mt-8">
           <p className="text-cream text-xs">
             © 2026 Traza. Todos los derechos reservados.
           </p>

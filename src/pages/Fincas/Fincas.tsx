@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { AppButton, AppCard, NoticeBanner, SectionIntro } from "../../components/ui";
 import {
   deleteFinca,
   type Finca as FincaDetail,
@@ -57,53 +58,50 @@ const Fincas = () => {
 
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
-      <div className="mx-auto w-full max-w-6xl">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-text">
-            Administracion de fincas
-          </h1>
-          <p className="mt-2 text-sm text-text-secondary">
-            Supervisa y gestiona tus fincas.
-          </p>
-        </div>
+      <div className="mx-auto w-full max-w-6xl space-y-8">
+        <SectionIntro
+          title="Administración de fincas"
+          description="Supervisa y gestiona tus fincas."
+        />
 
-        <section className="mb-8 rounded-2xl  bg-primary p-6 shadow-lg">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold text-text">Fincas</h2>
-              <p className="text-xs text-text">
-                Administración de fincas.
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Link
-                to="/setup/finca"
-                className="rounded-lg border border-[#C9A961]/40 px-3 py-2 text-xs font-semibold text-text transition hover:bg-primary"
-              >
-                Crear finca
-              </Link>
-            </div>
-          </div>
+        <AppCard
+          as="section"
+          padding="lg"
+          header={(
+            <SectionIntro
+              title="Fincas"
+              description="Administración de fincas."
+              actions={(
+                <Link to="/setup/finca">
+                  <AppButton variant="secondary" size="sm">Crear finca</AppButton>
+                </Link>
+              )}
+            />
+          )}
+        >
 
           <div className="mt-4">
             {!activeBodegaId ? (
-              <div className="text-xs text-[#7A4A50]">
+              <NoticeBanner>
                 Seleccioná una bodega para ver las fincas.
-              </div>
+              </NoticeBanner>
             ) : fincasLoading ? (
-              <div className="text-xs text-[#7A4A50]">Cargando fincas…</div>
+              <NoticeBanner>Cargando fincas…</NoticeBanner>
             ) : fincasError ? (
-              <div className="text-xs text-red-700">{fincasError}</div>
+              <NoticeBanner tone="danger">{fincasError}</NoticeBanner>
             ) : fincas.length === 0 ? (
-              <div className="text-xs text-text-secondary">
+              <NoticeBanner>
                 No hay fincas cargadas.
-              </div>
+              </NoticeBanner>
             ) : (
               <div className="grid gap-3 md:grid-cols-2">
                 {fincas.map((finca) => (
-                  <article
+                  <AppCard
                     key={finca.finca_id ?? finca.id ?? finca.nombre}
-                    className="cursor-pointer rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4 transition hover:bg-white"
+                    as="article"
+                    tone="interactive"
+                    padding="sm"
+                    className="cursor-pointer bg-[color:var(--surface-soft)]"
                     onClick={() =>
                       navigate(`/fincas/${encodeURIComponent(String(finca.finca_id ?? finca.id ?? ""))}`)
                     }
@@ -113,13 +111,13 @@ const Fincas = () => {
                       const detail = finca as FincaDetail;
                       return (
                         <>
-                          <div className="text-sm font-semibold text-[#3D1B1F]">
+                          <div className="text-sm font-semibold text-[color:var(--text-ink)]">
                             {finca.nombre ??
                               finca.nombre_finca ??
                               finca.name ??
                               "Finca sin nombre"}
                           </div>
-                          <div className="mt-1 text-xs text-[#7A4A50]">
+                          <div className="mt-1 text-xs text-[color:var(--text-ink-muted)]">
                             {pickDetailValue(
                               detail ??
                                 ({
@@ -146,7 +144,7 @@ const Fincas = () => {
                                   ],
                                 )}
                           </div>
-                          <div className="mt-2 text-[11px] text-[#8B4049]/80">
+                          <div className="mt-2 text-[11px] text-[color:var(--text-accent)]/80">
                             Ver detalles y gestionar cuarteles
                           </div>
                           <div
@@ -155,18 +153,20 @@ const Fincas = () => {
                           >
                             <Link
                               to={`/fincas/${encodeURIComponent(fincaId)}`}
-                              className="rounded border border-[#C9A961]/40 px-2 py-1 text-xs font-semibold text-[#722F37] transition hover:bg-white"
+                              className="inline-flex"
                             >
-                              Ver detalle
+                              <AppButton variant="secondary" size="sm">Ver detalle</AppButton>
                             </Link>
                             <Link
                               to={`/admin/fincas?edit=${encodeURIComponent(String(finca.finca_id ?? finca.id ?? ""))}`}
-                              className="rounded border border-[#C9A961]/40 px-2 py-1 text-xs font-semibold text-[#722F37] transition hover:bg-white"
+                              className="inline-flex"
                             >
-                              Editar finca
+                              <AppButton variant="secondary" size="sm">Editar finca</AppButton>
                             </Link>
-                            <button
+                            <AppButton
                               type="button"
+                              variant="danger"
+                              size="sm"
                               disabled={deletingFincaId === fincaId}
                               onClick={() =>
                                 void onDeleteFinca(
@@ -179,32 +179,31 @@ const Fincas = () => {
                                   ),
                                 )
                               }
-                              className="cursor-pointer rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               {deletingFincaId === fincaId
                                 ? "Eliminando..."
                                 : "Eliminar finca"}
-                            </button>
+                            </AppButton>
                           </div>
                         </>
                       );
                     })()}
-                  </article>
+                  </AppCard>
                 ))}
               </div>
             )}
             {fincaActionError ? (
-              <div className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              <NoticeBanner tone="danger" className="mt-3">
                 {fincaActionError}
-              </div>
+              </NoticeBanner>
             ) : null}
             {fincaActionMessage ? (
-              <div className="mt-3 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+              <NoticeBanner tone="success" className="mt-3">
                 {fincaActionMessage}
-              </div>
+              </NoticeBanner>
             ) : null}
           </div>
-        </section>
+        </AppCard>
       </div>
     </div>
   );

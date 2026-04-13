@@ -1,5 +1,13 @@
 import type { Milestone } from "../../../features/milestones/api";
 import type { Operario } from "../../../features/operarios/api";
+import {
+  AppButton,
+  AppInput,
+  AppModal,
+  AppSelect,
+  AppTextarea,
+  NoticeBanner,
+} from "../../../components/ui";
 import type { EventoField } from "../eventoFields";
 
 type Props = {
@@ -25,40 +33,41 @@ const EventoModal = ({
   onSubmit,
   onClose,
 }: Props) => {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-4"
-      onClick={onClose}
-    >
-      <div
-        className="flex max-h-[88vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white p-6 shadow-xl"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="mb-4 shrink-0">
-          <h2 className="text-xl text-[#3D1B1F]">
-            Registrar evento: {milestone.protocolo_proceso.nombre}
-          </h2>
-          <p className="text-xs text-[#7A4A50]">
-            Tipo: {milestone.protocolo_proceso.evento_tipo}
-          </p>
-        </div>
+  const footer = (
+    <div className="flex items-center justify-end gap-3">
+      <AppButton variant="secondary" onClick={onClose}>
+        Cancelar
+      </AppButton>
+      <AppButton variant="primary" loading={saving} onClick={() => void onSubmit()}>
+        Registrar evento
+      </AppButton>
+    </div>
+  );
 
-        {fields.length > 0 ? (
-          <div className="min-h-0 flex-1 overflow-y-auto pr-2">
-            <div className="space-y-3">
+  return (
+    <AppModal
+      opened
+      onClose={onClose}
+      title={`Registrar evento: ${milestone.protocolo_proceso.nombre}`}
+      description={`Tipo: ${milestone.protocolo_proceso.evento_tipo}`}
+      footer={footer}
+      bodyClassName="space-y-4"
+    >
+      {fields.length > 0 ? (
+        <div className="space-y-3">
             {fields.map((field) => (
               <div key={field.name}>
-                <label className="block text-xs text-[#722F37] mb-2">{field.label}</label>
                 {field.type === "textarea" ? (
-                  <textarea
-                    className="min-h-28 w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                  <AppTextarea
+                    label={field.label}
+                    uiSize="lg"
                     value={form[field.name] ?? ""}
                     onChange={(e) => onChange(field.name, e.target.value)}
                     placeholder={field.placeholder}
                   />
                 ) : field.type === "select" ? (
-                  <select
-                    className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                  <AppSelect
+                    label={field.label}
                     value={form[field.name] ?? ""}
                     onChange={(e) => onChange(field.name, e.target.value)}
                   >
@@ -70,10 +79,10 @@ const EventoModal = ({
                         {option.label}
                       </option>
                     ))}
-                  </select>
+                  </AppSelect>
                 ) : field.type === "user_select" ? (
-                  <select
-                    className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
+                  <AppSelect
+                    label={field.label}
                     value={form[field.name] ?? ""}
                     onChange={(e) => onChange(field.name, e.target.value)}
                   >
@@ -87,9 +96,9 @@ const EventoModal = ({
                           : `${op.nombre}${op.whatsapp_e164 ? ` · ${op.whatsapp_e164}` : ""}`}
                       </option>
                     ))}
-                  </select>
+                  </AppSelect>
                 ) : field.type === "checkbox" ? (
-                  <label className="flex items-center gap-2 rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F]">
+                  <label className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-white/95 px-3 py-2 text-sm text-[color:var(--text-ink)]">
                     <input
                       type="checkbox"
                       checked={form[field.name] === "true"}
@@ -98,10 +107,10 @@ const EventoModal = ({
                     <span>{field.placeholder ?? field.label}</span>
                   </label>
                 ) : (
-                  <input
+                  <AppInput
+                    label={field.label}
                     type={field.type}
                     step={field.step}
-                    className="w-full rounded-lg border-2 border-[#C9A961]/30 px-3 py-2 text-sm text-[#3D1B1F] outline-none focus:border-[#722F37]"
                     value={form[field.name] ?? ""}
                     onChange={(e) => onChange(field.name, e.target.value)}
                     placeholder={field.placeholder}
@@ -109,39 +118,19 @@ const EventoModal = ({
                 )}
               </div>
             ))}
-            </div>
-          </div>
-        ) : (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            Tipo de evento no soportado todavía.
-          </div>
-        )}
-
-        {formError && (
-          <div className="mt-4 shrink-0 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {formError}
-          </div>
-        )}
-
-        <div className="mt-6 flex shrink-0 items-center justify-end gap-3 border-t border-[#C9A961]/20 pt-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE]"
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            disabled={saving}
-            onClick={() => void onSubmit()}
-            className="rounded-lg border border-[#C9A961]/40 px-4 py-2 text-sm font-semibold text-[#722F37] transition hover:border-[#C9A961] hover:bg-[#F8F3EE] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {saving ? "Guardando..." : "Registrar evento"}
-          </button>
         </div>
-      </div>
-    </div>
+      ) : (
+          <NoticeBanner tone="warning">
+            Tipo de evento no soportado todavía.
+          </NoticeBanner>
+      )}
+
+      {formError && (
+        <NoticeBanner tone="danger">
+          {formError}
+        </NoticeBanner>
+      )}
+    </AppModal>
   );
 };
 

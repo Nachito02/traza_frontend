@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { AppButton, AppCard, MetricCard, NoticeBanner, SectionIntro } from "../../components/ui";
 import { useFincasStore } from "../../features/fincas/store";
 import { resolveModuleAccess } from "../../lib/permissions";
 import { useAuthStore } from "../../store/authStore";
@@ -41,169 +42,145 @@ const Dashboard = () => {
     };
   }, [campanias, trazabilidades]);
 
-  const actionLinkClass =
-    "cursor-pointer rounded-lg border border-[#C9A961]/40 bg-white px-4 py-2 text-sm font-semibold text-[#722F37] transition duration-150 hover:border-[#C9A961]/70 hover:bg-[#FFF9F0] hover:text-[#5D232A]";
+  const metricLinkClass =
+    "rounded-[var(--radius-lg)] border border-[color:var(--border-default)] bg-[color:var(--surface-soft)] p-4 text-[color:var(--text-ink)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)] hover:border-[color:var(--accent-secondary)] hover:bg-white hover:-translate-y-0.5 hover:shadow-[var(--shadow-soft)]";
+  const heroMetricClass =
+    "rounded-[var(--radius-lg)] border border-white/15 bg-white/95 px-4 py-3 shadow-[var(--shadow-inset-soft)]";
 
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-6xl">
-        <section className="mb-8 rounded-2xl bg-primary p-6 shadow-lg">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-text">Resumen operativo</h1>
-              <p className="mt-2 text-sm text-text-secondary">
-                Vista general de la bodega activa, sus recursos y el estado de los procesos.
-              </p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] px-4 py-3">
-                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[#7A4A50]">
-                    Bodega activa
-                  </div>
-                  <div className="mt-1 text-lg font-semibold text-[#3D1B1F]">
-                    {activeBodega?.nombre ?? "Sin seleccionar"}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] px-4 py-3">
-                  <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[#7A4A50]">
-                    Operación
-                  </div>
-                  <div className="mt-1 text-lg font-semibold text-[#3D1B1F]">
-                    {access.canAccessOperacion ? "Disponible" : "Sin acceso"}
-                  </div>
-                </div>
+        <AppCard as="section" padding="lg" className="mb-8 bg-[color:var(--surface-hero)] text-[color:var(--text-on-dark)]">
+          <SectionIntro
+            title={<span className="text-3xl font-bold text-[color:var(--text-on-dark)]">Resumen operativo</span>}
+            description="Vista general de la bodega activa, sus recursos y el estado de los procesos."
+            className="[&>div>p]:text-[color:var(--text-on-dark-muted)]"
+            actions={(
+              <>
+                <AppButton type="button" variant="secondary" onClick={() => navigate("/trazabilidades/nueva")}>
+                  Nuevo proceso
+                </AppButton>
+                <AppButton type="button" variant="secondary" onClick={() => navigate("/trazabilidades")}>
+                  Ver procesos y etapas
+                </AppButton>
+                <AppButton type="button" variant="secondary" onClick={() => navigate("/operacion")}>
+                  Ir a Operación
+                </AppButton>
+              </>
+            )}
+          />
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className={heroMetricClass}>
+              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--text-accent)]">
+                Bodega activa
+              </div>
+              <div className="mt-1 text-lg font-semibold text-[color:var(--text-ink)]">
+                {activeBodega?.nombre ?? "Sin seleccionar"}
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => navigate("/trazabilidades/nueva")}
-                className={actionLinkClass}
-              >
-                Nuevo proceso
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/trazabilidades")}
-                className={actionLinkClass}
-              >
-                Ver procesos y etapas
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/operacion")}
-                className={actionLinkClass}
-              >
-                Ir a Operación
-              </button>
+            <div className={heroMetricClass}>
+              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--text-accent)]">
+                Operación
+              </div>
+              <div className="mt-1 text-lg font-semibold text-[color:var(--text-ink)]">
+                {access.canAccessOperacion ? "Disponible" : "Sin acceso"}
+              </div>
             </div>
           </div>
-        </section>
+        </AppCard>
 
         {!activeBodegaId ? (
-          <div className="rounded-2xl border border-red-400/30 bg-red-500/10 p-6 text-sm text-red-200">
+          <NoticeBanner tone="danger" className="p-6">
             Seleccioná una bodega para ver datos de fincas, cuarteles y trazabilidades.
-          </div>
+          </NoticeBanner>
         ) : (
           <div className="space-y-6">
-            <section className="rounded-2xl bg-primary p-5 shadow-lg">
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold text-text">Recursos principales</h2>
-                <p className="text-xs text-text-secondary">
-                  Accesos rápidos a la estructura base y a la trazabilidad activa.
-                </p>
-              </div>
+            <AppCard
+              as="section"
+              padding="md"
+              header={(
+                <SectionIntro
+                  title="Recursos principales"
+                  description="Accesos rápidos a la estructura base y a la trazabilidad activa."
+                />
+              )}
+            >
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <Link to="/contexto" className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4 transition hover:bg-white">
-                  <p className="text-xs uppercase tracking-[0.12em] text-[#7A4A50]">
-                    Bodega activa
-                  </p>
-                  <p className="mt-3 text-xl font-bold text-[#3D1B1F]">
-                    {activeBodega?.nombre ?? "Sin seleccionar"}
-                  </p>
+                <Link to="/contexto" className="block h-full">
+                  <MetricCard
+                    label="Bodega activa"
+                    value={activeBodega?.nombre ?? "Sin seleccionar"}
+                    className={metricLinkClass}
+                    valueClassName="text-xl"
+                  />
                 </Link>
-                <Link to="/fincas" className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4 transition hover:bg-white">
-                  <p className="text-xs uppercase tracking-[0.12em] text-[#7A4A50]">
-                    Fincas
-                  </p>
-                  <p className="mt-3 text-3xl font-bold text-[#3D1B1F]">
-                    {fincasLoading ? "…" : fincas.length}
-                  </p>
+                <Link to="/fincas" className="block h-full">
+                  <MetricCard label="Fincas" value={fincasLoading ? "…" : fincas.length} className={metricLinkClass} />
                 </Link>
-                <Link to="/fincas" className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4 transition hover:bg-white">
-                  <p className="text-xs uppercase tracking-[0.12em] text-[#7A4A50]">
-                    Cuarteles
-                  </p>
-                  <p className="mt-3 text-3xl font-bold text-[#3D1B1F]">
-                    {loading ? "…" : cuartelesCount}
-                  </p>
+                <Link to="/fincas" className="block h-full">
+                  <MetricCard label="Cuarteles" value={loading ? "…" : cuartelesCount} className={metricLinkClass} />
                 </Link>
-                <Link to="/trazabilidades" className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4 transition hover:bg-white">
-                  <p className="text-xs uppercase tracking-[0.12em] text-[#7A4A50]">
-                    Trazabilidades
-                  </p>
-                  <p className="mt-3 text-3xl font-bold text-[#3D1B1F]">
-                    {loading ? "…" : trazabilidades.length}
-                  </p>
+                <Link to="/trazabilidades" className="block h-full">
+                  <MetricCard label="Trazabilidades" value={loading ? "…" : trazabilidades.length} className={metricLinkClass} />
                 </Link>
               </div>
-            </section>
+            </AppCard>
 
-            <section className="rounded-2xl bg-primary p-5 shadow-lg">
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold text-text">Seguimiento diario</h2>
-                <p className="text-xs text-text-secondary">
-                  Indicadores rápidos para entrar a trabajar sobre pendientes y recursos de bodega.
-                </p>
-              </div>
+            <AppCard
+              as="section"
+              padding="md"
+              header={(
+                <SectionIntro
+                  title="Seguimiento diario"
+                  description="Indicadores rápidos para entrar a trabajar sobre pendientes y recursos de bodega."
+                />
+              )}
+            >
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <Link to="/bodega" className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4 transition hover:bg-white">
-                  <p className="text-xs uppercase tracking-[0.12em] text-[#7A4A50]">Vasijas</p>
-                  <p className="mt-2 text-2xl font-semibold text-[#3D1B1F]">{loading ? "…" : vasijasCount}</p>
+                <Link to="/bodega" className="block h-full">
+                  <MetricCard label="Vasijas" value={loading ? "…" : vasijasCount} className={metricLinkClass} />
                 </Link>
-                <Link to="/tareas" className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4 transition hover:bg-white">
-                  <p className="text-xs uppercase tracking-[0.12em] text-[#7A4A50]">Mis tareas pendientes</p>
-                  <p className="mt-2 text-2xl font-semibold text-[#3D1B1F]">{loading ? "…" : tareasCount}</p>
+                <Link to="/tareas" className="block h-full">
+                  <MetricCard label="Mis tareas pendientes" value={loading ? "…" : tareasCount} className={metricLinkClass} />
                 </Link>
                 {access.canAccessOperacion ? (
-                  <Link to="/operacion" className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4 transition hover:bg-white">
-                    <p className="text-xs uppercase tracking-[0.12em] text-[#7A4A50]">Operación</p>
-                    <p className="mt-2 text-2xl font-semibold text-[#3D1B1F]">Disponible</p>
+                  <Link to="/operacion" className="block h-full">
+                    <MetricCard label="Operación" value="Disponible" className={metricLinkClass} />
                   </Link>
                 ) : null}
               </div>
-            </section>
+            </AppCard>
 
-            <section className="rounded-2xl bg-primary p-5 shadow-lg">
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold text-text">Estado de procesos</h2>
-                <p className="text-xs text-text-secondary">
-                  Estado general de las trazabilidades y de las campañas abiertas.
-                </p>
-              </div>
+            <AppCard
+              as="section"
+              padding="md"
+              header={(
+                <SectionIntro
+                  title="Estado de procesos"
+                  description="Estado general de las trazabilidades y de las campañas abiertas."
+                />
+              )}
+            >
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <Link to="/trazabilidades" className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4 transition hover:bg-white ">
-                  <p className="text-xs uppercase tracking-[0.12em] text-[#7A4A50]">En curso</p>
-                  <p className="mt-2 text-2xl font-semibold text-[#3D1B1F]">{stats.enCurso}</p>
+                <Link to="/trazabilidades" className="block h-full">
+                  <MetricCard label="En curso" value={stats.enCurso} className={metricLinkClass} />
                 </Link>
-                <Link to="/trazabilidades" className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4 transition hover:bg-white ">
-                  <p className="text-xs uppercase tracking-[0.12em] text-[#7A4A50]">Finalizadas / Certificadas</p>
-                  <p className="mt-2 text-2xl font-semibold text-[#3D1B1F]">{stats.finalizadas}</p>
+                <Link to="/trazabilidades" className="block h-full">
+                  <MetricCard label="Finalizadas / Certificadas" value={stats.finalizadas} className={metricLinkClass} />
                 </Link>
-                <Link to="/trazabilidades" className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4 transition hover:bg-white ">
-                  <p className="text-xs uppercase tracking-[0.12em] text-[#7A4A50]">Borrador</p>
-                  <p className="mt-2 text-2xl font-semibold text-[#3D1B1F]">{stats.borrador}</p>
+                <Link to="/trazabilidades" className="block h-full">
+                  <MetricCard label="Borrador" value={stats.borrador} className={metricLinkClass} />
                 </Link>
-                <Link to="/admin/campanias" className="rounded-xl border border-[#C9A961]/30 bg-[#FFF9F0] p-4 transition hover:bg-white ">
-                  <p className="text-xs uppercase tracking-[0.12em] text-[#7A4A50]">Campañas abiertas</p>
-                  <p className="mt-2 text-2xl font-semibold text-[#3D1B1F]">{stats.campaniasAbiertas}</p>
+                <Link to="/admin/campanias" className="block h-full">
+                  <MetricCard label="Campañas abiertas" value={stats.campaniasAbiertas} className={metricLinkClass} />
                 </Link>
               </div>
-            </section>
+            </AppCard>
 
             {error && (
-              <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              <NoticeBanner tone="danger">
                 {error}
-              </div>
+              </NoticeBanner>
             )}
           </div>
         )}

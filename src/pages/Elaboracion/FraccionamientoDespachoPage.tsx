@@ -7,6 +7,14 @@ import {
   patchElaboracionResource,
   type ElaboracionEntity,
 } from "../../features/elaboracion/api";
+import {
+  AppButton,
+  AppCard,
+  AppInput,
+  AppSelect,
+  NoticeBanner,
+  SectionIntro,
+} from "../../components/ui";
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
 import GenericCrudSection, { type SelectOption } from "./components/GenericCrudSection";
@@ -259,43 +267,48 @@ export default function FraccionamientoDespachoPage({
       ) : null}
 
       {activeSection === "lotes" ? (
-        <section className="rounded-2xl bg-white p-5 shadow-sm">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h3 className="text-base font-semibold text-[#3D1B1F]">Lotes de Fraccionamiento</h3>
-              <p className="mt-1 text-xs text-[#7A4A50]">
-                Validación aplicada: corte y producto deben ser de la misma bodega.
-              </p>
-            </div>
-            {!hidePrimaryAction && loteViewMode === "list" ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingId(null);
-                  setForm({
-                    corteId: "",
-                    productoId: "",
-                    fecha: "",
-                    botellas: "",
-                    formato: "",
-                    codigo_lote_impreso: "",
-                  });
-                  setLoteViewMode("form");
-                }}
-                className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37]"
-              >
-                Nuevo lote
-              </button>
-            ) : null}
-          </div>
+        <AppCard
+          as="section"
+          tone="default"
+          padding="md"
+          header={(
+            <SectionIntro
+              title="Lotes de Fraccionamiento"
+              description="Validación aplicada: corte y producto deben ser de la misma bodega."
+              actions={
+                !hidePrimaryAction && loteViewMode === "list" ? (
+                  <AppButton
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    onClick={() => {
+                      setEditingId(null);
+                      setForm({
+                        corteId: "",
+                        productoId: "",
+                        fecha: "",
+                        botellas: "",
+                        formato: "",
+                        codigo_lote_impreso: "",
+                      });
+                      setLoteViewMode("form");
+                    }}
+                  >
+                    Nuevo lote
+                  </AppButton>
+                ) : undefined
+              }
+            />
+          )}
+        >
 
           {hidePrimaryAction || loteViewMode === "form" ? (
             <>
               <div className="mt-3 grid gap-2 md:grid-cols-2">
-                <select
+                <AppSelect
+                  label="Corte"
                   value={form.corteId}
                   onChange={(event) => setForm((prev) => ({ ...prev, corteId: event.target.value }))}
-                  className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
                 >
                   <option value="">Corte</option>
                   {corteOptions.map((option) => (
@@ -303,12 +316,12 @@ export default function FraccionamientoDespachoPage({
                       {option.label}
                     </option>
                   ))}
-                </select>
+                </AppSelect>
 
-                <select
+                <AppSelect
+                  label="Producto"
                   value={form.productoId}
                   onChange={(event) => setForm((prev) => ({ ...prev, productoId: event.target.value }))}
-                  className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
                 >
                   <option value="">Producto</option>
                   {productoOptions.map((option) => (
@@ -316,52 +329,60 @@ export default function FraccionamientoDespachoPage({
                       {option.label}
                     </option>
                   ))}
-                </select>
+                </AppSelect>
 
-                <input
+                <AppInput
+                  label="Fecha"
                   type="date"
                   value={form.fecha}
                   onChange={(event) => setForm((prev) => ({ ...prev, fecha: event.target.value }))}
-                  className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
+                  uiSize="lg"
                 />
-                <input
+                <AppInput
+                  label="Botellas"
                   type="number"
                   placeholder="Botellas"
                   value={form.botellas}
                   onChange={(event) => setForm((prev) => ({ ...prev, botellas: event.target.value }))}
-                  className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
+                  uiSize="lg"
                 />
 
-                <input
+                <AppInput
+                  label="Formato"
                   type="text"
                   placeholder="Formato"
                   value={form.formato}
                   onChange={(event) => setForm((prev) => ({ ...prev, formato: event.target.value }))}
-                  className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
+                  uiSize="lg"
                 />
-                <input
+                <AppInput
+                  label="Código lote impreso"
                   type="text"
                   placeholder="Código lote impreso"
                   value={form.codigo_lote_impreso}
                   onChange={(event) =>
                     setForm((prev) => ({ ...prev, codigo_lote_impreso: event.target.value }))
                   }
-                  className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
+                  uiSize="lg"
                 />
               </div>
 
               {!hidePrimaryAction ? (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <button
+                  <AppButton
                     type="button"
+                    variant="primary"
+                    size="sm"
+                    loading={saving}
                     onClick={() => void submitLote()}
                     disabled={saving}
-                    className="rounded border border-[#C9A961]/50 px-3 py-2 text-xs font-semibold text-[#722F37] disabled:opacity-60"
                   >
                     {editingId ? "Guardar" : "Crear"}
-                  </button>
-                  <button
+                  </AppButton>
+                  <AppButton
                     type="button"
+                    variant="secondary"
+                    size="sm"
                     onClick={() => {
                       setEditingId(null);
                       setForm({
@@ -374,54 +395,55 @@ export default function FraccionamientoDespachoPage({
                       });
                       setLoteViewMode("list");
                     }}
-                    className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700"
                   >
                     {editingId ? "Cancelar edición" : "Volver al listado"}
-                  </button>
+                  </AppButton>
                 </div>
               ) : null}
             </>
           ) : (
             <div className="mt-3 max-h-72 space-y-2 overflow-auto">
               {loading ? (
-                <div className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2 text-xs text-[#7A4A50]">Cargando...</div>
+                <NoticeBanner>Cargando...</NoticeBanner>
               ) : lotes.length === 0 ? (
-                <div className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2 text-xs text-[#7A4A50]">Sin lotes.</div>
+                <NoticeBanner>Sin lotes.</NoticeBanner>
               ) : (
                 lotes.map((item, index) => {
                   const id = resolveLoteId(item) || `i-${index}`;
                   return (
-                    <article key={id} className="rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-2">
-                      <div className="text-xs font-semibold text-[#5A2D32]">{id}</div>
-                      <pre className="mt-1 max-h-20 overflow-auto rounded bg-white p-2 text-[11px] text-[#3D1B1F]">
+                    <AppCard key={id} as="article" tone="soft" padding="sm">
+                      <div className="text-xs font-semibold text-[color:var(--accent-primary)]">{id}</div>
+                      <pre className="mt-1 max-h-20 overflow-auto rounded bg-white p-2 text-[11px] text-[color:var(--text-ink)]">
                         {JSON.stringify(item, null, 2)}
                       </pre>
                       <div className="mt-2 flex gap-2">
-                        <button
+                        <AppButton
                           type="button"
+                          variant="secondary"
+                          size="sm"
                           onClick={() => editLote(item)}
-                          className="rounded border border-[#C9A961]/50 px-2 py-1 text-xs font-semibold text-[#722F37]"
                         >
                           Editar
-                        </button>
-                        <button
+                        </AppButton>
+                        <AppButton
                           type="button"
+                          variant="danger"
+                          size="sm"
                           onClick={() => void deleteLote(item)}
-                          className="rounded border border-red-300 px-2 py-1 text-xs font-semibold text-red-700"
                         >
                           Eliminar
-                        </button>
+                        </AppButton>
                       </div>
-                    </article>
+                    </AppCard>
                   );
                 })
               )}
             </div>
           )}
 
-          {error ? <div className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">{error}</div> : null}
-          {success ? <div className="mt-3 rounded border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-700">{success}</div> : null}
-        </section>
+          {error ? <NoticeBanner tone="danger" className="mt-3">{error}</NoticeBanner> : null}
+          {success ? <NoticeBanner tone="success" className="mt-3">{success}</NoticeBanner> : null}
+        </AppCard>
       ) : null}
 
       {activeSection === "codigos" ? (
@@ -447,14 +469,11 @@ export default function FraccionamientoDespachoPage({
           ]}
         />
 
-        <div className="rounded-2xl bg-white p-4 shadow-sm">
-          <label className="mb-1 block text-xs font-semibold text-[#722F37]">
-            Filtro para listado de códigos por lote
-          </label>
-          <select
+        <AppCard as="div" tone="default" padding="sm">
+          <AppSelect
+            label="Filtro para listado de códigos por lote"
             value={loteFilterCodigos}
             onChange={(event) => setLoteFilterCodigos(event.target.value)}
-            className="w-full rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
           >
             <option value="">Todos</option>
             {loteOptions.map((option) => (
@@ -462,8 +481,8 @@ export default function FraccionamientoDespachoPage({
                 {option.label}
               </option>
             ))}
-          </select>
-        </div>
+          </AppSelect>
+        </AppCard>
         </div>
       ) : null}
 

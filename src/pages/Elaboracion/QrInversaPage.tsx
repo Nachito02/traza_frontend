@@ -1,5 +1,12 @@
 import { useState } from "react";
 import { fetchTrazabilidadInversaPorQr, type TrazabilidadQrResponse } from "../../features/elaboracion/api";
+import {
+  AppButton,
+  AppCard,
+  AppInput,
+  NoticeBanner,
+  SectionIntro,
+} from "../../components/ui";
 import { getApiErrorMessage } from "../../lib/api";
 
 export default function QrInversaPage() {
@@ -28,41 +35,42 @@ export default function QrInversaPage() {
   };
 
   return (
-    <section className="rounded-2xl bg-white p-6 shadow-sm">
-      <h2 className="text-lg font-semibold text-[#3D1B1F]">Producto y Trazabilidad</h2>
-      <p className="mt-1 text-xs text-[#7A4A50]">
-        Etapa final del proceso. El detalle funcional completo de producto y trazabilidad se define en
-        la próxima iteración.
-      </p>
+    <AppCard
+      as="section"
+      tone="default"
+      padding="lg"
+      header={(
+        <SectionIntro
+          title="Producto y Trazabilidad"
+          description="Etapa final del proceso. El detalle funcional completo de producto y trazabilidad se define en la próxima iteración."
+        />
+      )}
+    >
 
       <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
-        <input
+        <AppInput
           value={codigoQr}
           onChange={(event) => setCodigoQr(event.target.value)}
           placeholder="Código de envase / QR (consulta preliminar)"
-          className="rounded border border-[#C9A961]/40 px-3 py-2 text-sm"
+          uiSize="lg"
         />
-        <button
+        <AppButton
           type="button"
+          variant="primary"
           onClick={() => void onSubmit()}
           disabled={loading}
-          className="rounded border border-[#C9A961]/50 px-4 py-2 text-sm font-semibold text-[#722F37] disabled:opacity-60"
         >
           {loading ? "Consultando..." : "Consultar"}
-        </button>
+        </AppButton>
       </div>
 
-      {error ? (
-        <div className="mt-3 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          {error}
-        </div>
-      ) : null}
+      {error ? <NoticeBanner tone="danger" className="mt-3">{error}</NoticeBanner> : null}
 
       {result ? (
-        <pre className="mt-3 max-h-[32rem] overflow-auto rounded border border-[#C9A961]/30 bg-[#FFF9F0] p-3 text-xs text-[#3D1B1F]">
+        <pre className="mt-3 max-h-[32rem] overflow-auto rounded border border-[color:var(--border-default)] bg-[color:var(--surface-soft)] p-3 text-xs text-[color:var(--text-ink)]">
           {JSON.stringify(result, null, 2)}
         </pre>
       ) : null}
-    </section>
+    </AppCard>
   );
 }
