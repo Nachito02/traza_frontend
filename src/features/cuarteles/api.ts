@@ -8,6 +8,7 @@ export type Cuartel = {
   superficie_ha: number;
   cultivo: string;
   variedad: string;
+  sistema_riego?: string | null;
   sistema_productivo?: string | null;
   sistema_conduccion?: string | null;
 };
@@ -18,6 +19,7 @@ export type CreateCuartelPayload = {
   superficie_ha: number;
   cultivo: string;
   variedad: string;
+  sistema_riego?: string | null;
   sistema_productivo?: string | null;
   sistema_conduccion?: string | null;
 };
@@ -27,6 +29,7 @@ export type UpdateCuartelPayload = {
   superficie_ha: number;
   cultivo: string;
   variedad: string;
+  sistema_riego?: string | null;
   sistema_productivo?: string | null;
   sistema_conduccion?: string | null;
 };

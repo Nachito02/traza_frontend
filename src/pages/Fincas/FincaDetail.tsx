@@ -318,6 +318,10 @@ const FincaDetail = () => {
                                     {detail?.variedad ?? "-"}
                                   </div>
                                   <div>
+                                    <span className="font-semibold text-[color:var(--text-ink)]">Sistema de riego:</span>{" "}
+                                    {detail?.sistema_riego ?? "-"}
+                                  </div>
+                                  <div>
                                     <span className="font-semibold text-[color:var(--text-ink)]">Superficie:</span>{" "}
                                     {detail?.superficie_ha ?? "-"} ha
                                   </div>

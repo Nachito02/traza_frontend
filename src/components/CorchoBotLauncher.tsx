@@ -19,26 +19,14 @@ type RouteProfile = {
 };
 
 function getRouteProfile(pathname: string): RouteProfile {
-  if (pathname.startsWith("/trazabilidades")) {
-    return {
-      label: "Trazabilidad",
-      summary: "Puedo ayudarte a detectar qué proceso sigue, qué falta cargar y cómo cerrar mejor una trazabilidad activa.",
-      suggestions: [
-        "¿Qué me falta para cerrar esta trazabilidad?",
-        "Ordename los próximos pasos del proceso actual",
-        "¿Qué hitos obligatorios debería revisar primero?",
-      ],
-    };
-  }
-
   if (pathname.startsWith("/operacion")) {
     return {
       label: "Operación",
-      summary: "Puedo orientarte en recepción, CIU/QC, vasijas, cortes, fraccionamiento y cómo conectar operación con trazabilidad.",
+      summary: "Puedo orientarte en recepción, CIU/QC, vasijas, cortes, fraccionamiento y cómo ordenar mejor el trabajo operativo.",
       suggestions: [
         "Explicame el flujo operativo de esta sección",
         "¿Qué datos conviene cargar primero acá?",
-        "¿Cómo conecto esto con la trazabilidad?",
+        "¿Cómo ordeno mejor este flujo?",
       ],
     };
   }
@@ -96,7 +84,7 @@ function buildAssistantReply(prompt: string, pathname: string, bodegaName?: stri
   const bodegaContext = bodegaName ? ` en ${bodegaName}` : "";
 
   if (normalized.includes("cerrar") || normalized.includes("falta")) {
-    return `Si el objetivo es cerrar bien el flujo${bodegaContext}, yo revisaría primero los pendientes obligatorios de ${profile.label.toLowerCase()}, después las tareas abiertas y por último los eventos que todavía no tienen respaldo claro. Si querés, en la siguiente iteración puedo darte este chequeo conectado a datos reales.`;
+    return `Si el objetivo es cerrar bien el flujo${bodegaContext}, yo revisaría primero los pendientes obligatorios de ${profile.label.toLowerCase()}, después las tareas abiertas y por último los registros que todavía no tienen respaldo claro. Si querés, en la siguiente iteración puedo darte este chequeo conectado a datos reales.`;
   }
 
   if (normalized.includes("protocolo") || normalized.includes("etapa") || normalized.includes("proceso")) {
@@ -199,11 +187,6 @@ export default function CorchoBotLauncher() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, opened]);
 
-  const extractTrazabilidadId = () => {
-    const match = location.pathname.match(/\/trazabilidades\/([^/]+)/);
-    return match?.[1] ?? null;
-  };
-
   const submitPrompt = async (promptText?: string) => {
     const nextPrompt = (promptText ?? draft).trim();
     if (!nextPrompt) return;
@@ -221,7 +204,6 @@ export default function CorchoBotLauncher() {
       const response = await consultarIa({
         pregunta: nextPrompt,
         bodegaId: activeBodegaId ? String(activeBodegaId) : null,
-        trazabilidadId: extractTrazabilidadId(),
         limit: 3,
       });
       setMode("live");
@@ -355,7 +337,7 @@ export default function CorchoBotLauncher() {
             <AppTextarea
               label="Tu consulta"
               description="Probá pedir un siguiente paso, una priorización o una explicación del flujo actual."
-              placeholder="Ej.: ¿Qué me falta para cerrar esta trazabilidad?"
+              placeholder="Ej.: ¿Qué me falta para completar este flujo?"
               value={draft}
               onChange={(event) => setDraft(event.currentTarget.value)}
               uiSize="md"

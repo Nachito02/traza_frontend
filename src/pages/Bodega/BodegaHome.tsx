@@ -16,18 +16,42 @@ const RESOURCES = [
     description: "Alta, edición y baja de fincas de la bodega activa.",
     to: "/fincas",
     action: "Administrar fincas",
+    enabled: true,
   },
   {
     title: "Campañas",
     description: "Gestión de campañas y períodos de cosecha.",
     to: "/admin/campanias",
     action: "Administrar campañas",
+    enabled: true,
   },
   {
     title: "Vasijas",
     description: "Alta, edición y baja de vasijas de la bodega activa.",
     to: "/bodega/vasijas",
     action: "Administrar vasijas",
+    enabled: true,
+  },
+  {
+    title: "Personal",
+    description: "Gestión del personal operativo y administrativo vinculado a la bodega.",
+    to: "",
+    action: "Próximamente",
+    enabled: false,
+  },
+  {
+    title: "Costos",
+    description: "Seguimiento de costos operativos, insumos y estructura económica de la bodega.",
+    to: "",
+    action: "Próximamente",
+    enabled: false,
+  },
+  {
+    title: "Normas habilitadas en bodega",
+    description: "Configuración y seguimiento de normas, certificaciones y marcos habilitados para operar.",
+    to: "",
+    action: "Próximamente",
+    enabled: false,
   },
 ];
 
@@ -110,25 +134,32 @@ export default function BodegaHome() {
             />
           )}
         >
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {RESOURCES.map((resource) => (
               <AppCard
                 key={resource.title}
                 as="article"
-                tone="interactive"
+                tone={resource.enabled ? "interactive" : "soft"}
                 padding="md"
+                className={resource.enabled ? "" : "opacity-80"}
               >
                 <h2 className="text-base font-semibold text-[color:var(--text-ink)]">{resource.title}</h2>
                 <p className="mt-1 text-xs text-[color:var(--text-ink-muted)]">{resource.description}</p>
                 <div className="mt-2 text-[11px] text-[color:var(--accent-primary)]/80">
-                  Ver listado y gestionar registros
+                  {resource.enabled ? "Ver listado y gestionar registros" : "Módulo previsto para una próxima etapa"}
                 </div>
                 <div className="mt-4">
-                  <Link to={resource.to}>
-                    <AppButton variant="secondary" size="sm">
+                  {resource.enabled ? (
+                    <Link to={resource.to}>
+                      <AppButton variant="secondary" size="sm">
+                        {resource.action}
+                      </AppButton>
+                    </Link>
+                  ) : (
+                    <AppButton variant="secondary" size="sm" disabled title="Pantalla aún no disponible">
                       {resource.action}
                     </AppButton>
-                  </Link>
+                  )}
                 </div>
               </AppCard>
             ))}

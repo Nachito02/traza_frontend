@@ -5,7 +5,6 @@ import {
   getDefaultProtocoloId,
   type ProtocoloExpanded,
 } from "../../features/protocolos/api";
-import { createTrazabilidad } from "../../features/trazabilidades/api";
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
 import { useCampaniaStore } from "../../store/campaniaStore";
@@ -72,8 +71,6 @@ const SetupProtocolos = () => {
     const fincaId = sessionStorage.getItem("setupFincaId") ?? "";
     const cuartelId = sessionStorage.getItem("setupCuartelId") ?? "";
     const campaniaId = activeCampaniaId;
-    const cuartelCodigo = sessionStorage.getItem("setupCuartelCodigo") ?? "";
-
     if (!activeBodegaId || !fincaId || !cuartelId || !campaniaId) {
       setError(
         "Faltan datos previos del setup. Completá finca, campaña y cuartel antes de finalizar.",
@@ -84,20 +81,12 @@ const SetupProtocolos = () => {
     setSaving(true);
     setError(null);
     try {
-      await createTrazabilidad({
-        bodegaId: String(activeBodegaId),
-        protocoloId: selected,
-        campaniaId,
-        fincaId,
-        cuartelId,
-        nombre_producto: `Trazabilidad ${cuartelCodigo || cuartelId.slice(0, 8)}`,
-      });
-
+      sessionStorage.setItem("setupProtocoloId", selected);
       sessionStorage.removeItem("setupFincaId");
       sessionStorage.removeItem("setupFincaNombre");
       sessionStorage.removeItem("setupCuartelId");
       sessionStorage.removeItem("setupCuartelCodigo");
-      navigate("/dashboard");
+      navigate("/operacion/tareas");
     } catch (e) {
       setError(getApiErrorMessage(e));
     } finally {
@@ -115,12 +104,12 @@ const SetupProtocolos = () => {
           header={(
             <SectionIntro
               title="Seleccionar protocolo"
-              description="Paso 4 de 4 del setup guiado. Elegí el protocolo con el que se va a crear la trazabilidad inicial."
+              description="Paso 4 de 4 del setup guiado. Elegí el protocolo base con el que el equipo va a operar."
             />
           )}
         >
           <NoticeBanner tone="info" title="Cierre del setup">
-            Al finalizar se crea la primera trazabilidad usando la bodega, campaña, finca y cuartel que acabás de definir.
+            Al finalizar guardamos la configuración base y te llevamos directo a operación para empezar a trabajar.
           </NoticeBanner>
         </AppCard>
 
@@ -186,7 +175,7 @@ const SetupProtocolos = () => {
                   disabled={saving}
                   loading={saving}
                 >
-                  {saving ? "Creando trazabilidad..." : "Finalizar setup"}
+                  {saving ? "Finalizando setup..." : "Finalizar setup"}
                 </AppButton>
               </div>
             </div>

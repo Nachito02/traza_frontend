@@ -18,9 +18,6 @@ import SetupFinca from "./pages/Setup/SetupFinca";
 import SetupCampania from "./pages/Setup/SetupCampania";
 import SetupCuarteles from "./pages/Setup/SetupCuarteles";
 import SetupProtocolos from "./pages/Setup/SetupProtocolos";
-import MilestonesPlan from "./pages/Trazabilidad/MilestonesPlan";
-import TrazabilidadesActivas from "./pages/Trazabilidad/TrazabilidadesActivas";
-import NuevaTrazabilidad from "./pages/Trazabilidad/NuevaTrazabilidad";
 import FincaDetail from "./pages/Fincas/FincaDetail";
 import Fincas from "./pages/Fincas/Fincas";
 import Usuarios from "./pages/Usuarios/Usuarios";
@@ -149,8 +146,8 @@ export default function App() {
           <Route path="cortes" element={canUseOperacionBodega ? <CortesProductoPage /> : <Navigate to="/operacion/tareas" replace />} />
           <Route path="fraccionamiento" element={canUseOperacionBodega ? <FraccionamientoDespachoPage /> : <Navigate to="/operacion/tareas" replace />} />
           <Route path="qr" element={canUseOperacionBodega ? <QrInversaPage /> : <Navigate to="/operacion/tareas" replace />} />
-          <Route path="trazabilidades" element={<TrazabilidadesActivas planBasePath="/operacion/trazabilidades" embedded />} />
-          <Route path="trazabilidades/:id/plan" element={<MilestonesPlan />} />
+          <Route path="trazabilidades" element={<Navigate to="/operacion/tareas" replace />} />
+          <Route path="trazabilidades/:id/plan" element={<Navigate to="/operacion/tareas" replace />} />
         </Route>
         <Route path="/elaboracion" element={canUseOperacionBodega ? <Navigate to="/operacion/recepcion" replace /> : <Navigate to="/fincas" replace />} />
         <Route path="/elaboracion/*" element={<LegacyElaboracionRedirect />} />
@@ -164,9 +161,9 @@ export default function App() {
         <Route path="/setup/campania" element={<SetupCampania />} />
         <Route path="/setup/cuarteles" element={<SetupCuarteles />} />
         <Route path="/setup/protocolos" element={<SetupProtocolos />} />
-        <Route path="/trazabilidades" element={<TrazabilidadesActivas />} />
-        <Route path="/trazabilidades/nueva" element={<NuevaTrazabilidad />} />
-        <Route path="/trazabilidades/:id/plan" element={<MilestonesPlan />} />
+        <Route path="/trazabilidades" element={<Navigate to="/operacion/tareas" replace />} />
+        <Route path="/trazabilidades/nueva" element={<Navigate to="/operacion/tareas" replace />} />
+        <Route path="/trazabilidades/:id/plan" element={<Navigate to="/operacion/tareas" replace />} />
       </Route>
       {/* <Route path="*" element={<NotFound />} /> */}
     </Routes>

@@ -26,6 +26,7 @@ type FormState = {
   superficie_ha: string;
   cultivo: string;
   variedad: string;
+  sistema_riego: string;
   sistema_productivo: string;
   sistema_conduccion: string;
 };
@@ -34,8 +35,9 @@ const emptyForm: FormState = {
   fincaId: "",
   codigo_cuartel: "",
   superficie_ha: "",
-  cultivo: "vid",
+  cultivo: "Vid",
   variedad: "",
+  sistema_riego: "",
   sistema_productivo: "",
   sistema_conduccion: "",
 };
@@ -171,8 +173,9 @@ export default function CuartelesAdmin() {
         await patchCuartel(editingId, {
           codigo_cuartel: form.codigo_cuartel.trim(),
           superficie_ha: Number(form.superficie_ha),
-          cultivo: form.cultivo.trim() || "vid",
+          cultivo: "Vid",
           variedad: form.variedad.trim(),
+          sistema_riego: form.sistema_riego.trim() || null,
           sistema_productivo: form.sistema_productivo.trim() || null,
           sistema_conduccion: form.sistema_conduccion.trim() || null,
         });
@@ -182,8 +185,9 @@ export default function CuartelesAdmin() {
           fincaId: form.fincaId,
           codigo_cuartel: form.codigo_cuartel.trim(),
           superficie_ha: Number(form.superficie_ha),
-          cultivo: form.cultivo.trim() || "vid",
+          cultivo: "Vid",
           variedad: form.variedad.trim(),
+          sistema_riego: form.sistema_riego.trim() || null,
           sistema_productivo: form.sistema_productivo.trim() || null,
           sistema_conduccion: form.sistema_conduccion.trim() || null,
         });
@@ -217,8 +221,9 @@ export default function CuartelesAdmin() {
           detail.superficie_ha === undefined || detail.superficie_ha === null
             ? ""
             : String(detail.superficie_ha),
-        cultivo: detail.cultivo ?? "vid",
+        cultivo: "Vid",
         variedad: detail.variedad ?? "",
+        sistema_riego: detail.sistema_riego ?? "",
         sistema_productivo: detail.sistema_productivo ?? "",
         sistema_conduccion: detail.sistema_conduccion ?? "",
       });
@@ -448,6 +453,12 @@ export default function CuartelesAdmin() {
                               </div>
                               <div>
                                 <span className="font-semibold text-[color:var(--text-ink)]">
+                                  Sistema de riego:
+                                </span>{" "}
+                                {detail?.sistema_riego ?? "-"}
+                              </div>
+                              <div>
+                                <span className="font-semibold text-[color:var(--text-ink)]">
                                   Superficie:
                                 </span>{" "}
                                 {detail?.superficie_ha ?? "-"} ha
@@ -553,13 +564,11 @@ export default function CuartelesAdmin() {
                   />
                 <AppInput
                   label="Cultivo"
-                    value={form.cultivo}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, cultivo: e.target.value }))
-                    }
-                    placeholder="vid"
-                    uiSize="lg"
-                  />
+                  value="Vid"
+                  description="Cultivo fijo para este flujo."
+                  uiSize="lg"
+                  disabled
+                />
                 <AppInput
                   label="Variedad"
                     value={form.variedad}
@@ -567,6 +576,15 @@ export default function CuartelesAdmin() {
                       setForm((p) => ({ ...p, variedad: e.target.value }))
                     }
                     placeholder="Malbec"
+                    uiSize="lg"
+                  />
+                <AppInput
+                  label="Sistema de riego"
+                    value={form.sistema_riego}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, sistema_riego: e.target.value }))
+                    }
+                    placeholder="Goteo"
                     uiSize="lg"
                   />
                 <AppInput
