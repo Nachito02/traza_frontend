@@ -52,19 +52,19 @@ const Dashboard = () => {
       <div className="mx-auto w-full max-w-6xl">
         <AppCard as="section" padding="lg" className="mb-8 bg-[color:var(--surface-hero)] text-[color:var(--text-on-dark)]">
           <SectionIntro
-            title={<span className="text-3xl font-bold text-[color:var(--text-on-dark)]">Resumen operativo</span>}
+            title={<span className="text-3xl font-bold text-[color:var(--text-on-dark)]">Panel de administracion</span>}
             description="Vista general de la bodega activa, sus recursos y el estado de los procesos."
             className="[&>div>p]:text-[color:var(--text-on-dark-muted)]"
             actions={(
               <>
-                <AppButton type="button" variant="secondary" onClick={() => navigate("/trazabilidades/nueva")}>
-                  Nuevo proceso
-                </AppButton>
-                <AppButton type="button" variant="secondary" onClick={() => navigate("/trazabilidades")}>
-                  Ver procesos y etapas
+                <AppButton type="button" variant="secondary" onClick={() => navigate("/operacion/tareas")}>
+                  Ir a tareas
                 </AppButton>
                 <AppButton type="button" variant="secondary" onClick={() => navigate("/operacion")}>
                   Ir a Operación
+                </AppButton>
+                <AppButton type="button" variant="secondary" onClick={() => navigate("/progreso")}>
+                  Ver progreso
                 </AppButton>
               </>
             )}
@@ -91,7 +91,7 @@ const Dashboard = () => {
 
         {!activeBodegaId ? (
           <NoticeBanner tone="danger" className="p-6">
-            Seleccioná una bodega para ver datos de fincas, cuarteles y trazabilidades.
+            Seleccioná una bodega para ver datos de fincas, cuarteles y operación.
           </NoticeBanner>
         ) : (
           <div className="space-y-6">
@@ -101,7 +101,7 @@ const Dashboard = () => {
               header={(
                 <SectionIntro
                   title="Recursos principales"
-                  description="Accesos rápidos a la estructura base y a la trazabilidad activa."
+                  description="Accesos rápidos a la estructura base y al trabajo operativo diario."
                 />
               )}
             >
@@ -120,8 +120,8 @@ const Dashboard = () => {
                 <Link to="/fincas" className="block h-full">
                   <MetricCard label="Cuarteles" value={loading ? "…" : cuartelesCount} className={metricLinkClass} />
                 </Link>
-                <Link to="/trazabilidades" className="block h-full">
-                  <MetricCard label="Trazabilidades" value={loading ? "…" : trazabilidades.length} className={metricLinkClass} />
+                <Link to="/progreso" className="block h-full">
+                  <MetricCard label="Procesos" value={loading ? "…" : trazabilidades.length} className={metricLinkClass} />
                 </Link>
               </div>
             </AppCard>
@@ -157,18 +157,18 @@ const Dashboard = () => {
               header={(
                 <SectionIntro
                   title="Estado de procesos"
-                  description="Estado general de las trazabilidades y de las campañas abiertas."
+                  description="Estado general de los procesos operativos y de las campañas abiertas."
                 />
               )}
             >
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <Link to="/trazabilidades" className="block h-full">
+                <Link to="/progreso" className="block h-full">
                   <MetricCard label="En curso" value={stats.enCurso} className={metricLinkClass} />
                 </Link>
-                <Link to="/trazabilidades" className="block h-full">
+                <Link to="/progreso" className="block h-full">
                   <MetricCard label="Finalizadas / Certificadas" value={stats.finalizadas} className={metricLinkClass} />
                 </Link>
-                <Link to="/trazabilidades" className="block h-full">
+                <Link to="/progreso" className="block h-full">
                   <MetricCard label="Borrador" value={stats.borrador} className={metricLinkClass} />
                 </Link>
                 <Link to="/admin/campanias" className="block h-full">

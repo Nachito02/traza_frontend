@@ -30,6 +30,7 @@ const SetupCuarteles = () => {
     superficie_ha: "",
     cultivo: "Vid",
     variedad: "",
+    sistema_riego: "",
     sistema_productivo: "",
     sistema_conduccion: "",
   });
@@ -93,8 +94,9 @@ const SetupCuarteles = () => {
         fincaId: form.fincaId,
         codigo_cuartel: form.codigo_cuartel.trim(),
         superficie_ha: Number(form.superficie_ha),
-        cultivo: form.cultivo.trim(),
+        cultivo: "Vid",
         variedad: form.variedad.trim(),
+        sistema_riego: form.sistema_riego.trim() || null,
         sistema_productivo: form.sistema_productivo.trim() || null,
         sistema_conduccion: form.sistema_conduccion.trim() || null,
       });
@@ -105,6 +107,7 @@ const SetupCuarteles = () => {
         codigo_cuartel: "",
         superficie_ha: "",
         variedad: "",
+        sistema_riego: "",
         sistema_productivo: "",
         sistema_conduccion: "",
       }));
@@ -198,10 +201,11 @@ const SetupCuarteles = () => {
           <div className="grid gap-4 md:grid-cols-2">
             <AppInput
               label="Cultivo"
-                type="text"
-                uiSize="lg"
-                value={form.cultivo}
-                onChange={(e) => onChange("cultivo", e.target.value)}
+              type="text"
+              uiSize="lg"
+              value="Vid"
+              description="Cultivo fijo para este flujo."
+              disabled
             />
             <AppInput
               label="Variedad"
@@ -213,6 +217,14 @@ const SetupCuarteles = () => {
             />
           </div>
           <div className="grid gap-4 md:grid-cols-2">
+            <AppInput
+              label="Sistema de riego"
+              type="text"
+              uiSize="lg"
+              placeholder="Goteo"
+              value={form.sistema_riego}
+              onChange={(e) => onChange("sistema_riego", e.target.value)}
+            />
             <AppInput
               label="Sistema productivo"
                 type="text"

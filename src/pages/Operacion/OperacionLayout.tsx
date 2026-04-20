@@ -136,7 +136,7 @@ export default function OperacionLayout() {
               title="Operación"
               description={
                 useBodegaOperacion
-                  ? "Registro operativo de recepción, control, elaboración, fraccionamiento y trazabilidad."
+                  ? "Registro operativo de recepción, control, elaboración y fraccionamiento."
                   : "Gestión operativa de finca: asignación y seguimiento de tareas."
               }
               descriptionClassName="text-[color:var(--text-on-dark-muted)]"

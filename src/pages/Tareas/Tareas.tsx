@@ -985,7 +985,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
             padding="lg"
             header={(
               <div>
-                <h2 className="text-lg font-semibold text-text">Nuevo registro</h2>
+                <h2 className="text-lg font-semibold text-text">Nueva orden de trabajo</h2>
                 <p className="mt-1 text-xs text-text-secondary">
                   Usuario actual: {user?.nombre ?? user?.email ?? "Usuario"}
                 </p>
@@ -1151,7 +1151,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
             ) : null}
             <div className="mt-6">
               <AppButton type="button" onClick={() => void onCreate()} disabled={saving} loading={saving}>
-              {saving ? "Guardando..." : "Registrar tarea"}
+              {saving ? "Guardando..." : "Registrar orden de trabajo"}
               </AppButton>
             </div>
           </AppCard>
@@ -1231,7 +1231,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                             }
                           }}
                         >
-                          {isExpanded ? "Cerrar" : "Abrir tarea"}
+                          {isExpanded ? "Cerrar" : "Abrir orden de trabajo"}
                         </AppButton>
                       </div>
                     )}

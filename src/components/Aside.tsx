@@ -26,11 +26,11 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
   const access = resolveModuleAccess(user, activeBodegaId);
 
   const links = [
-    { to: "/dashboard", label: "Dashboard", icon: <LayoutDashboard /> },
-    { to: "/fincas", label: "Fincas", icon: <Map /> },
+    { to: "/dashboard", label: "Panel de administracion", icon: <LayoutDashboard /> },
     ...(access.canAccessBodega
       ? [{ to: "/bodega", label: "Bodega", icon: <Warehouse /> }]
       : []),
+    { to: "/fincas", label: "Fincas", icon: <Map /> },
     ...(access.canAccessOperacion
       ? [{ to: "/operacion", label: "Operacion", icon: <ClipboardPenLine /> }]
       : []),

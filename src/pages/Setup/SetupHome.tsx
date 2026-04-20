@@ -23,9 +23,9 @@ const steps = [
     to: "/setup/protocolos",
   },
   {
-    title: "Trazabilidades activas",
-    description: "Revisar trazabilidades en curso y su avance.",
-    to: "/trazabilidades",
+    title: "Ir a operación",
+    description: "Entrar al trabajo diario de tareas, recepción y seguimiento.",
+    to: "/operacion/tareas",
   },
 ];
 
@@ -35,7 +35,7 @@ const SetupHome = () => {
       <div className="mx-auto w-full max-w-5xl space-y-6">
         <SectionIntro
           title="Setup guiado"
-          description="Completá estos pasos para dejar lista la estructura base y empezar a operar trazabilidades."
+          description="Completá estos pasos para dejar lista la estructura base y empezar a operar tareas y procesos."
         />
 
         <div className="grid gap-4 md:grid-cols-2">
