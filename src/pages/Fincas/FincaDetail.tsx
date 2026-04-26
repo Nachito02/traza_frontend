@@ -227,7 +227,7 @@ const FincaDetail = () => {
                       "rounded-full border px-3 py-1 text-xs font-semibold transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)]",
                       isActive
                         ? "border-[color:var(--accent-primary)] bg-[color:var(--accent-primary)] text-[color:var(--text-primary)]"
-                        : "border-[color:var(--border-default)] bg-[color:var(--surface-soft)] text-[color:var(--accent-primary)] hover:bg-white",
+                        : "border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] text-[color:var(--text-on-dark)] hover:border-[color:var(--border-default)] hover:bg-[color:var(--action-secondary-hover)]",
                     ].join(" ")}
                   >
                     {cuartel.codigo_cuartel ?? "Cuartel"}
@@ -285,7 +285,7 @@ const FincaDetail = () => {
                             <button
                               type="button"
                               onClick={() => void onToggleCuartelDetail(cuartelId)}
-                              className="cursor-pointer rounded-[var(--radius-md)] border border-[color:var(--border-default)] px-2 py-1 text-xs font-semibold text-[color:var(--accent-primary)] transition hover:bg-white"
+                              className="cursor-pointer rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] px-2 py-1 text-xs font-semibold text-[color:var(--text-on-dark)] transition hover:border-[color:var(--border-default)] hover:bg-[color:var(--action-secondary-hover)]"
                             >
                               {isExpanded ? "Ocultar detalle" : "Ver detalle"}
                             </button>
@@ -298,7 +298,7 @@ const FincaDetail = () => {
                           </div>
 
                           {isExpanded ? (
-                            <div className="mt-3 rounded-[var(--radius-xl)] border border-[color:var(--border-default)] bg-white px-3 py-3 text-xs text-[color:var(--text-ink-muted)]">
+                            <div className="mt-3 rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-3 text-xs text-[color:var(--text-on-dark-muted)]">
                               {isLoadingDetail ? (
                                 <div>Cargando detalle...</div>
                               ) : detailError ? (

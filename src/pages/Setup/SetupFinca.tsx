@@ -259,7 +259,7 @@ const SetupFinca = () => {
                     <option value="proveedor_tercero">Proveedor tercero</option>
                   </AppSelect>
 
-                  <label className="flex min-h-11 items-center gap-2 rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-white px-4 py-2 text-sm text-[color:var(--text-ink)]">
+                  <label className="flex min-h-11 items-center gap-2 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-4 py-2 text-sm text-[color:var(--text-on-dark)]">
                     <input
                       type="checkbox"
                       checked={form.vinculo_activo}

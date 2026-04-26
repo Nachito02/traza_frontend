@@ -51,7 +51,7 @@ function estadoBadge(estado: string | undefined) {
       );
     default:
       return (
-        <span className="rounded-full border border-[color:var(--border-default)] bg-white px-2 py-0.5 text-[10px] font-semibold text-[color:var(--text-ink-muted)]">
+        <span className="rounded-full border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-2 py-0.5 text-[10px] font-semibold text-[color:var(--text-on-dark-muted)]">
           Pendiente
         </span>
       );
@@ -92,7 +92,7 @@ function ProcesoRow({ proceso }: { proceso: ProcesoProgreso }) {
     <AppCard as="article" tone="soft" padding="sm" className="overflow-hidden">
       <button
         type="button"
-        className="flex w-full items-center justify-between gap-3 px-1 py-1 text-left"
+        className="flex w-full items-center justify-between gap-3 rounded-[var(--radius-md)] border border-transparent px-2 py-2 text-left transition hover:border-[color:var(--border-shell)] hover:bg-[color:var(--action-ghost-bg)]"
         onClick={() => setOpen((v) => !v)}
       >
         <div className="flex min-w-0 items-center gap-2">
@@ -123,7 +123,7 @@ function ProcesoRow({ proceso }: { proceso: ProcesoProgreso }) {
                 return (
                   <div
                     key={tareaId}
-                    className="flex items-center justify-between gap-2 rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-white px-3 py-2"
+                    className="flex items-center justify-between gap-2 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-2"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-xs font-medium text-[color:var(--text-ink)]">{tarea.titulo}</p>
@@ -270,7 +270,7 @@ export default function ProgresoPage() {
               className="text-[color:var(--text-on-dark)]"
               descriptionClassName="text-[color:var(--text-on-dark-muted)]"
               actions={(
-                <span className="rounded-full border border-white/15 bg-white/85 px-3 py-1 text-xs font-semibold text-[color:var(--accent-primary)]">
+                <span className="rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] px-3 py-1 text-xs font-semibold text-[color:var(--text-on-dark)]">
                   {pctCompleto}% completado
                 </span>
               )}

@@ -380,7 +380,7 @@ export default function FincasAdmin() {
                     <option value="propia">Propia</option>
                     <option value="proveedor_tercero">Proveedor tercero</option>
                 </AppSelect>
-                <label className="flex items-center gap-2 rounded-xl border border-[color:var(--border-default)] bg-white px-3 py-2 text-sm text-[color:var(--text-ink)] md:col-span-2">
+                <label className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-2 text-sm text-[color:var(--text-on-dark)] md:col-span-2">
                   <input
                     type="checkbox"
                     checked={vinculoForm.activo}

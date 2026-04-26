@@ -271,7 +271,7 @@ const Integraciones = () => {
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="rounded-full border border-[color:var(--border-default)] bg-white px-2 py-0.5 text-xs font-semibold text-[color:var(--accent-primary)]">
+                        <span className="rounded-full border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-2 py-0.5 text-xs font-semibold text-[color:var(--accent-secondary)]">
                           Bot
                         </span>
                         <span className="text-sm font-semibold text-[color:var(--text-ink)]">{bot.nombre}</span>
@@ -288,13 +288,13 @@ const Integraciones = () => {
                       </div>
                       <div className="mt-0.5 text-xs text-[color:var(--text-ink-muted)]">{bot.email ?? "Sin email"}</div>
                     </div>
-                    <div className="flex items-center gap-1 rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-white px-2 py-1">
+                    <div className="flex items-center gap-1 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-2 py-1">
                       <span className="select-all font-mono text-xs text-[color:var(--text-ink-muted)]">{bot.id}</span>
                       <button
                         type="button"
                         title="Copiar ID"
                         onClick={() => void navigator.clipboard.writeText(bot.id).then(() => setBotNotice("ID copiado."))}
-                        className="ml-1 text-xs text-[color:var(--accent-secondary)] transition hover:text-[color:var(--accent-primary)]"
+                        className="ml-1 rounded-[var(--radius-sm)] border border-transparent px-2 py-1 text-xs font-semibold text-[color:var(--text-on-dark)] transition hover:border-[color:var(--border-default)] hover:bg-[color:var(--action-secondary-hover)]"
                       >
                         copiar
                       </button>
@@ -368,11 +368,11 @@ const Integraciones = () => {
               {/* Scopes */}
               <div>
                 <label className="mb-1 block text-xs text-[color:var(--text-accent)]">Permisos (scopes)</label>
-                <div className="flex flex-wrap gap-3 rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-white p-2">
+                <div className="flex flex-wrap gap-3 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] p-2">
                   {BOT_SCOPES.map((scope) => {
                     const checked = delForm.scopes.includes(scope);
                     return (
-                      <label key={scope} className="flex items-center gap-2 text-xs text-[color:var(--text-ink)]">
+                      <label key={scope} className="flex items-center gap-2 text-xs text-[color:var(--text-on-dark)]">
                         <input
                           type="checkbox"
                           checked={checked}
@@ -387,7 +387,7 @@ const Integraciones = () => {
                         />
                         <span>
                           <span className="font-mono text-[10px] text-[color:var(--accent-secondary)]">{scope}</span>
-                          <span className="block text-[color:var(--text-ink-muted)]">{BOT_SCOPE_LABELS[scope]}</span>
+                          <span className="block text-[color:var(--text-on-dark-muted)]">{BOT_SCOPE_LABELS[scope]}</span>
                         </span>
                       </label>
                     );
@@ -446,7 +446,7 @@ const Integraciones = () => {
                         {d.scopes.map((s) => (
                           <span
                             key={s}
-                            className="rounded-[var(--radius-sm)] border border-[color:var(--border-default)] bg-white px-1.5 py-0.5 font-mono text-[10px] text-[color:var(--text-ink-muted)]"
+                            className="rounded-[var(--radius-sm)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-1.5 py-0.5 font-mono text-[10px] text-[color:var(--text-on-dark-muted)]"
                           >
                             {s}
                           </span>

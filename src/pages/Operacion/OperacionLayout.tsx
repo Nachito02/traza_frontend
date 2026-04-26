@@ -144,13 +144,13 @@ export default function OperacionLayout() {
                 <div className="flex flex-wrap gap-2">
                   <Link
                     to="/tareas"
-                    className="inline-flex min-h-9 items-center justify-center rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-[color:var(--action-ghost-bg)] px-3 py-2 text-xs font-semibold text-[color:var(--text-ink)] shadow-[var(--shadow-inset-soft)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)] hover:border-[color:var(--accent-secondary)] hover:bg-[color:var(--action-ghost-hover)]"
+                    className="inline-flex min-h-9 items-center justify-center rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] px-3 py-2 text-xs font-semibold text-[color:var(--text-on-dark)] shadow-[var(--shadow-inset-soft)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)] hover:border-[color:var(--border-default)] hover:bg-[color:var(--action-secondary-hover)]"
                   >
                     Ver tareas en curso
                   </Link>
                   <Link
                     to="/progreso"
-                    className="inline-flex min-h-9 items-center justify-center rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-[color:var(--action-ghost-bg)] px-3 py-2 text-xs font-semibold text-[color:var(--text-ink)] shadow-[var(--shadow-inset-soft)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)] hover:border-[color:var(--accent-secondary)] hover:bg-[color:var(--action-ghost-hover)]"
+                    className="inline-flex min-h-9 items-center justify-center rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] px-3 py-2 text-xs font-semibold text-[color:var(--text-on-dark)] shadow-[var(--shadow-inset-soft)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)] hover:border-[color:var(--border-default)] hover:bg-[color:var(--action-secondary-hover)]"
                   >
                     Ver progreso
                   </Link>
@@ -193,8 +193,8 @@ export default function OperacionLayout() {
                   [
                     "inline-flex min-h-10 items-center justify-center rounded-[var(--radius-md)] border px-3 py-2 text-xs font-semibold shadow-[var(--shadow-inset-soft)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)]",
                     isLinkActive(link.to)
-                      ? "border-[color:var(--accent-secondary)] bg-[color:var(--surface-base)] text-[color:var(--accent-primary)]"
-                      : "border-[color:var(--border-default)] bg-white/90 text-[color:var(--text-ink-muted)] hover:border-[color:var(--accent-secondary)] hover:bg-[color:var(--surface-base)] hover:text-[color:var(--accent-primary)]",
+                      ? "border-[color:var(--border-default)] bg-[color:var(--action-primary-bg)] text-[color:var(--text-primary)]"
+                      : "border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] text-[color:var(--text-on-dark-muted)] hover:border-[color:var(--border-default)] hover:bg-[color:var(--action-secondary-hover)] hover:text-[color:var(--text-on-dark)]",
                   ].join(" ")
                 }
               >
@@ -213,8 +213,8 @@ export default function OperacionLayout() {
                     [
                       "inline-flex min-h-8 items-center justify-center rounded-full border px-3 py-1 text-[11px] font-semibold transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)]",
                       isLinkActive(link.to)
-                        ? "border-white/20 bg-white/90 text-[color:var(--accent-primary)]"
-                        : "border-white/15 bg-white/5 text-[color:var(--text-on-dark-muted)] hover:border-white/25 hover:bg-white/10 hover:text-[color:var(--text-on-dark)]",
+                        ? "border-[color:var(--border-default)] bg-[color:var(--action-primary-bg)] text-[color:var(--text-primary)]"
+                        : "border-[color:var(--border-shell)] bg-[color:var(--action-ghost-bg)] text-[color:var(--text-on-dark-muted)] hover:border-[color:var(--border-default)] hover:bg-[color:var(--action-ghost-hover)] hover:text-[color:var(--text-on-dark)]",
                     ].join(" ")
                   }
                 >

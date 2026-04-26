@@ -1241,7 +1241,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                       const catalogId = catalogTaskId ?? (eventoTipo ? getMatchedCatalogTaskId(task.titulo, eventoTipo) : null);
                       const eventoConfig = eventoTipo ? EVENTO_CONFIG[eventoTipo] : null;
                       return (
-                        <div className="rounded-[var(--radius-lg)] border border-[color:var(--border-default)] bg-white/90 p-4 shadow-[var(--shadow-inset-soft)]">
+                        <div className="rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] p-4 shadow-[var(--shadow-inset-soft)]">
                           {catalogId ? (
                             renderEmbeddedOperacionForm(catalogId)
                           ) : eventoConfig ? (
@@ -1260,7 +1260,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                                   {expandedTaskEntries.map((entry, i) => (
                                     <div
                                       key={entry.entradaId ?? i}
-                                      className="mt-1 rounded-[var(--radius-sm)] bg-white px-2 py-1 text-[11px] text-[color:var(--feedback-success-text)]"
+                                      className="mt-1 rounded-[var(--radius-sm)] border border-[color:var(--feedback-success-border)] bg-[color:var(--feedback-success-bg)] px-2 py-1 text-[11px] text-[color:var(--feedback-success-text)]"
                                     >
                                       #{i + 1} · {new Date(entry.fecha).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
                                       {entry.creadoPor?.nombre ? ` · ${entry.creadoPor.nombre}` : ""}

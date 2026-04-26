@@ -1,20 +1,36 @@
+import { Avatar, Menu as MantineMenu } from "@mantine/core";
 import { useEffect, useMemo } from "react";
-import { LogOut, Menu } from "lucide-react";
-import { AppButton, AppSelect } from "./ui";
+import { ChevronDown, LogOut, Menu, Settings, Shield, UserCircle2 } from "lucide-react";
+import { AppSelect } from "./ui";
 import { useAuthStore } from "../store/authStore";
 import { useCampaniaStore } from "../store/campaniaStore";
+import avatarGeneric from "../assets/avatar-generic.svg";
 
 type TopbarProps = {
   onOpenMenu?: () => void;
 };
+
+type ContextFieldProps = {
+  label: string;
+  children: React.ReactNode;
+};
+
+const ContextField = ({ label, children }: ContextFieldProps) => (
+  <div className="min-w-[170px] rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-white/5 px-3 py-2.5">
+    <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-[color:var(--text-on-dark-muted)]">
+      {label}
+    </div>
+    {children}
+  </div>
+);
 
 const Topbar = ({ onOpenMenu }: TopbarProps) => {
   const user = useAuthStore((state) => state.user);
   const bodegas = useAuthStore((state) => state.bodegas);
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const setActiveBodega = useAuthStore((state) => state.setActiveBodega);
-  const logout = useAuthStore((state) => state.logout);
   const isLoading = useAuthStore((state) => state.isLoading);
+  const logout = useAuthStore((state) => state.logout);
 
   const campanias = useCampaniaStore((state) => state.campanias);
   const activeCampaniaId = useCampaniaStore((state) => state.activeCampaniaId);
@@ -58,24 +74,32 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
   }, [activeBodegaId]);
 
   return (
-    <header className="w-full bg-[color:var(--surface-base)] px-6 text-[color:var(--text-on-dark)]">
-      <div className="mx-auto flex w-full items-center justify-between py-4">
-        <div className="flex items-center gap-3">
+    <header className="sticky top-0 z-30 border-b border-[color:var(--border-shell)] bg-[color:var(--surface-shell)]/95 px-4 text-[color:var(--text-on-dark)] backdrop-blur-xl md:px-6">
+      <div className="flex w-full items-center justify-between gap-4 py-4">
+        <div className="flex min-w-0 items-center gap-3">
           <button
             type="button"
             onClick={onOpenMenu}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-white/10 text-[color:var(--text-on-dark)] transition hover:bg-white/15 md:hidden"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-white/10 text-[color:var(--text-on-dark)] transition hover:border-[color:var(--border-default)] hover:bg-white/15 md:hidden"
             aria-label="Abrir menú"
           >
             <Menu className="h-5 w-5" />
           </button>
+
+          <div className="hidden min-w-0 md:block">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[color:var(--text-on-dark-muted)]">
+              Traza workspace
+            </div>
+            <div className="mt-1 truncate text-base font-semibold text-[color:var(--text-on-dark)]">
+              Centro de control operativo
+            </div>
+          </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="hidden items-center gap-4 text-xs text-[color:var(--text-on-dark-muted)] md:flex">
-            <div className="text-[color:var(--text-on-dark)]">Bodega:</div>
+          <div className="hidden items-center gap-3 md:flex">
             {canSwitchBodega ? (
-              <div className="min-w-[180px]">
+              <ContextField label="Bodega">
                 <AppSelect
                   value={String(activeBodegaId ?? "")}
                   onChange={(event) => setActiveBodega(event.target.value)}
@@ -88,14 +112,15 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
                     </option>
                   ))}
                 </AppSelect>
-              </div>
+              </ContextField>
             ) : (
-              <div className="font-medium text-[color:var(--text-on-dark)]">
-                {activeBodega?.nombre ?? "Sin seleccionar"}
-              </div>
+              <ContextField label="Bodega">
+                <div className="min-h-9 text-sm font-medium text-[color:var(--text-on-dark)]">
+                  {activeBodega?.nombre ?? "Sin seleccionar"}
+                </div>
+              </ContextField>
             )}
-            <div>
-              <span className="text-[color:var(--text-on-dark)]">Campaña:</span>{" "}
+            <ContextField label="Campaña">
               {campanias.length > 0 ? (
                 <AppSelect
                   value={activeCampaniaId}
@@ -128,28 +153,133 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
                   })}
                 </AppSelect>
               ) : (
-                <span className="font-medium text-[color:var(--text-on-dark)]">
+                <div className="min-h-9 text-sm font-medium text-[color:var(--text-on-dark)]">
                   {activeCampania?.nombre ?? "Sin campaña activa"}
-                </span>
+                </div>
               )}
-            </div>
-            <div>
-              <span className="text-[color:var(--text-on-dark)]">Usuario:</span>{" "}
-              <span className="font-medium text-[color:var(--text-on-dark)]">
-                {user?.nombre ?? user?.email ?? "Usuario"}
-              </span>
-            </div>
+            </ContextField>
           </div>
-          <AppButton
-            type="button"
-            onClick={() => void logout()}
-            disabled={isLoading}
-            variant="secondary"
-            size="sm"
-            leftSection={<LogOut className="h-4 w-4" />}
+          <MantineMenu
+            position="bottom-end"
+            offset={12}
+            width={260}
+            shadow="md"
+            withArrow
+            arrowPosition="center"
+            styles={{
+              dropdown: {
+                background: "var(--surface-shell)",
+                borderColor: "var(--border-shell)",
+                color: "var(--text-on-dark)",
+              },
+              arrow: {
+                background: "var(--surface-shell)",
+                borderColor: "var(--border-shell)",
+              },
+              item: {
+                background: "transparent",
+                color: "var(--text-on-dark)",
+                border: "1px solid transparent",
+                "&:hover": {
+                  background: "rgba(255, 255, 255, 0.05)",
+                  borderColor: "var(--border-shell)",
+                  color: "var(--text-on-dark)",
+                },
+                "&[data-hovered]": {
+                  background: "rgba(255, 255, 255, 0.05)",
+                  borderColor: "var(--border-shell)",
+                  color: "var(--text-on-dark)",
+                },
+                "&[data-disabled]": {
+                  color: "var(--text-on-dark-muted)",
+                  opacity: 0.55,
+                },
+                "&[data-disabled]:hover": {
+                  background: "transparent",
+                  borderColor: "transparent",
+                },
+              },
+              itemLabel: {
+                color: "var(--text-on-dark)",
+              },
+              itemSection: {
+                color: "var(--text-on-dark-muted)",
+              },
+              label: {
+                color: "var(--text-on-dark-muted)",
+              },
+              divider: {
+                borderColor: "var(--border-shell)",
+              },
+            }}
+            classNames={{
+              dropdown:
+                "overflow-hidden rounded-[var(--radius-xl)] border border-[color:var(--border-shell)] bg-[color:var(--surface-shell)] p-1.5 text-[color:var(--text-on-dark)] shadow-[var(--shadow-raised)]",
+              item:
+                "rounded-[var(--radius-lg)] px-3 py-2 text-sm transition-all duration-[var(--motion-fast)] data-[disabled=true]:cursor-not-allowed data-[disabled=true]:opacity-55",
+              label:
+                "px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-[color:var(--text-on-dark-muted)]",
+              divider: "my-1 border-[color:var(--border-shell)]",
+            }}
           >
-            Salir
-          </AppButton>
+            <MantineMenu.Target>
+              <button
+                type="button"
+                disabled={isLoading}
+                className="group inline-flex items-center gap-3 rounded-[var(--radius-xl)] border border-[color:var(--border-shell)] bg-[color:var(--surface-shell-raised)] px-2.5 py-2 text-left text-[color:var(--text-on-dark)] shadow-[var(--shadow-soft)] transition hover:border-[color:var(--border-default)] hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-60"
+                aria-label="Abrir menú de usuario"
+              >
+                <Avatar
+                  src={avatarGeneric}
+                  alt="Avatar genérico"
+                  radius="xl"
+                  size={40}
+                  className="shrink-0 border border-[color:var(--border-shell)] bg-[color:var(--surface-base)]"
+                />
+                <div className="hidden min-w-0 md:block">
+                  <div className="truncate text-sm font-semibold text-[color:var(--text-on-dark)]">
+                    {user?.nombre ?? "Usuario"}
+                  </div>
+                  <div className="truncate text-xs text-[color:var(--text-on-dark-muted)]">
+                    {user?.email ?? "Sin email"}
+                  </div>
+                </div>
+                <ChevronDown className="h-4 w-4 text-[color:var(--text-on-dark-muted)] transition group-hover:text-[color:var(--text-on-dark)]" />
+              </button>
+            </MantineMenu.Target>
+
+            <MantineMenu.Dropdown>
+              <div className="rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-shell-raised)] px-3 py-3">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--text-on-dark-muted)]">
+                  Cuenta
+                </div>
+                <div className="mt-2 text-sm font-semibold text-[color:var(--text-on-dark)]">
+                  {user?.nombre ?? "Usuario"}
+                </div>
+                <div className="mt-1 truncate text-xs text-[color:var(--text-on-dark-muted)]">
+                  {user?.email ?? "Sin email"}
+                </div>
+              </div>
+
+              <MantineMenu.Label>Acciones</MantineMenu.Label>
+              <MantineMenu.Item leftSection={<UserCircle2 className="h-4 w-4" />} disabled>
+                Perfil
+              </MantineMenu.Item>
+              <MantineMenu.Item leftSection={<Settings className="h-4 w-4" />} disabled>
+                User settings
+              </MantineMenu.Item>
+              <MantineMenu.Item leftSection={<Shield className="h-4 w-4" />} disabled>
+                Security settings
+              </MantineMenu.Item>
+              <MantineMenu.Divider />
+              <MantineMenu.Item
+                leftSection={<LogOut className="h-4 w-4" />}
+                onClick={() => void logout()}
+              >
+                Salir
+              </MantineMenu.Item>
+            </MantineMenu.Dropdown>
+          </MantineMenu>
         </div>
       </div>
     </header>

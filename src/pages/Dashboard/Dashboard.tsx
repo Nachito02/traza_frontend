@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { AppButton, AppCard, MetricCard, NoticeBanner, SectionIntro } from "../../components/ui";
+import { Link } from "react-router-dom";
+import { AppCard, MetricCard, NoticeBanner, SectionIntro } from "../../components/ui";
 import { useFincasStore } from "../../features/fincas/store";
 import { resolveModuleAccess } from "../../lib/permissions";
 import { useAuthStore } from "../../store/authStore";
@@ -14,7 +14,6 @@ const Dashboard = () => {
   const fincasLoading = useFincasStore((state) => state.loading);
   const loadFincas = useFincasStore((state) => state.loadFincas);
 
-  const navigate = useNavigate();
   const activeBodega = bodegas.find((bodega) => bodega.bodega_id === String(activeBodegaId));
   const access = resolveModuleAccess(user, activeBodegaId);
 
@@ -43,13 +42,11 @@ const Dashboard = () => {
   }, [campanias, trazabilidades]);
 
   const metricLinkClass =
-    "rounded-[var(--radius-lg)] border border-[color:var(--border-default)] bg-[color:var(--surface-soft)] p-4 text-[color:var(--text-ink)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)] hover:border-[color:var(--accent-secondary)] hover:bg-white hover:-translate-y-0.5 hover:shadow-[var(--shadow-soft)]";
-  const heroMetricClass =
-    "rounded-[var(--radius-lg)] border border-white/15 bg-white/95 px-4 py-3 shadow-[var(--shadow-inset-soft)]";
-
+    "rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] p-4 text-[color:var(--text-on-dark)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)] hover:border-[color:var(--border-default)] hover:bg-[color:var(--surface-soft)] hover:-translate-y-0.5 hover:shadow-[var(--shadow-soft)]";
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-6xl">
+        {/*
         <AppCard as="section" padding="lg" className="mb-8 bg-[color:var(--surface-hero)] text-[color:var(--text-on-dark)]">
           <SectionIntro
             title={<span className="text-3xl font-bold text-[color:var(--text-on-dark)]">Panel de administracion</span>}
@@ -88,6 +85,7 @@ const Dashboard = () => {
             </div>
           </div>
         </AppCard>
+        */}
 
         {!activeBodegaId ? (
           <NoticeBanner tone="danger" className="p-6">

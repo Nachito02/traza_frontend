@@ -18,14 +18,16 @@ function joinClasses(...classes: Array<string | false | null | undefined>) {
 }
 
 const sizeClasses: Record<AppTextareaSize, string> = {
-  sm: "min-h-20 text-xs",
-  md: "min-h-24 text-sm",
-  lg: "min-h-28 text-sm",
+  sm: "min-h-24 text-sm",
+  md: "min-h-28 text-base",
+  lg: "min-h-32 text-base",
 };
 
 const fieldToneClasses = {
-  default: "border-[color:var(--border-default)] focus:border-[color:var(--accent-primary)]",
-  error: "border-[color:var(--feedback-danger-border)] focus:border-[color:var(--feedback-danger)]",
+  default:
+    "border-[color:var(--field-border)] hover:border-[color:var(--field-border-hover)] focus:border-[color:var(--field-border-focus)]",
+  error:
+    "border-[color:var(--field-error)] bg-[color:var(--field-error-bg)] focus:border-[color:var(--field-error)]",
 } as const;
 
 const AppTextarea = forwardRef<HTMLTextAreaElement, AppTextareaProps>(
@@ -53,16 +55,38 @@ const AppTextarea = forwardRef<HTMLTextAreaElement, AppTextareaProps>(
           error={error}
           disabled={disabled}
           className={className}
+          styles={{
+            label: {
+              color: "var(--field-label)",
+              fontSize: "0.95rem",
+              fontWeight: 500,
+            },
+            description: {
+              color: "var(--text-on-dark-muted)",
+            },
+            error: {
+              color: "var(--field-error)",
+              fontSize: "0.95rem",
+              fontWeight: 500,
+            },
+            input: {
+              background: error ? "var(--field-error-bg)" : "var(--field-bg)",
+              borderColor: error ? "var(--field-error)" : "var(--field-border)",
+              color: "var(--field-text)",
+              borderRadius: "var(--radius-sm)",
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)",
+            },
+          }}
           classNames={{
-            root: "block space-y-2",
-            label: "block text-xs font-semibold text-[color:var(--text-accent)]",
-            description: "block text-xs text-[color:var(--text-ink-muted)]",
-            error: "block text-xs text-[color:var(--feedback-danger-text)]",
+            root: "block space-y-2.5",
+            label: "block text-sm font-medium text-[color:var(--field-label)]",
+            description: "block text-xs text-[color:var(--text-on-dark-muted)]",
+            error: "block text-sm font-medium text-[color:var(--field-error)]",
             input: joinClasses(
-              "w-full rounded-[var(--radius-md)] border bg-white/95 px-3 text-[color:var(--text-ink)] outline-none transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)] placeholder:text-[color:var(--text-ink-muted)] focus:bg-white disabled:cursor-not-allowed disabled:opacity-60",
+              "w-full rounded-[var(--radius-sm)] border bg-[color:var(--field-bg)] px-4 font-medium text-[color:var(--field-text)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] outline-none transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)] placeholder:text-[color:var(--field-placeholder)] hover:bg-[color:var(--field-bg-hover)] focus:bg-[color:var(--field-bg-focus)] focus:shadow-[0_0_0_3px_rgba(78,147,183,0.12)] disabled:cursor-not-allowed disabled:opacity-60",
               error ? fieldToneClasses.error : fieldToneClasses.default,
-              resolvedSize === "lg" && "px-4 py-3",
-              resolvedSize !== "lg" && "py-2",
+              resolvedSize === "lg" && "py-4",
+              resolvedSize !== "lg" && "py-3",
               sizeClasses[resolvedSize],
               textareaClassName,
             ),

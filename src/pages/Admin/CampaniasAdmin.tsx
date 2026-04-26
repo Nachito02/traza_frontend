@@ -291,7 +291,7 @@ export default function CampaniasAdmin() {
                       </div>
 
                       {isExpanded ? (
-                        <div className="mt-2 rounded border border-[color:var(--border-default)] bg-white px-3 py-2 text-xs text-[color:var(--text-ink-muted)]">
+                        <div className="mt-2 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-2 text-xs text-[color:var(--text-on-dark-muted)]">
                           {isLoadingDetail ? (
                             <div>Cargando detalle...</div>
                           ) : detailError ? (

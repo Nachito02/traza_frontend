@@ -191,16 +191,16 @@ export default function BodegaVasijasPage() {
                       <div className="mt-2 text-[11px] text-[color:var(--accent-primary)]/80">
                         Gestioná la vasija y su información base
                       </div>
-                      <div className="mt-3 rounded border border-[color:var(--border-default)] bg-white px-3 py-2 text-xs text-[color:var(--text-ink-muted)]">
+                      <div className="mt-3 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-2 text-xs text-[color:var(--text-on-dark-muted)]">
                         <div className="grid gap-1">
                           <div>
-                            <span className="font-semibold text-[color:var(--text-ink)]">
+                            <span className="font-semibold text-[color:var(--text-on-dark)]">
                               Capacidad:
                             </span>{" "}
                             {capacidad}
                           </div>
                           <div>
-                            <span className="font-semibold text-[color:var(--text-ink)]">
+                            <span className="font-semibold text-[color:var(--text-on-dark)]">
                               Estado:
                             </span>{" "}
                             {estado}

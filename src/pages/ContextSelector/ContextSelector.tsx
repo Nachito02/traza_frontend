@@ -35,13 +35,13 @@ const ContextSelector = () => {
                   setActiveBodega(bodega.bodega_id);
                   navigate("/dashboard", { replace: true });
                 }}
-                className="group rounded-[var(--radius-xl)] text-left transition"
+                className="group rounded-[var(--radius-lg)] text-left transition"
               >
                 <AppCard
                   as="article"
                   tone="interactive"
                   padding="lg"
-                  className="h-full bg-white/90 shadow-[var(--shadow-soft)]"
+                  className="h-full shadow-[var(--shadow-soft)]"
                 >
                   <div className="text-lg font-semibold text-[color:var(--text-ink)]">
                     {bodega.nombre}

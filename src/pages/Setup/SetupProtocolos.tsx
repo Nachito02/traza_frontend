@@ -131,7 +131,7 @@ const SetupProtocolos = () => {
                     className={`flex cursor-pointer items-start gap-3 rounded-[var(--radius-lg)] border p-4 text-sm transition ${
                       selected === id
                         ? "border-[color:var(--accent-secondary)] bg-[color:var(--surface-muted)]"
-                        : "border-[color:var(--border-default)] bg-white hover:border-[color:var(--accent-secondary)] hover:bg-[color:var(--surface-soft)]"
+                        : "border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] hover:border-[color:var(--border-default)] hover:bg-[color:var(--action-secondary-hover)]"
                     }`}
                   >
                     <input

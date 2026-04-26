@@ -388,12 +388,12 @@ export default function CuartelesAdmin() {
                       </div>
 
                       <div className="mt-3 grid gap-2 text-xs text-[color:var(--text-ink-muted)] md:grid-cols-2">
-                        <div className="rounded-lg border border-[color:var(--border-default)] bg-white/70 px-3 py-2">
-                          <span className="font-semibold text-[color:var(--text-ink)]">Variedad:</span>{" "}
+                        <div className="rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-2">
+                          <span className="font-semibold text-[color:var(--text-on-dark)]">Variedad:</span>{" "}
                           {item.variedad || "-"}
                         </div>
-                        <div className="rounded-lg border border-[color:var(--border-default)] bg-white/70 px-3 py-2">
-                          <span className="font-semibold text-[color:var(--text-ink)]">Superficie:</span>{" "}
+                        <div className="rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-2">
+                          <span className="font-semibold text-[color:var(--text-on-dark)]">Superficie:</span>{" "}
                           {item.superficie_ha ?? "-"} ha
                         </div>
                       </div>
@@ -426,7 +426,7 @@ export default function CuartelesAdmin() {
                       </div>
 
                       {isExpanded ? (
-                        <div className="mt-3 rounded-xl border border-[color:var(--border-default)] bg-white px-3 py-3 text-xs text-[color:var(--text-ink-muted)]">
+                        <div className="mt-3 rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-3 text-xs text-[color:var(--text-on-dark-muted)]">
                           {isLoadingDetail ? (
                             <div>Cargando detalle...</div>
                           ) : detailError ? (

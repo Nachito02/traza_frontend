@@ -46,12 +46,20 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
   ];
 
   return (
-    <aside className={`bg-[color:var(--surface-base)] p-4 text-[color:var(--text-on-dark)] shadow-sm ${className}`}>
-      <div className="mb-4 flex items-center gap-2 rounded-lg bg-[color:var(--surface-hero)] px-2 py-2">
-
-        <img src={trazaLogo} alt="Traza" className="h-7 w-auto object-contain" />
+    <aside
+      className={`flex h-full flex-col border-r border-[color:var(--border-shell)] bg-[color:var(--surface-shell)] px-4 py-5 text-[color:var(--text-on-dark)] ${className}`}
+    >
+      <div className="mb-6 flex items-center gap-2 rounded-[var(--radius-xl)] border border-[color:var(--border-shell)] bg-[color:var(--surface-shell-raised)] px-3 py-3 shadow-[var(--shadow-soft)]">
+        <img src={trazaLogo} alt="Traza" className="h-8 w-auto object-contain" />
       </div>
-      <nav className="space-y-2">
+
+      <div className="mb-3 px-2">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[color:var(--text-on-dark-muted)]">
+          Centro operativo
+        </p>
+      </div>
+
+      <nav className="space-y-1.5">
         {links.map((link) => (
           <NavLink
             key={link.to}
@@ -59,24 +67,65 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
             onClick={onNavigate}
             className={({ isActive }) =>
               [
-                "block rounded-lg px-3 py-2 text-sm transition-colors",
+                "group block rounded-[var(--radius-lg)] border px-3 py-3 text-sm transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)]",
                 isActive
-                  ? "bg-[color:var(--accent-primary)] text-[color:var(--text-primary)]"
-                  : "text-[color:var(--text-on-dark)] hover:bg-white/10",
+                  ? "border-[color:var(--border-default)] bg-[linear-gradient(135deg,rgba(78,147,183,0.22),rgba(18,43,58,0.92))] text-[color:var(--text-on-dark)] shadow-[var(--shadow-soft)]"
+                  : "border-transparent text-[color:var(--text-on-dark-muted)] hover:border-[color:var(--border-shell)] hover:bg-white/5 hover:text-[color:var(--text-on-dark)]",
               ].join(" ")
             }
           >
-            <div className="flex items-center gap-2">{link.icon}{link.label}</div>
+            {({ isActive }) => (
+              <div className="flex items-center gap-3">
+                <span
+                  className={[
+                    "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] border transition-all",
+                    isActive
+                      ? "border-[color:var(--border-default)] bg-white/10 text-[color:var(--accent-secondary)]"
+                      : "border-[color:transparent] bg-white/5 text-[color:var(--text-on-dark-muted)] group-hover:border-[color:var(--border-shell)] group-hover:text-[color:var(--text-on-dark)]",
+                  ].join(" ")}
+                >
+                  {link.icon}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-medium">{link.label}</div>
+                </div>
+                <span
+                  className={[
+                    "h-2 w-2 rounded-full transition-all",
+                    isActive ? "bg-[color:var(--accent-secondary)]" : "bg-transparent",
+                  ].join(" ")}
+                />
+              </div>
+            )}
           </NavLink>
         ))}
         <div
           title="Próximamente"
-          className="flex cursor-not-allowed items-center gap-2 rounded-lg px-3 py-2 text-sm text-[color:var(--text-on-dark-muted)]/50 select-none"
+          className="mt-2 flex cursor-not-allowed items-center gap-3 rounded-[var(--radius-lg)] border border-dashed border-[color:var(--border-shell)] px-3 py-3 text-sm text-[color:var(--text-on-dark-muted)]/60 select-none"
         >
-          <GitPullRequest />
-          Trazabilidad
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] bg-white/5">
+            <GitPullRequest />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="font-medium">Trazabilidad</div>
+            <div className="text-xs text-[color:var(--text-on-dark-muted)]/70">Próximamente</div>
+          </div>
         </div>
       </nav>
+
+      <div className="mt-auto pt-5">
+        <div className="rounded-[var(--radius-xl)] border border-[color:var(--border-shell)] bg-[color:var(--surface-shell-raised)] px-3 py-3 shadow-[var(--shadow-soft)]">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[color:var(--text-on-dark-muted)]">
+            Modo de trabajo
+          </p>
+          <p className="mt-2 text-sm font-medium text-[color:var(--text-on-dark)]">
+            Control operativo
+          </p>
+          <p className="mt-1 text-xs leading-5 text-[color:var(--text-on-dark-muted)]">
+            Navegación estable, módulos claros y tareas visibles para operar sin fricción.
+          </p>
+        </div>
+      </div>
     </aside>
   );
 };

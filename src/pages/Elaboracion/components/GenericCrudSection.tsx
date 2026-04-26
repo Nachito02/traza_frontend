@@ -413,7 +413,7 @@ export default function GenericCrudSection({
             <AppCard key={displayId} as="article" tone="soft" padding="sm">
               <div className="text-xs font-semibold text-[color:var(--accent-primary)]">ID: {displayId}</div>
               {previewRows.length > 0 ? (
-                <div className="mt-2 grid gap-1 rounded bg-white p-2 text-xs text-[color:var(--text-ink)]">
+                <div className="mt-2 grid gap-1 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] p-2 text-xs text-[color:var(--text-on-dark)]">
                   {previewRows.map((row) => (
                     <div key={row.key}>
                       <span className="font-semibold">{row.label}:</span> {row.value}
@@ -462,7 +462,7 @@ export default function GenericCrudSection({
                 uiSize="lg"
               />
             ) : field.type === "checkbox" ? (
-              <label className="flex min-h-11 items-center gap-2 rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-white px-4 py-2 text-sm text-[color:var(--text-ink)]">
+              <label className="flex min-h-11 items-center gap-2 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-4 py-2 text-sm text-[color:var(--text-on-dark)]">
                 <input
                   type="checkbox"
                   checked={Boolean(values[field.name])}
