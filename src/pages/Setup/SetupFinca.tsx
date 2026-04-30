@@ -258,7 +258,7 @@ const SetupFinca = () => {
                     <option value="proveedor_tercero">Proveedor tercero</option>
                   </AppSelect>
 
-                  <label className="flex min-h-11 items-center gap-2 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-4 py-2 text-sm text-[color:var(--text-on-dark)]">
+                  <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-4 py-2 text-sm font-semibold text-[color:var(--text-on-dark)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)] hover:border-[color:var(--border-default)] hover:bg-[color:var(--surface-soft)]">
                     <input
                       type="checkbox"
                       checked={form.vinculo_activo}
@@ -268,6 +268,17 @@ const SetupFinca = () => {
                     />
                     Vínculo activo
                   </label>
+                </div>
+
+                <div className="mt-4 rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] p-4 shadow-[var(--shadow-inset-soft)]">
+                  
+                  <p className="mt-2 text-sm leading-6 text-[color:var(--text-on-dark-muted)]">
+                    <strong className="text-[color:var(--text-on-dark)]">Vínculo activo</strong>{" "}
+                    indica que esta finca queda habilitada para operar con la bodega seleccionada.
+                    Si está activo, la finca puede aparecer en setup, órdenes de trabajo, cuarteles y
+                    registros de trazabilidad. Si lo desactivás, el vínculo queda guardado pero no se
+                    considera parte de la operación vigente.
+                  </p>
                 </div>
               </AppCard>
 
