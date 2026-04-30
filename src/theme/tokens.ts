@@ -40,8 +40,8 @@ export const semanticColors = {
   action: {
     primary: colorPrimitives.wine600,
     primaryHover: colorPrimitives.wine700,
-    secondary: colorPrimitives.cream50,
-    secondaryHover: colorPrimitives.cream100,
+    secondary: "#1D2A3B",
+    secondaryHover: "#223249",
     accent: colorPrimitives.sand500,
   },
   feedback: {
@@ -102,10 +102,10 @@ export const spacing = {
 } as const;
 
 export const radius = {
-  sm: "0.5rem",
-  md: "0.75rem",
-  lg: "1rem",
-  xl: "1.5rem",
+  sm: "0.25rem",
+  md: "0.375rem",
+  lg: "0.5rem",
+  xl: "0.625rem",
   pill: "9999px",
 } as const;
 

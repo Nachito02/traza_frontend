@@ -413,7 +413,7 @@ export default function FraccionamientoDespachoPage({
                   return (
                     <AppCard key={id} as="article" tone="soft" padding="sm">
                       <div className="text-xs font-semibold text-[color:var(--accent-primary)]">{id}</div>
-                      <pre className="mt-1 max-h-20 overflow-auto rounded bg-white p-2 text-[11px] text-[color:var(--text-ink)]">
+                      <pre className="mt-1 max-h-20 overflow-auto rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] p-2 text-[11px] text-[color:var(--text-on-dark-muted)]">
                         {JSON.stringify(item, null, 2)}
                       </pre>
                       <div className="mt-2 flex gap-2">

@@ -763,7 +763,7 @@ export default function ProtocolosAdmin() {
                         .sort((a, b) => Number(a.orden ?? 999) - Number(b.orden ?? 999));
 
                       return (
-                        <div key={etapaId} className="rounded-[var(--radius-lg)] border border-[color:var(--border-default)] bg-white p-3">
+                        <div key={etapaId} className="rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] p-3">
                           <div className="grid gap-2 md:grid-cols-[1fr_120px_auto_auto]">
                             <AppInput
                               value={etapaDraft.nombre}
@@ -853,7 +853,7 @@ export default function ProtocolosAdmin() {
                               </AppButton>
                             </div>
                             {newProceso.evento_tipo ? (
-                              <div className="rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-white p-2">
+                              <div className="rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] p-2">
                                 <div className="mb-1 text-xs font-semibold text-[color:var(--text-accent)]">
                                   Plantilla de campos obligatorios para este proceso
                                 </div>
@@ -888,7 +888,7 @@ export default function ProtocolosAdmin() {
                                 </div>
                               </div>
                             ) : null}
-                            <div className="rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-white p-2">
+                            <div className="rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] p-2">
                               <div className="mb-1 text-xs font-semibold text-[color:var(--text-accent)]">
                                 Plantilla JSON del proceso (campo, type, required, unit, enum)
                               </div>
@@ -1022,7 +1022,7 @@ export default function ProtocolosAdmin() {
                                             </div>
                                           </td>
                                         </tr>,
-                                        <tr key={`${procesoId}-json`} className="border-t border-[color:var(--border-subtle)] bg-white">
+                                        <tr key={`${procesoId}-json`} className="border-t border-[color:var(--border-subtle)] bg-[color:var(--surface-soft)]">
                                           <td colSpan={5} className="px-2 py-2">
                                             <div className="mb-1 text-[11px] font-semibold text-[color:var(--text-accent)]">
                                               Plantilla JSON (campos + formatos)
@@ -1069,7 +1069,7 @@ export default function ProtocolosAdmin() {
                                   );
 
                                   return (
-                                    <div key={procesoId} className="rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-white p-2">
+                                    <div key={procesoId} className="rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] p-2">
                                       <div className="grid gap-2 md:grid-cols-[1fr_90px_1fr_auto_auto]">
                                         <AppInput
                                           value={draft.nombre}

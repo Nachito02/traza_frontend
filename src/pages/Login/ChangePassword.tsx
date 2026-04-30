@@ -53,7 +53,7 @@ const ChangePassword = () => {
           as="section"
           tone="soft"
           padding="lg"
-          className="rounded-[var(--radius-xl)] bg-white/95 px-8 py-9 backdrop-blur-sm shadow-2xl sm:px-10 sm:py-10"
+          className="rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-shell-raised)] px-8 py-9 shadow-[var(--shadow-raised)] sm:px-10 sm:py-10"
           header={(
             <div className="text-center">
               <h2 className="text-2xl text-wine sm:text-3xl">Activar cuenta</h2>

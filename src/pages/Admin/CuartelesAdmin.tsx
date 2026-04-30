@@ -18,17 +18,36 @@ import {
   AppSelect,
   NoticeBanner,
   SectionIntro,
+  useAppNotifications,
 } from "../../components/ui";
+import {
+  getTipoVariedadForVariedad,
+  getManejoCultivoLabel,
+  getSistemaRiegoLabel,
+  getSistemaConduccionLabel,
+  getVariedadLabel,
+  getVariedadesByTipo,
+  MANEJO_CULTIVO_OPTIONS,
+  SISTEMA_CONDUCCION_OPTIONS,
+  SISTEMA_RIEGO_OPTIONS,
+  TIPO_VARIEDAD_OPTIONS,
+  type TipoVariedadVid,
+} from "../../domain/viticultura/catalogos";
 
 type FormState = {
   fincaId: string;
   codigo_cuartel: string;
   superficie_ha: string;
   cultivo: string;
+  tipo_variedad: TipoVariedadVid;
   variedad: string;
   sistema_riego: string;
   sistema_productivo: string;
   sistema_conduccion: string;
+  cantidad_hileras: string;
+  largo_hileras_m: string;
+  densidad_hileras: string;
+  distancia_plantacion: string;
 };
 
 const emptyForm: FormState = {
@@ -36,13 +55,23 @@ const emptyForm: FormState = {
   codigo_cuartel: "",
   superficie_ha: "",
   cultivo: "Vid",
+  tipo_variedad: "tinta",
   variedad: "",
   sistema_riego: "",
   sistema_productivo: "",
   sistema_conduccion: "",
+  cantidad_hileras: "",
+  largo_hileras_m: "",
+  densidad_hileras: "",
+  distancia_plantacion: "",
 };
 
 type CuartelRow = Cuartel & { fincaId: string };
+type FormFieldErrors = Partial<Record<keyof FormState, string>>;
+
+function optionalNumber(value: string) {
+  return value.trim() ? Number(value) : null;
+}
 
 export default function CuartelesAdmin() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -60,6 +89,7 @@ export default function CuartelesAdmin() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formMode, setFormMode] = useState<"none" | "create" | "edit">("none");
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [fieldErrors, setFieldErrors] = useState<FormFieldErrors>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [detailById, setDetailById] = useState<Record<string, Cuartel>>({});
   const [loadingDetailId, setLoadingDetailId] = useState<string | null>(null);
@@ -68,6 +98,7 @@ export default function CuartelesAdmin() {
   >({});
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const notifications = useAppNotifications();
 
   useEffect(() => {
     if (!activeBodegaId) return;
@@ -97,6 +128,66 @@ export default function CuartelesAdmin() {
   const selectedFincaLabel = fincaIdParam
     ? fincaById[fincaIdParam] ?? "Finca seleccionada"
     : "Todas las fincas";
+  const variedadOptions = useMemo(
+    () => getVariedadesByTipo(form.tipo_variedad),
+    [form.tipo_variedad],
+  );
+
+  const setFieldValue = (key: keyof FormState, value: string) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    setFieldErrors((prev) => ({ ...prev, [key]: undefined }));
+    setError(null);
+  };
+
+  const onChangeTipoVariedad = (value: TipoVariedadVid) => {
+    setForm((prev) => ({ ...prev, tipo_variedad: value, variedad: "" }));
+    setFieldErrors((prev) => ({ ...prev, tipo_variedad: undefined, variedad: undefined }));
+    setError(null);
+  };
+
+  const onChangeVariedad = (value: string) => {
+    setForm((prev) => ({
+      ...prev,
+      variedad: value,
+      tipo_variedad: value ? getTipoVariedadForVariedad(value) : prev.tipo_variedad,
+    }));
+    setFieldErrors((prev) => ({ ...prev, variedad: undefined, tipo_variedad: undefined }));
+    setError(null);
+  };
+
+  const validateForm = () => {
+    const nextErrors: FormFieldErrors = {};
+
+    if (!form.fincaId) {
+      nextErrors.fincaId = "Seleccioná una finca.";
+    }
+    if (!form.codigo_cuartel.trim()) {
+      nextErrors.codigo_cuartel = "El código de cuartel es obligatorio.";
+    }
+    if (!form.superficie_ha.trim()) {
+      nextErrors.superficie_ha = "La superficie es obligatoria.";
+    } else if (Number.isNaN(Number(form.superficie_ha)) || Number(form.superficie_ha) <= 0) {
+      nextErrors.superficie_ha = "Ingresá una superficie válida mayor a cero.";
+    }
+    if (!form.variedad.trim()) {
+      nextErrors.variedad = "Seleccioná una variedad.";
+    }
+
+    const numericFields: Array<{ key: keyof FormState; label: string; value: string }> = [
+      { key: "cantidad_hileras", label: "Cantidad de hileras", value: form.cantidad_hileras },
+      { key: "largo_hileras_m", label: "Largo de hileras", value: form.largo_hileras_m },
+      { key: "densidad_hileras", label: "Densidad de hileras", value: form.densidad_hileras },
+    ];
+
+    numericFields.forEach((field) => {
+      if (!field.value.trim()) return;
+      if (Number.isNaN(Number(field.value)) || Number(field.value) < 0) {
+        nextErrors[field.key] = `${field.label} debe ser un número válido.`;
+      }
+    });
+
+    return nextErrors;
+  };
 
   const load = async () => {
     if (!activeBodegaId) {
@@ -141,6 +232,7 @@ export default function CuartelesAdmin() {
     setFormMode("create");
     setError(null);
     setSuccess(null);
+    setFieldErrors({});
     setForm({
       ...emptyForm,
       fincaId: fincaIdParam || form.fincaId || "",
@@ -156,42 +248,65 @@ export default function CuartelesAdmin() {
   };
 
   const onSubmit = async () => {
-    if (!form.fincaId || !form.codigo_cuartel.trim() || !form.variedad.trim()) {
-      setError("Finca, código y variedad son obligatorios.");
-      return;
-    }
-    if (!form.superficie_ha || Number.isNaN(Number(form.superficie_ha))) {
-      setError("Superficie válida requerida.");
+    if (saving) return;
+
+    const validationErrors = validateForm();
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      setError(null);
+      notifications.notifyError({
+        title: editingId ? "Faltan datos para guardar" : "Faltan datos para crear el cuartel",
+        message: "Revisá los campos marcados en el formulario.",
+      });
       return;
     }
 
     setSaving(true);
     setError(null);
     setSuccess(null);
+    setFieldErrors({});
     try {
       if (editingId) {
         await patchCuartel(editingId, {
           codigo_cuartel: form.codigo_cuartel.trim(),
           superficie_ha: Number(form.superficie_ha),
           cultivo: "Vid",
-          variedad: form.variedad.trim(),
+          tipo_variedad: form.tipo_variedad,
+          variedad: form.variedad,
           sistema_riego: form.sistema_riego.trim() || null,
           sistema_productivo: form.sistema_productivo.trim() || null,
           sistema_conduccion: form.sistema_conduccion.trim() || null,
+          cantidad_hileras: optionalNumber(form.cantidad_hileras),
+          largo_hileras_m: optionalNumber(form.largo_hileras_m),
+          densidad_hileras: optionalNumber(form.densidad_hileras),
+          distancia_plantacion: form.distancia_plantacion.trim() || null,
         });
         setSuccess("Cuartel actualizado.");
+        notifications.notifySuccess({
+          title: "Cuartel actualizado",
+          message: `El cuartel ${form.codigo_cuartel.trim()} quedó actualizado correctamente.`,
+        });
       } else {
         await createCuartel({
           fincaId: form.fincaId,
           codigo_cuartel: form.codigo_cuartel.trim(),
           superficie_ha: Number(form.superficie_ha),
           cultivo: "Vid",
-          variedad: form.variedad.trim(),
+          tipo_variedad: form.tipo_variedad,
+          variedad: form.variedad,
           sistema_riego: form.sistema_riego.trim() || null,
           sistema_productivo: form.sistema_productivo.trim() || null,
           sistema_conduccion: form.sistema_conduccion.trim() || null,
+          cantidad_hileras: optionalNumber(form.cantidad_hileras),
+          largo_hileras_m: optionalNumber(form.largo_hileras_m),
+          densidad_hileras: optionalNumber(form.densidad_hileras),
+          distancia_plantacion: form.distancia_plantacion.trim() || null,
         });
         setSuccess("Cuartel creado.");
+        notifications.notifySuccess({
+          title: "Cuartel creado",
+          message: `El cuartel ${form.codigo_cuartel.trim()} quedó registrado correctamente.`,
+        });
       }
 
       setForm(emptyForm);
@@ -200,7 +315,12 @@ export default function CuartelesAdmin() {
       clearFormQueryState();
       await load();
     } catch (requestError) {
-      setError(getApiErrorMessage(requestError));
+      const message = getApiErrorMessage(requestError);
+      setError(message);
+      notifications.notifyError({
+        title: editingId ? "No se pudo actualizar el cuartel" : "No se pudo crear el cuartel",
+        message,
+      });
     } finally {
       setSaving(false);
     }
@@ -214,6 +334,7 @@ export default function CuartelesAdmin() {
       const detail = await fetchCuartelById(id);
       setEditingId(id);
       setFormMode("edit");
+      setFieldErrors({});
       setForm({
         fincaId: String(detail.finca_id ?? fallbackFincaId ?? ""),
         codigo_cuartel: detail.codigo_cuartel ?? "",
@@ -222,10 +343,24 @@ export default function CuartelesAdmin() {
             ? ""
             : String(detail.superficie_ha),
         cultivo: "Vid",
+        tipo_variedad: (detail.tipo_variedad as TipoVariedadVid | null) ?? getTipoVariedadForVariedad(detail.variedad),
         variedad: detail.variedad ?? "",
         sistema_riego: detail.sistema_riego ?? "",
         sistema_productivo: detail.sistema_productivo ?? "",
         sistema_conduccion: detail.sistema_conduccion ?? "",
+        cantidad_hileras:
+          detail.cantidad_hileras === undefined || detail.cantidad_hileras === null
+            ? ""
+            : String(detail.cantidad_hileras),
+        largo_hileras_m:
+          detail.largo_hileras_m === undefined || detail.largo_hileras_m === null
+            ? ""
+            : String(detail.largo_hileras_m),
+        densidad_hileras:
+          detail.densidad_hileras === undefined || detail.densidad_hileras === null
+            ? ""
+            : String(detail.densidad_hileras),
+        distancia_plantacion: detail.distancia_plantacion ?? "",
       });
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
@@ -296,6 +431,7 @@ export default function CuartelesAdmin() {
                         setFormMode("create");
                         setError(null);
                         setSuccess(null);
+                        setFieldErrors({});
                         setSearchParams((prev) => {
                           const next = new URLSearchParams(prev);
                           next.set("create", "1");
@@ -388,12 +524,12 @@ export default function CuartelesAdmin() {
                       </div>
 
                       <div className="mt-3 grid gap-2 text-xs text-[color:var(--text-ink-muted)] md:grid-cols-2">
-                        <div className="rounded-lg border border-[color:var(--border-default)] bg-white/70 px-3 py-2">
-                          <span className="font-semibold text-[color:var(--text-ink)]">Variedad:</span>{" "}
-                          {item.variedad || "-"}
+                        <div className="rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-2">
+                          <span className="font-semibold text-[color:var(--text-on-dark)]">Variedad:</span>{" "}
+                          {getVariedadLabel(item.variedad)}
                         </div>
-                        <div className="rounded-lg border border-[color:var(--border-default)] bg-white/70 px-3 py-2">
-                          <span className="font-semibold text-[color:var(--text-ink)]">Superficie:</span>{" "}
+                        <div className="rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-2">
+                          <span className="font-semibold text-[color:var(--text-on-dark)]">Superficie:</span>{" "}
                           {item.superficie_ha ?? "-"} ha
                         </div>
                       </div>
@@ -426,7 +562,7 @@ export default function CuartelesAdmin() {
                       </div>
 
                       {isExpanded ? (
-                        <div className="mt-3 rounded-xl border border-[color:var(--border-default)] bg-white px-3 py-3 text-xs text-[color:var(--text-ink-muted)]">
+                        <div className="mt-3 rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-3 text-xs text-[color:var(--text-on-dark-muted)]">
                           {isLoadingDetail ? (
                             <div>Cargando detalle...</div>
                           ) : detailError ? (
@@ -449,13 +585,13 @@ export default function CuartelesAdmin() {
                                 <span className="font-semibold text-[color:var(--text-ink)]">
                                   Variedad:
                                 </span>{" "}
-                                {detail?.variedad ?? "-"}
+                                {getVariedadLabel(detail?.variedad)}
                               </div>
                               <div>
                                 <span className="font-semibold text-[color:var(--text-ink)]">
                                   Sistema de riego:
                                 </span>{" "}
-                                {detail?.sistema_riego ?? "-"}
+                                {getSistemaRiegoLabel(detail?.sistema_riego)}
                               </div>
                               <div>
                                 <span className="font-semibold text-[color:var(--text-ink)]">
@@ -465,15 +601,39 @@ export default function CuartelesAdmin() {
                               </div>
                               <div>
                                 <span className="font-semibold text-[color:var(--text-ink)]">
-                                  Sistema productivo:
+                                  Manejo de cultivo:
                                 </span>{" "}
-                                {detail?.sistema_productivo ?? "-"}
+                                {getManejoCultivoLabel(detail?.sistema_productivo)}
                               </div>
                               <div>
                                 <span className="font-semibold text-[color:var(--text-ink)]">
-                                  Sistema conducción:
+                                  Sistema de conducción:
                                 </span>{" "}
-                                {detail?.sistema_conduccion ?? "-"}
+                                {getSistemaConduccionLabel(detail?.sistema_conduccion)}
+                              </div>
+                              <div>
+                                <span className="font-semibold text-[color:var(--text-ink)]">
+                                  Hileras:
+                                </span>{" "}
+                                {detail?.cantidad_hileras ?? "-"}
+                              </div>
+                              <div>
+                                <span className="font-semibold text-[color:var(--text-ink)]">
+                                  Largo de hileras:
+                                </span>{" "}
+                                {detail?.largo_hileras_m ?? "-"} m
+                              </div>
+                              <div>
+                                <span className="font-semibold text-[color:var(--text-ink)]">
+                                  Densidad de hileras:
+                                </span>{" "}
+                                {detail?.densidad_hileras ?? "-"}
+                              </div>
+                              <div>
+                                <span className="font-semibold text-[color:var(--text-ink)]">
+                                  Distancia de plantación:
+                                </span>{" "}
+                                {detail?.distancia_plantacion ?? "-"}
                               </div>
                             </div>
                           )}
@@ -507,6 +667,7 @@ export default function CuartelesAdmin() {
                     onClick={() => {
                       setEditingId(null);
                       setForm(emptyForm);
+                      setFieldErrors({});
                       setFormMode("none");
                       clearFormQueryState();
                     }}
@@ -527,10 +688,9 @@ export default function CuartelesAdmin() {
                 <AppSelect
                   label="Finca"
                     value={form.fincaId}
-                    onChange={(event) =>
-                      setForm((prev) => ({ ...prev, fincaId: event.target.value }))
-                    }
+                    onChange={(event) => setFieldValue("fincaId", event.target.value)}
                     disabled={formMode === "edit"}
+                    error={fieldErrors.fincaId}
                   >
                     <option value="">Seleccionar finca</option>
                     {fincas.map((finca) => {
@@ -545,67 +705,132 @@ export default function CuartelesAdmin() {
                 <AppInput
                   label="Código de cuartel"
                     value={form.codigo_cuartel}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, codigo_cuartel: e.target.value }))
-                    }
+                    onChange={(e) => setFieldValue("codigo_cuartel", e.target.value)}
                     placeholder="Ej. C-01"
                     uiSize="lg"
+                    error={fieldErrors.codigo_cuartel}
                   />
                 <AppInput
                   label="Superficie (ha)"
                     type="number"
                     step="0.01"
                     value={form.superficie_ha}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, superficie_ha: e.target.value }))
-                    }
+                    onChange={(e) => setFieldValue("superficie_ha", e.target.value)}
                     placeholder="0.00"
                     uiSize="lg"
+                    error={fieldErrors.superficie_ha}
                   />
                 <AppInput
                   label="Cultivo"
                   value="Vid"
-                  description="Cultivo fijo para este flujo."
+                 
                   uiSize="lg"
                   disabled
                 />
-                <AppInput
+                <AppSelect
+                  label="Tipo de variedad"
+                  value={form.tipo_variedad}
+                  onChange={(e) => onChangeTipoVariedad(e.target.value as TipoVariedadVid)}
+                  uiSize="lg"
+                  error={fieldErrors.tipo_variedad}
+                >
+                  {TIPO_VARIEDAD_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </AppSelect>
+                <AppSelect
                   label="Variedad"
-                    value={form.variedad}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, variedad: e.target.value }))
-                    }
-                    placeholder="Malbec"
-                    uiSize="lg"
-                  />
+                  value={form.variedad}
+                  onChange={(e) => onChangeVariedad(e.target.value)}
+                  uiSize="lg"
+                  error={fieldErrors.variedad}
+                >
+                  <option value="">Seleccionar variedad</option>
+                  {variedadOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </AppSelect>
                 <AppInput
+                  label="Cantidad de hileras"
+                  type="number"
+                  step="1"
+                  value={form.cantidad_hileras}
+                  onChange={(e) => setFieldValue("cantidad_hileras", e.target.value)}
+                  placeholder="Ej. 42"
+                  uiSize="lg"
+                  error={fieldErrors.cantidad_hileras}
+                />
+                <AppInput
+                  label="Largo de hileras (m)"
+                  type="number"
+                  step="0.01"
+                  value={form.largo_hileras_m}
+                  onChange={(e) => setFieldValue("largo_hileras_m", e.target.value)}
+                  placeholder="Ej. 120"
+                  uiSize="lg"
+                  error={fieldErrors.largo_hileras_m}
+                />
+                <AppInput
+                  label="Densidad de hileras"
+                  type="number"
+                  step="0.01"
+                  value={form.densidad_hileras}
+                  onChange={(e) => setFieldValue("densidad_hileras", e.target.value)}
+                  placeholder="Ej. 2.5"
+                  uiSize="lg"
+                  error={fieldErrors.densidad_hileras}
+                />
+                <AppInput
+                  label="Distancia de plantación"
+                  value={form.distancia_plantacion}
+                  onChange={(e) => setFieldValue("distancia_plantacion", e.target.value)}
+                  placeholder="Ej. 2.5 x 1.2 m"
+                  uiSize="lg"
+                />
+                <AppSelect
                   label="Sistema de riego"
-                    value={form.sistema_riego}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, sistema_riego: e.target.value }))
-                    }
-                    placeholder="Goteo"
-                    uiSize="lg"
-                  />
-                <AppInput
-                  label="Sistema productivo"
-                    value={form.sistema_productivo}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, sistema_productivo: e.target.value }))
-                    }
-                    placeholder="Convencional, orgánico..."
-                    uiSize="lg"
-                  />
-                <AppInput
+                  value={form.sistema_riego}
+                  onChange={(e) => setFieldValue("sistema_riego", e.target.value)}
+                  uiSize="lg"
+                >
+                  <option value="">Seleccionar sistema</option>
+                  {SISTEMA_RIEGO_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </AppSelect>
+                <AppSelect
+                  label="Manejo de cultivo"
+                  value={form.sistema_productivo}
+                  onChange={(e) => setFieldValue("sistema_productivo", e.target.value)}
+                  uiSize="lg"
+                >
+                  <option value="">Seleccionar manejo</option>
+                  {MANEJO_CULTIVO_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </AppSelect>
+                <AppSelect
                   label="Sistema de conducción"
                   className="md:col-span-2"
-                    value={form.sistema_conduccion}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, sistema_conduccion: e.target.value }))
-                    }
-                    placeholder="Espaldera, parral..."
-                    uiSize="lg"
-                  />
+                  value={form.sistema_conduccion}
+                  onChange={(e) => setFieldValue("sistema_conduccion", e.target.value)}
+                  uiSize="lg"
+                >
+                  <option value="">Seleccionar sistema</option>
+                  {SISTEMA_CONDUCCION_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </AppSelect>
               </div>
             </AppCard>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -624,6 +849,7 @@ export default function CuartelesAdmin() {
                 onClick={() => {
                   setEditingId(null);
                   setForm(emptyForm);
+                  setFieldErrors({});
                   setFormMode("none");
                   clearFormQueryState();
                 }}

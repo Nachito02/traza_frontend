@@ -12,6 +12,7 @@ import {
   AppInput,
   NoticeBanner,
   SectionIntro,
+  useAppNotifications,
 } from "../../components/ui";
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
@@ -27,6 +28,8 @@ type VasijaFormState = {
   estado: string;
   ubicacion: string;
 };
+
+type VasijaFieldErrors = Partial<Record<keyof VasijaFormState, string>>;
 
 const emptyForm: VasijaFormState = {
   codigo: "",
@@ -56,8 +59,10 @@ export default function BodegaVasijaFormPage({
   const [form, setForm] = useState<VasijaFormState>(emptyForm);
   const [loading, setLoading] = useState(mode === "edit");
   const [saving, setSaving] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<VasijaFieldErrors>({});
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const notifications = useAppNotifications();
 
   const pageTitle = useMemo(
     () => (mode === "edit" ? "Editar vasija" : "Nueva vasija"),
@@ -118,23 +123,47 @@ export default function BodegaVasijaFormPage({
 
   const onChange = (key: keyof VasijaFormState, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+    setFieldErrors((prev) => ({ ...prev, [key]: undefined }));
+    setError(null);
+  };
+
+  const validateForm = () => {
+    const nextErrors: VasijaFieldErrors = {};
+
+    if (!form.codigo.trim()) {
+      nextErrors.codigo = "El código de la vasija es obligatorio.";
+    }
+
+    if (form.capacidad_litros.trim()) {
+      const parsed = Number(form.capacidad_litros);
+      if (Number.isNaN(parsed) || parsed <= 0) {
+        nextErrors.capacidad_litros = "Ingresá una capacidad válida mayor a cero.";
+      }
+    }
+
+    return nextErrors;
   };
 
   const onSubmit = async () => {
+    if (saving) return;
     if (!activeBodegaId) {
       setError("Seleccioná una bodega para continuar.");
+      notifications.notifyError({
+        title: "Falta contexto",
+        message: "Seleccioná una bodega para poder guardar la vasija.",
+      });
       return;
     }
-    if (!form.codigo.trim()) {
-      setError("El código es obligatorio.");
+
+    const validationErrors = validateForm();
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      setError(null);
+      notifications.notifyError({
+        title: mode === "edit" ? "Faltan datos para guardar" : "Faltan datos para crear la vasija",
+        message: "Revisá los campos marcados en el formulario.",
+      });
       return;
-    }
-    if (form.capacidad_litros.trim()) {
-      const parsed = Number(form.capacidad_litros);
-      if (Number.isNaN(parsed)) {
-        setError("La capacidad debe ser numérica.");
-        return;
-      }
     }
 
     const payload: Record<string, unknown> = {
@@ -151,13 +180,22 @@ export default function BodegaVasijaFormPage({
     setSaving(true);
     setError(null);
     setSuccess(null);
+    setFieldErrors({});
     try {
       if (mode === "edit" && id) {
         await patchElaboracionResource("vasijas", id, payload);
         setSuccess("Vasija actualizada correctamente.");
+        notifications.notifySuccess({
+          title: "Vasija actualizada",
+          message: `La vasija ${form.codigo.trim()} quedó actualizada correctamente.`,
+        });
       } else {
         await createElaboracionResource("vasijas", payload);
         setSuccess("Vasija creada correctamente.");
+        notifications.notifySuccess({
+          title: "Vasija creada",
+          message: `La vasija ${form.codigo.trim()} quedó registrada correctamente.`,
+        });
         setForm(emptyForm);
       }
 
@@ -165,7 +203,12 @@ export default function BodegaVasijaFormPage({
         navigate("/bodega/vasijas");
       }, 500);
     } catch (requestError) {
-      setError(getApiErrorMessage(requestError));
+      const message = getApiErrorMessage(requestError);
+      setError(message);
+      notifications.notifyError({
+        title: mode === "edit" ? "No se pudo actualizar la vasija" : "No se pudo crear la vasija",
+        message,
+      });
     } finally {
       setSaving(false);
     }
@@ -223,6 +266,7 @@ export default function BodegaVasijaFormPage({
                   value={form.codigo}
                   onChange={(event) => onChange("codigo", event.target.value)}
                   uiSize="lg"
+                  error={fieldErrors.codigo}
                 />
               <AppInput
                 label="Tipo"
@@ -239,6 +283,7 @@ export default function BodegaVasijaFormPage({
                     onChange("capacidad_litros", event.target.value)
                   }
                   uiSize="lg"
+                  error={fieldErrors.capacidad_litros}
                 />
               <AppInput
                 label="Estado"

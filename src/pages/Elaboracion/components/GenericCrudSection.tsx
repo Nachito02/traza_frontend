@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   createElaboracionResource,
   deleteElaboracionResource,
@@ -10,12 +11,14 @@ import {
 import {
   AppButton,
   AppCard,
+  GuidedState,
   AppInput,
   AppModal,
   AppSelect,
   AppTextarea,
   NoticeBanner,
   SectionIntro,
+  useAppNotifications,
 } from "../../../components/ui";
 import { getApiErrorMessage } from "../../../lib/api";
 
@@ -25,6 +28,8 @@ export type SelectOption = {
 };
 
 type FieldType = "text" | "textarea" | "number" | "date" | "datetime-local" | "checkbox" | "select";
+type FieldErrors = Record<string, string>;
+type ValidationResult = string | { fieldErrors?: FieldErrors; formError?: string } | null;
 
 export type CrudField = {
   name: string;
@@ -33,7 +38,9 @@ export type CrudField = {
   required?: boolean;
   placeholder?: string;
   options?: SelectOption[];
+  getOptions?: (values: Record<string, string | boolean>) => SelectOption[];
   sourceKey?: string;
+  clearOnChange?: string[];
 };
 
 type GenericCrudSectionProps = {
@@ -44,7 +51,7 @@ type GenericCrudSectionProps = {
   fields: CrudField[];
   listParams?: Record<string, string | number | undefined>;
   withBodegaId?: boolean;
-  validate?: (values: Record<string, string | boolean>) => string | null;
+  validate?: (values: Record<string, string | boolean>) => ValidationResult;
   idResolver?: (item: ElaboracionEntity) => string;
   controller?: {
     list?: (
@@ -59,6 +66,8 @@ type GenericCrudSectionProps = {
   };
   hidePrimaryAction?: boolean;
   separatedLayout?: boolean;
+  defaultValues?: Record<string, string | boolean>;
+  onCreated?: (item: ElaboracionEntity) => void | Promise<void>;
 };
 
 const ID_KEYS = [
@@ -81,10 +90,13 @@ const ID_KEYS = [
   "lote_fraccionamiento_id",
   "id_codigo",
   "codigo_envase_id",
+  "remito_uva_id",
   "id_remito",
   "remito_id",
+  "recepcion_bodega_id",
   "id_recepcion",
   "recepcion_id",
+  "analisis_recepcion_id",
   "id_analisis",
   "analisis_id",
   "id_operacion",
@@ -93,8 +105,26 @@ const ID_KEYS = [
   "despacho_id",
 ];
 
-function resolveId(item: ElaboracionEntity) {
-  for (const key of ID_KEYS) {
+const RESOURCE_ID_KEYS: Partial<Record<ElaboracionResourceKey, string[]>> = {
+  "analisis-recepcion": ["analisis_recepcion_id", "id_analisis", "analisis_id", "id"],
+  "recepciones-bodega": ["recepcion_bodega_id", "id_recepcion", "recepcion_id", "id"],
+  "remitos-uva": ["remito_uva_id", "id_remito", "remito_id", "id"],
+  "operaciones-vasija": ["operacion_vasija_id", "id_operacion", "operacion_id", "id"],
+  vasijas: ["vasija_id", "id_vasija", "id"],
+  cius: ["ciu_id", "id_ciu", "id"],
+  "qc-ingreso-uva": ["qc_ingreso_uva_id", "id_qc_ingreso_uva", "id"],
+  "existencias-vasija": ["existencia_vasija_id", "id_existencia_vasija", "id"],
+  "controles-fermentacion": ["control_fermentacion_id", "id_control_fermentacion", "id"],
+  cortes: ["corte_id", "id_corte", "id"],
+  productos: ["producto_id", "id_producto", "id"],
+  "lotes-fraccionamiento": ["lote_fraccionamiento_id", "id_lote_frac", "id"],
+  "codigos-envase": ["codigo_envase_id", "id_codigo", "id"],
+  despachos: ["despacho_id", "id_despacho", "id"],
+};
+
+function resolveId(item: ElaboracionEntity, resource?: ElaboracionResourceKey) {
+  const keys = [...(resource ? (RESOURCE_ID_KEYS[resource] ?? []) : []), ...ID_KEYS];
+  for (const key of keys) {
     const value = item[key];
     if (typeof value === "string" && value.trim()) return value;
     if (typeof value === "number") return String(value);
@@ -131,6 +161,18 @@ function formatItemFieldValue(value: unknown) {
   return String(value);
 }
 
+function applyFieldValueChange(
+  prev: Record<string, string | boolean>,
+  field: CrudField,
+  value: string | boolean,
+) {
+  const next = { ...prev, [field.name]: value };
+  for (const fieldName of field.clearOnChange ?? []) {
+    next[fieldName] = "";
+  }
+  return next;
+}
+
 export default function GenericCrudSection({
   title,
   description,
@@ -144,7 +186,10 @@ export default function GenericCrudSection({
   controller,
   hidePrimaryAction = false,
   separatedLayout = false,
+  defaultValues,
+  onCreated,
 }: GenericCrudSectionProps) {
+  const { notifyError, notifySuccess } = useAppNotifications();
   const [items, setItems] = useState<ElaboracionEntity[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -152,7 +197,7 @@ export default function GenericCrudSection({
   const [editingItem, setEditingItem] = useState<ElaboracionEntity | null>(null);
   const [values, setValues] = useState<Record<string, string | boolean>>(() => getInitialValues(fields));
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [confirmDelete, setConfirmDelete] = useState<ElaboracionEntity | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "form">(separatedLayout ? "list" : "form");
 
@@ -194,37 +239,61 @@ export default function GenericCrudSection({
   }, [load]);
 
   useEffect(() => {
-    setValues(getInitialValues(fields));
+    const hasDefaultValues = defaultValues && Object.keys(defaultValues).length > 0;
+    setValues({ ...getInitialValues(fields), ...(defaultValues ?? {}) });
     setEditingId(null);
     setEditingItem(null);
     setError(null);
-    setSuccess(null);
-    setViewMode(separatedLayout ? "list" : "form");
-  }, [fields, resource]);
+    setFieldErrors({});
+    setViewMode(separatedLayout && !hasDefaultValues ? "list" : "form");
+  }, [defaultValues, fields, resource]);
 
   const onSubmit = async () => {
     if (!bodegaId && withBodegaId) {
       setError("Seleccioná una bodega para continuar.");
+      setFieldErrors({});
       return;
     }
 
+    const nextFieldErrors: FieldErrors = {};
     for (const field of fields) {
       if (!field.required) continue;
       const currentValue = values[field.name];
       if (field.type === "checkbox") continue;
       if (typeof currentValue !== "string" || !currentValue.trim()) {
-        setError(`El campo ${field.label} es obligatorio.`);
-        return;
+        nextFieldErrors[field.name] = `${field.label} es obligatorio.`;
       }
     }
 
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setFieldErrors(nextFieldErrors);
+      setError(null);
+      return;
+    }
+
     if (validate) {
-      const message = validate(values);
-      if (message) {
-        setError(message);
+      const result = validate(values);
+      if (typeof result === "string" && result) {
+        setError(result);
+        setFieldErrors({});
         return;
       }
+      if (result && typeof result === "object") {
+        const validationFieldErrors = result.fieldErrors ?? {};
+        if (Object.keys(validationFieldErrors).length > 0) {
+          setFieldErrors(validationFieldErrors);
+          setError(result.formError ?? null);
+          return;
+        }
+        if (result.formError) {
+          setError(result.formError);
+          setFieldErrors({});
+          return;
+        }
+      }
     }
+
+    setFieldErrors({});
 
     const payload: Record<string, unknown> = {};
     if (withBodegaId) {
@@ -244,7 +313,8 @@ export default function GenericCrudSection({
       if (field.type === "number") {
         const parsed = Number(value);
         if (Number.isNaN(parsed)) {
-          setError(`El campo ${field.label} debe ser numérico.`);
+          setFieldErrors({ [field.name]: `${field.label} debe ser numérico.` });
+          setError(null);
           return;
         }
         payload[field.name] = parsed;
@@ -261,39 +331,58 @@ export default function GenericCrudSection({
 
     setSaving(true);
     setError(null);
-    setSuccess(null);
     try {
+      let createdItem: ElaboracionEntity | null = null;
       if (editingId) {
         if (controller?.update && editingItem) {
           await controller.update({ id: editingId, item: editingItem }, payload);
         } else {
           await patchElaboracionResource(resource, editingId, payload);
         }
-        setSuccess(`${title}: actualizado correctamente.`);
+        notifySuccess({
+          title: `${title} actualizado`,
+          message: "Los cambios quedaron guardados correctamente.",
+        });
       } else {
+        let created: unknown;
         if (controller?.create) {
-          await controller.create(payload);
+          created = await controller.create(payload);
         } else {
-          await createElaboracionResource(resource, payload);
+          created = await createElaboracionResource(resource, payload);
         }
-        setSuccess(`${title}: creado correctamente.`);
+        notifySuccess({
+          title: `${title} creado`,
+          message: "El registro quedó disponible para continuar el flujo operativo.",
+        });
+        if (created && typeof created === "object") {
+          createdItem = created as ElaboracionEntity;
+        }
       }
-      setValues(getInitialValues(fields));
+      setValues({ ...getInitialValues(fields), ...(defaultValues ?? {}) });
       setEditingId(null);
       setEditingItem(null);
+      setFieldErrors({});
       if (separatedLayout) {
         setViewMode("list");
       }
       await load();
+      if (createdItem) {
+        await onCreated?.(createdItem);
+      }
     } catch (requestError) {
-      setError(getApiErrorMessage(requestError));
+      const message = getApiErrorMessage(requestError);
+      setError(message);
+      notifyError({
+        title: `No se pudo guardar ${title.toLowerCase()}`,
+        message,
+      });
     } finally {
       setSaving(false);
     }
   };
 
   const onEdit = (item: ElaboracionEntity) => {
-    const recordId = idResolver ? idResolver(item) : resolveId(item);
+    const recordId = idResolver ? idResolver(item) : resolveId(item, resource);
     if (!recordId) return;
 
     const nextValues = getInitialValues(fields);
@@ -316,7 +405,7 @@ export default function GenericCrudSection({
     setEditingId(recordId);
     setEditingItem(item);
     setError(null);
-    setSuccess(null);
+    setFieldErrors({});
     if (separatedLayout) {
       setViewMode("form");
     }
@@ -325,54 +414,78 @@ export default function GenericCrudSection({
   const onDeleteConfirm = async () => {
     if (!confirmDelete) return;
     const item = confirmDelete;
-    const recordId = idResolver ? idResolver(item) : resolveId(item);
+    const recordId = idResolver ? idResolver(item) : resolveId(item, resource);
     setConfirmDelete(null);
 
     setSaving(true);
     setError(null);
-    setSuccess(null);
+    setFieldErrors({});
     try {
       if (controller?.remove) {
         await controller.remove({ id: recordId, item });
       } else {
         await deleteElaboracionResource(resource, recordId);
       }
-      setSuccess(`${title}: eliminado.`);
+      notifySuccess({
+        title: `${title} eliminado`,
+        message: "El registro fue eliminado correctamente.",
+      });
       await load();
     } catch (requestError) {
-      setError(getApiErrorMessage(requestError));
+      const message = getApiErrorMessage(requestError);
+      setError(message);
+      notifyError({
+        title: `No se pudo eliminar ${title.toLowerCase()}`,
+        message,
+      });
     } finally {
       setSaving(false);
     }
   };
 
   const onDelete = (item: ElaboracionEntity) => {
-    const recordId = idResolver ? idResolver(item) : resolveId(item);
+    const recordId = idResolver ? idResolver(item) : resolveId(item, resource);
     if (!recordId) {
       setError("No se pudo resolver el identificador del registro.");
+      setFieldErrors({});
       return;
     }
     setConfirmDelete(item);
   };
 
   const onStartCreate = () => {
-    setValues(getInitialValues(fields));
+    setValues({ ...getInitialValues(fields), ...(defaultValues ?? {}) });
     setEditingId(null);
     setEditingItem(null);
     setError(null);
-    setSuccess(null);
+    setFieldErrors({});
     setViewMode("form");
   };
 
   const onCancelForm = () => {
     setEditingId(null);
     setEditingItem(null);
-    setValues(getInitialValues(fields));
+    setValues({ ...getInitialValues(fields), ...(defaultValues ?? {}) });
     setError(null);
-    setSuccess(null);
+    setFieldErrors({});
     if (separatedLayout) {
       setViewMode("list");
     }
+  };
+
+  const setFieldValue = (field: CrudField, value: string | boolean) => {
+    setValues((prev) => applyFieldValueChange(prev, field, value));
+    setFieldErrors((prev) => {
+      if (!prev[field.name] && !field.clearOnChange?.some((fieldName) => prev[fieldName])) {
+        return prev;
+      }
+      const next = { ...prev };
+      delete next[field.name];
+      for (const fieldName of field.clearOnChange ?? []) {
+        delete next[fieldName];
+      }
+      return next;
+    });
   };
 
   const renderFeedback = () => (
@@ -380,21 +493,44 @@ export default function GenericCrudSection({
       {error ? (
         <NoticeBanner tone="danger" className="mt-3">{error}</NoticeBanner>
       ) : null}
-      {success ? (
-        <NoticeBanner tone="success" className="mt-3">{success}</NoticeBanner>
-      ) : null}
     </>
   );
 
   const renderList = () => (
     <div className="mt-3 max-h-72 space-y-2 overflow-auto">
-      {loading ? (
+      {!bodegaId && withBodegaId ? (
+        <GuidedState
+          title="Seleccioná una bodega para registrar datos"
+          description={`La sección ${title.toLowerCase()} necesita una bodega activa para listar y guardar registros correctamente.`}
+          action={(
+            <Link to="/contexto">
+              <AppButton variant="primary" size="sm">Elegir bodega</AppButton>
+            </Link>
+          )}
+          steps={[
+            { label: "Bodega activa", done: false },
+            { label: "Registros disponibles", done: false },
+          ]}
+        />
+      ) : loading ? (
         <NoticeBanner>Cargando registros...</NoticeBanner>
       ) : items.length === 0 ? (
-        <NoticeBanner>Sin registros.</NoticeBanner>
+        <GuidedState
+          title={`Sin registros en ${title.toLowerCase()}`}
+          description="Cuando cargues el primer registro, aparecerá acá para editarlo, revisarlo o continuar el flujo operativo."
+          action={(
+            <AppButton type="button" variant="primary" size="sm" onClick={onStartCreate}>
+              Cargar primer registro
+            </AppButton>
+          )}
+          steps={[
+            { label: "Bodega activa", done: true },
+            { label: "Primer registro", done: false },
+          ]}
+        />
       ) : (
         items.map((item, index) => {
-          const itemId = idResolver ? idResolver(item) : resolveId(item);
+          const itemId = idResolver ? idResolver(item) : resolveId(item, resource);
           const displayId = itemId || `fila-${index}`;
           const previewRows = fields
             .map((field) => {
@@ -413,7 +549,7 @@ export default function GenericCrudSection({
             <AppCard key={displayId} as="article" tone="soft" padding="sm">
               <div className="text-xs font-semibold text-[color:var(--accent-primary)]">ID: {displayId}</div>
               {previewRows.length > 0 ? (
-                <div className="mt-2 grid gap-1 rounded bg-white p-2 text-xs text-[color:var(--text-ink)]">
+                <div className="mt-2 grid gap-1 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] p-2 text-xs text-[color:var(--text-on-dark)]">
                   {previewRows.map((row) => (
                     <div key={row.key}>
                       <span className="font-semibold">{row.label}:</span> {row.value}
@@ -454,47 +590,60 @@ export default function GenericCrudSection({
             {field.type === "textarea" ? (
               <AppTextarea
                 label={field.label}
+                error={fieldErrors[field.name]}
                 value={String(values[field.name] ?? "")}
                 onChange={(event) =>
-                  setValues((prev) => ({ ...prev, [field.name]: event.target.value }))
+                  setFieldValue(field, event.target.value)
                 }
                 placeholder={field.placeholder}
                 uiSize="lg"
               />
             ) : field.type === "checkbox" ? (
-              <label className="flex min-h-11 items-center gap-2 rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-white px-4 py-2 text-sm text-[color:var(--text-ink)]">
-                <input
-                  type="checkbox"
-                  checked={Boolean(values[field.name])}
-                  onChange={(event) =>
-                    setValues((prev) => ({ ...prev, [field.name]: event.target.checked }))
-                  }
-                  className="h-4 w-4"
-                />
-                {field.label}
-              </label>
+              <div className="space-y-2">
+                <label className="flex min-h-11 items-center gap-2 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-4 py-2 text-sm text-[color:var(--text-on-dark)]">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(values[field.name])}
+                    onChange={(event) => setFieldValue(field, event.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  {field.label}
+                </label>
+                {fieldErrors[field.name] ? (
+                  <p className="text-sm font-medium text-[color:var(--field-error)]">
+                    {fieldErrors[field.name]}
+                  </p>
+                ) : null}
+              </div>
             ) : field.type === "select" ? (
-              <AppSelect
-                label={field.label}
-                value={String(values[field.name] ?? "")}
-                onChange={(event) =>
-                  setValues((prev) => ({ ...prev, [field.name]: event.target.value }))
-                }
-              >
-                <option value="">Seleccionar...</option>
-                {(field.options ?? []).map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </AppSelect>
+              (() => {
+                const options = field.getOptions ? field.getOptions(values) : (field.options ?? []);
+                return (
+                  <AppSelect
+                    label={field.label}
+                    error={fieldErrors[field.name]}
+                    value={String(values[field.name] ?? "")}
+                    onChange={(event) =>
+                      setFieldValue(field, event.target.value)
+                    }
+                  >
+                    <option value="">Seleccionar...</option>
+                    {options.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </AppSelect>
+                );
+              })()
             ) : (
               <AppInput
                 label={field.label}
                 type={field.type}
+                error={fieldErrors[field.name]}
                 value={String(values[field.name] ?? "")}
                 onChange={(event) =>
-                  setValues((prev) => ({ ...prev, [field.name]: event.target.value }))
+                  setFieldValue(field, event.target.value)
                 }
                 placeholder={field.placeholder}
                 uiSize="lg"

@@ -64,7 +64,7 @@ export const mantineTheme = createTheme({
     },
     Card: {
       defaultProps: {
-        radius: "xl",
+        radius: "lg",
         shadow: "sm",
       },
     },
@@ -85,7 +85,7 @@ export const mantineTheme = createTheme({
     },
     Modal: {
       defaultProps: {
-        radius: "xl",
+        radius: "lg",
         centered: true,
       },
     },

@@ -869,11 +869,11 @@ const Usuarios = () => {
                     ))}
                   </AppSelect>
                 ) : (
-                  <div className="rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-white px-3 py-2 text-xs text-[color:var(--text-ink-muted)]">
+                  <div className="rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-2 text-xs text-[color:var(--text-on-dark-muted)]">
                     Bodega: {bodegas.find((b) => String(b.bodega_id) === String(activeBodegaId))?.nombre ?? "Bodega activa"}
                   </div>
                 )}
-                <label className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-white px-3 py-2 text-sm text-[color:var(--text-ink)]">
+                <label className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-2 text-sm text-[color:var(--text-on-dark)]">
                   <input
                     type="checkbox"
                     checked={crudForm.is_active}
@@ -883,11 +883,11 @@ const Usuarios = () => {
                 </label>
                 <div className="md:col-span-2">
                   <p className="mb-1 text-xs font-semibold text-[color:var(--text-accent)]">Roles en bodega (alta)</p>
-                  <div className="flex flex-wrap gap-3 rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-white p-3">
+                  <div className="flex flex-wrap gap-3 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] p-3">
                     {ROLES_BODEGA.map((role) => {
                       const checked = crudForm.rolesEnBodega.includes(role);
                       return (
-                        <label key={`crud-${role}`} className="flex items-center gap-2 text-xs text-[color:var(--text-ink)]">
+                        <label key={`crud-${role}`} className="flex items-center gap-2 text-xs text-[color:var(--text-on-dark)]">
                           <input
                             type="checkbox"
                             checked={checked}
@@ -921,9 +921,9 @@ const Usuarios = () => {
 
               </div>
             ) : (
-              <NoticeBanner>
+              <div className="rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-5 py-4 text-sm text-[color:var(--text-on-dark-muted)]">
                 Podés crear usuarios nuevos o editar/baja desde cada tarjeta.
-              </NoticeBanner>
+              </div>
             )}
           </AppCard>
 
@@ -981,7 +981,7 @@ const Usuarios = () => {
                 <NoticeBanner>Sin operarios de campo registrados para esta bodega.</NoticeBanner>
               ) : (
                 operarios.map((op) => (
-                  <div key={op.user_id} className="flex items-center justify-between rounded-[var(--radius-lg)] border border-[color:var(--border-default)] bg-white px-3 py-2">
+                  <div key={op.user_id} className="flex items-center justify-between rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-2">
                     <div>
                       <span className="text-sm font-semibold text-[color:var(--text-ink)]">{op.nombre}</span>
                       {op.whatsapp_e164 ? (
@@ -1052,7 +1052,7 @@ const Usuarios = () => {
                 return (
                   <article
                     key={user.id}
-                    className="rounded-[var(--radius-xl)] border border-[color:var(--border-default)] bg-white/95 p-4"
+                    className="rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] p-4"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
@@ -1161,7 +1161,7 @@ const Usuarios = () => {
                           </div>
 
                           {editor.open ? (
-                            <div className="mt-3 space-y-2 rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-white p-3">
+                            <div className="mt-3 space-y-2 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] p-3">
                               <AppSelect
                                 value={editor.scope}
                                 onChange={(e) =>

@@ -19,6 +19,18 @@ type RouteProfile = {
 };
 
 function getRouteProfile(pathname: string): RouteProfile {
+  if (pathname.startsWith("/ordenes")) {
+    return {
+      label: "Órdenes de trabajo",
+      summary: "Puedo ayudarte a crear, asignar y seguir órdenes sin mezclarlo con la carga técnica del registro operativo.",
+      suggestions: [
+        "¿Cómo conviene ordenar las órdenes de hoy?",
+        "¿Qué significa cada estado de una orden?",
+        "Ayudame a decidir a quién asignar este trabajo",
+      ],
+    };
+  }
+
   if (pathname.startsWith("/operacion")) {
     return {
       label: "Operación",
@@ -234,7 +246,7 @@ export default function CorchoBotLauncher() {
       <button
         type="button"
         onClick={() => setOpened(true)}
-        className="fixed bottom-5 right-5 z-30 inline-flex items-center gap-3 rounded-full border border-[color:var(--border-default)] bg-[color:var(--surface-muted)] px-4 py-3 text-left text-[color:var(--text-ink)] shadow-[var(--shadow-raised)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)] hover:-translate-y-0.5 hover:border-[color:var(--accent-secondary)] hover:bg-white sm:bottom-6 sm:right-6"
+        className="fixed bottom-5 right-5 z-30 inline-flex items-center gap-3 rounded-[var(--radius-xl)] border border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] px-4 py-3 text-left text-[color:var(--text-on-dark)] shadow-[var(--shadow-raised)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)] hover:-translate-y-0.5 hover:border-[color:var(--border-default)] hover:bg-[color:var(--action-secondary-hover)] sm:bottom-6 sm:right-6"
         aria-label="Abrir CorchoBot"
       >
         <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[color:var(--accent-primary)] text-[color:var(--text-primary)] shadow-[var(--shadow-inset-soft)]">
@@ -304,14 +316,14 @@ export default function CorchoBotLauncher() {
                   key={suggestion}
                   type="button"
                   onClick={() => void submitPrompt(suggestion)}
-                  className="rounded-full border border-[color:var(--border-default)] bg-[color:var(--surface-accent-soft)] px-3 py-2 text-xs font-medium text-[color:var(--text-ink)] transition hover:border-[color:var(--accent-secondary)] hover:bg-white"
+                  className="rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] px-3 py-2 text-xs font-medium text-[color:var(--text-on-dark)] transition hover:border-[color:var(--border-default)] hover:bg-[color:var(--action-secondary-hover)]"
                 >
                   {suggestion}
                 </button>
               ))}
             </div>
 
-            <div className="rounded-[var(--radius-xl)] border border-[color:var(--border-subtle)] bg-white/70">
+            <div className="rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-shell)]">
               <div className="max-h-[320px] space-y-3 overflow-y-auto px-4 py-4">
                 {messages.map((message) => (
                   <div

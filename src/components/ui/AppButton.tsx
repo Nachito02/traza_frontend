@@ -19,13 +19,13 @@ function joinClasses(...classes: Array<string | false | null | undefined>) {
 
 const variantClasses: Record<AppButtonVariant, string> = {
   primary:
-    "border-[color:var(--border-default)] bg-[color:var(--accent-primary)] text-[color:var(--text-primary)] hover:border-[color:var(--accent-secondary)] hover:bg-[color:var(--accent-primary-hover)]",
+    "border-[color:var(--border-default)] bg-[color:var(--action-primary-bg)] text-[color:var(--text-primary)] hover:border-[color:var(--accent-secondary)] hover:bg-[color:var(--action-primary-hover)] hover:shadow-[0_0_0_1px_rgba(200,169,107,0.14),0_10px_22px_rgba(78,147,183,0.16)]",
   secondary:
-    "border-[color:var(--border-default)] bg-[color:var(--action-ghost-bg)] text-[color:var(--text-ink)] hover:border-[color:var(--accent-secondary)] hover:bg-[color:var(--action-ghost-hover)]",
+    "border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] text-[color:var(--text-on-dark)] hover:border-[color:var(--border-default)] hover:bg-[color:var(--action-secondary-hover)]",
   ghost:
-    "border-transparent bg-transparent text-[color:var(--text-primary)] hover:border-[color:var(--border-default)] hover:bg-white/5",
+    "border-transparent bg-[color:var(--action-ghost-bg)] text-[color:var(--text-on-dark-muted)] hover:border-[color:var(--border-shell)] hover:bg-[color:var(--action-ghost-hover)] hover:text-[color:var(--text-on-dark)]",
   danger:
-    "border-[color:var(--feedback-danger-border)] bg-[color:var(--feedback-danger-bg)] text-[color:var(--feedback-danger-text)] hover:border-[color:var(--feedback-danger)] hover:bg-[color:var(--feedback-danger-bg)]/80",
+    "border-[color:var(--feedback-danger)] bg-[color:var(--action-danger-bg)] text-[color:var(--field-error)] hover:border-[color:var(--field-error)] hover:bg-[color:var(--action-danger-hover)]",
 };
 
 const sizeClasses: Record<AppButtonSize, string> = {

@@ -63,10 +63,21 @@ function AppModal({
       }}
       classNames={{
         content: joinClasses(
-          "overflow-hidden rounded-[var(--radius-xl)] bg-[color:var(--surface-muted)] text-[color:var(--text-ink)] shadow-[var(--shadow-raised)]",
+          "overflow-hidden rounded-[var(--radius-xl)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] text-[color:var(--text-ink)] shadow-[var(--shadow-raised)]",
           contentClassName,
         ),
         body: "p-0",
+      }}
+      styles={{
+        content: {
+          background: "var(--surface-muted)",
+          color: "var(--text-ink)",
+          borderColor: "var(--border-shell)",
+        },
+        body: {
+          background: "transparent",
+          color: "var(--text-ink)",
+        },
       }}
       padding={0}
     >

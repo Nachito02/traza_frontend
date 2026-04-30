@@ -47,7 +47,7 @@ function LegacyElaboracionRedirect() {
   const access = resolveModuleAccess(user, activeBodegaId);
   const canUseOperacionBodega = access.canAccessOperacionBodega;
   if (!canUseOperacionBodega) {
-    return <Navigate to="/operacion/tareas" replace />;
+    return <Navigate to="/ordenes" replace />;
   }
   const targetPath = location.pathname.replace(/^\/elaboracion/, "/operacion");
   return <Navigate to={`${targetPath}${location.search}${location.hash}`} replace />;
@@ -133,25 +133,26 @@ export default function App() {
         <Route
           path="/operacion"
           element={
-            access.canAccessOperacion
-              ? <Navigate to="/operacion/tareas" replace />
-              : <Navigate to="/fincas" replace />
+            canUseOperacionBodega
+              ? <Navigate to="/operacion/recepcion" replace />
+              : <Navigate to="/ordenes" replace />
           }
         />
-        <Route path="/operacion" element={access.canAccessOperacion ? <OperacionLayout /> : <Navigate to="/fincas" replace />}>
-          <Route path="tareas" element={<Tareas mode="manager" />} />
-          <Route path="recepcion" element={canUseOperacionBodega ? <RecepcionPage /> : <Navigate to="/operacion/tareas" replace />} />
-          <Route path="ciu-qc" element={canUseOperacionBodega ? <CiuQcPage /> : <Navigate to="/operacion/tareas" replace />} />
-          <Route path="vasijas" element={canUseOperacionBodega ? <VasijasProcesoPage /> : <Navigate to="/operacion/tareas" replace />} />
-          <Route path="cortes" element={canUseOperacionBodega ? <CortesProductoPage /> : <Navigate to="/operacion/tareas" replace />} />
-          <Route path="fraccionamiento" element={canUseOperacionBodega ? <FraccionamientoDespachoPage /> : <Navigate to="/operacion/tareas" replace />} />
-          <Route path="qr" element={canUseOperacionBodega ? <QrInversaPage /> : <Navigate to="/operacion/tareas" replace />} />
-          <Route path="trazabilidades" element={<Navigate to="/operacion/tareas" replace />} />
-          <Route path="trazabilidades/:id/plan" element={<Navigate to="/operacion/tareas" replace />} />
+        <Route path="/operacion" element={canUseOperacionBodega ? <OperacionLayout /> : <Navigate to="/ordenes" replace />}>
+          <Route path="tareas" element={<Navigate to="/ordenes" replace />} />
+          <Route path="recepcion" element={<RecepcionPage />} />
+          <Route path="ciu-qc" element={<CiuQcPage />} />
+          <Route path="vasijas" element={<VasijasProcesoPage />} />
+          <Route path="cortes" element={<CortesProductoPage />} />
+          <Route path="fraccionamiento" element={<FraccionamientoDespachoPage />} />
+          <Route path="qr" element={<QrInversaPage />} />
+          <Route path="trazabilidades" element={<Navigate to="/ordenes" replace />} />
+          <Route path="trazabilidades/:id/plan" element={<Navigate to="/ordenes" replace />} />
         </Route>
         <Route path="/elaboracion" element={canUseOperacionBodega ? <Navigate to="/operacion/recepcion" replace /> : <Navigate to="/fincas" replace />} />
         <Route path="/elaboracion/*" element={<LegacyElaboracionRedirect />} />
         <Route path="/progreso" element={access.canAccessBodega ? <ProgresoPage /> : <Navigate to="/dashboard" replace />} />
+        <Route path="/ordenes" element={<Tareas mode="manager" />} />
         <Route path="/tareas" element={<Tareas mode="operator" />} />
         <Route path="/usuarios" element={<Usuarios />} />
         <Route path="/integraciones" element={<Integraciones />} />
@@ -161,9 +162,9 @@ export default function App() {
         <Route path="/setup/campania" element={<SetupCampania />} />
         <Route path="/setup/cuarteles" element={<SetupCuarteles />} />
         <Route path="/setup/protocolos" element={<SetupProtocolos />} />
-        <Route path="/trazabilidades" element={<Navigate to="/operacion/tareas" replace />} />
-        <Route path="/trazabilidades/nueva" element={<Navigate to="/operacion/tareas" replace />} />
-        <Route path="/trazabilidades/:id/plan" element={<Navigate to="/operacion/tareas" replace />} />
+        <Route path="/trazabilidades" element={<Navigate to="/ordenes" replace />} />
+        <Route path="/trazabilidades/nueva" element={<Navigate to="/ordenes" replace />} />
+        <Route path="/trazabilidades/:id/plan" element={<Navigate to="/ordenes" replace />} />
       </Route>
       {/* <Route path="*" element={<NotFound />} /> */}
     </Routes>

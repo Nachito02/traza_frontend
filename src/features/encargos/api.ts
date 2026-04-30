@@ -5,6 +5,7 @@ export type TareaAsignacion = {
   user_id: string;
   estado: string;
   assigned_at: string;
+  completed_at?: string | null;
   observaciones?: string | null;
 };
 
@@ -23,6 +24,16 @@ export type Tarea = {
   imagen_cid?: string | null;
   imagen_url?: string | null;
   created_at?: string;
+  updated_at?: string;
+  finca?: {
+    finca_id?: string;
+    nombre_finca?: string;
+    nombre?: string;
+  } | null;
+  cuartel?: {
+    cuartel_id?: string;
+    codigo_cuartel?: string;
+  } | null;
   tarea_asignacion?: TareaAsignacion[];
 };
 

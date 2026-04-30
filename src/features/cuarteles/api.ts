@@ -7,10 +7,15 @@ export type Cuartel = {
   codigo_cuartel: string;
   superficie_ha: number;
   cultivo: string;
+  tipo_variedad?: string | null;
   variedad: string;
   sistema_riego?: string | null;
   sistema_productivo?: string | null;
   sistema_conduccion?: string | null;
+  cantidad_hileras?: number | null;
+  largo_hileras_m?: number | null;
+  densidad_hileras?: number | null;
+  distancia_plantacion?: string | null;
 };
 
 export type CreateCuartelPayload = {
@@ -18,20 +23,30 @@ export type CreateCuartelPayload = {
   codigo_cuartel: string;
   superficie_ha: number;
   cultivo: string;
+  tipo_variedad?: string | null;
   variedad: string;
   sistema_riego?: string | null;
   sistema_productivo?: string | null;
   sistema_conduccion?: string | null;
+  cantidad_hileras?: number | null;
+  largo_hileras_m?: number | null;
+  densidad_hileras?: number | null;
+  distancia_plantacion?: string | null;
 };
 
 export type UpdateCuartelPayload = {
   codigo_cuartel: string;
   superficie_ha: number;
   cultivo: string;
+  tipo_variedad?: string | null;
   variedad: string;
   sistema_riego?: string | null;
   sistema_productivo?: string | null;
   sistema_conduccion?: string | null;
+  cantidad_hileras?: number | null;
+  largo_hileras_m?: number | null;
+  densidad_hileras?: number | null;
+  distancia_plantacion?: string | null;
 };
 
 export async function createCuartel(payload: CreateCuartelPayload) {

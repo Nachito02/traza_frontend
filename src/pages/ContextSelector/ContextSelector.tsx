@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { AppCard, NoticeBanner, SectionIntro } from "../../components/ui";
+import { AppButton, AppCard, GuidedState, NoticeBanner, SectionIntro } from "../../components/ui";
 import { useAuthStore } from "../../store/authStore";
 
 const ContextSelector = () => {
@@ -22,9 +22,34 @@ const ContextSelector = () => {
             Cargando bodegas…
           </NoticeBanner>
         ) : bodegas.length === 0 ? (
-          <NoticeBanner className="p-6 text-center">
-            No se encontraron bodegas para este usuario.
-          </NoticeBanner>
+          <GuidedState
+            title="Tu usuario todavía no tiene una bodega asignada"
+            description="Para trabajar en Traza necesitás estar vinculado a una bodega. Podés crear la estructura inicial o pedirle a un administrador que te asigne acceso."
+            action={(
+              <AppButton
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() => navigate("/setup")}
+              >
+                Ir al setup inicial
+              </AppButton>
+            )}
+            secondaryAction={(
+              <AppButton
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => navigate("/usuarios")}
+              >
+                Revisar usuarios
+              </AppButton>
+            )}
+            steps={[
+              { label: "Usuario autenticado", done: true },
+              { label: "Bodega asignada", done: false },
+            ]}
+          />
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
             {bodegas.map((bodega) => (
@@ -35,13 +60,13 @@ const ContextSelector = () => {
                   setActiveBodega(bodega.bodega_id);
                   navigate("/dashboard", { replace: true });
                 }}
-                className="group rounded-[var(--radius-xl)] text-left transition"
+                className="group rounded-[var(--radius-lg)] text-left transition"
               >
                 <AppCard
                   as="article"
                   tone="interactive"
                   padding="lg"
-                  className="h-full bg-white/90 shadow-[var(--shadow-soft)]"
+                  className="h-full shadow-[var(--shadow-soft)]"
                 >
                   <div className="text-lg font-semibold text-[color:var(--text-ink)]">
                     {bodega.nombre}

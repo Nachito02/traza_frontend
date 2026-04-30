@@ -17,11 +17,11 @@ function joinClasses(...classes: Array<string | false | null | undefined>) {
 
 const toneClasses: Record<AppCardTone, string> = {
   default:
-    "bg-primary text-text shadow-[var(--shadow-soft)]",
+    "border border-[color:var(--border-shell)] bg-[color:var(--surface-base)] text-[color:var(--text-on-dark)] shadow-[var(--shadow-soft)]",
   soft:
-    "border border-[color:var(--border-default)] bg-[color:var(--surface-muted)] text-[color:var(--text-ink)] shadow-[var(--shadow-soft)]",
+    "border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] text-[color:var(--text-on-dark)] shadow-[var(--shadow-soft)]",
   interactive:
-    "border border-[color:var(--border-default)] bg-[color:var(--surface-muted)] text-[color:var(--text-ink)] shadow-[var(--shadow-soft)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)] hover:-translate-y-0.5 hover:border-[color:var(--accent-secondary)] hover:shadow-[var(--shadow-raised)]",
+    "border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] text-[color:var(--text-on-dark)] shadow-[var(--shadow-soft)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)] hover:-translate-y-0.5 hover:border-[color:var(--border-default)] hover:bg-[color:var(--surface-soft)] hover:shadow-[var(--shadow-raised)]",
 };
 
 const paddingClasses: Record<AppCardPadding, string> = {

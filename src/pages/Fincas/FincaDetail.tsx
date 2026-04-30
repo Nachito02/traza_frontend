@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { AppButton, AppCard, NoticeBanner, SectionIntro } from "../../components/ui";
+import { AppButton, AppCard, GuidedState, NoticeBanner, SectionIntro } from "../../components/ui";
 import type { Cuartel } from "../../features/cuarteles/api";
 import {
   fetchCuartelById,
@@ -10,6 +10,12 @@ import { deleteFinca } from "../../features/fincas/api";
 import { useFincasStore } from "../../features/fincas/store";
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
+import {
+  getManejoCultivoLabel,
+  getSistemaConduccionLabel,
+  getSistemaRiegoLabel,
+  getVariedadLabel,
+} from "../../domain/viticultura/catalogos";
 
 const FincaDetail = () => {
   const { id } = useParams();
@@ -227,7 +233,7 @@ const FincaDetail = () => {
                       "rounded-full border px-3 py-1 text-xs font-semibold transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)]",
                       isActive
                         ? "border-[color:var(--accent-primary)] bg-[color:var(--accent-primary)] text-[color:var(--text-primary)]"
-                        : "border-[color:var(--border-default)] bg-[color:var(--surface-soft)] text-[color:var(--accent-primary)] hover:bg-white",
+                        : "border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] text-[color:var(--text-on-dark)] hover:border-[color:var(--border-default)] hover:bg-[color:var(--action-secondary-hover)]",
                     ].join(" ")}
                   >
                     {cuartel.codigo_cuartel ?? "Cuartel"}
@@ -245,11 +251,26 @@ const FincaDetail = () => {
                 {error}
               </NoticeBanner>
             ) : cuarteles.length === 0 ? (
-              <NoticeBanner>
-                No hay cuarteles cargados para esta finca.
-              </NoticeBanner>
+              <GuidedState
+                title="Esta finca todavía no tiene cuarteles"
+                description="Los cuarteles son necesarios para asignar órdenes de trabajo de finca y cerrar la trazabilidad de labores de campo."
+                action={(
+                  <Link to={`/admin/cuarteles?fincaId=${encodeURIComponent(String(id))}&create=1`}>
+                    <AppButton variant="primary" size="sm">Crear primer cuartel</AppButton>
+                  </Link>
+                )}
+                secondaryAction={(
+                  <Link to={`/admin/cuarteles?fincaId=${encodeURIComponent(String(id))}`}>
+                    <AppButton variant="secondary" size="sm">Administrar cuarteles</AppButton>
+                  </Link>
+                )}
+                steps={[
+                  { label: "Finca creada", done: true },
+                  { label: "Primer cuartel", done: false },
+                ]}
+              />
             ) : (
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid items-start gap-3 md:grid-cols-2">
                 {cuarteles.map((cuartel) => (
                   <AppCard
                     key={cuartel.cuartel_id ?? cuartel.id}
@@ -272,7 +293,7 @@ const FincaDetail = () => {
                                 {cuartel.codigo_cuartel ?? "Cuartel"}
                               </div>
                               <div className="mt-1 text-xs text-[color:var(--text-accent)]">
-                                {cuartel.variedad ?? "Variedad sin definir"} ·{" "}
+                                {getVariedadLabel(cuartel.variedad) ?? "Variedad sin definir"} ·{" "}
                                 {cuartel.superficie_ha ?? "-"} ha
                               </div>
                             </div>
@@ -282,13 +303,14 @@ const FincaDetail = () => {
                           </div>
 
                           <div className="mt-3 flex flex-wrap gap-2">
-                            <button
+                            <AppButton
                               type="button"
+                              variant="secondary"
+                              size="sm"
                               onClick={() => void onToggleCuartelDetail(cuartelId)}
-                              className="cursor-pointer rounded-[var(--radius-md)] border border-[color:var(--border-default)] px-2 py-1 text-xs font-semibold text-[color:var(--accent-primary)] transition hover:bg-white"
                             >
                               {isExpanded ? "Ocultar detalle" : "Ver detalle"}
-                            </button>
+                            </AppButton>
                             <Link
                               to={`/admin/cuarteles?edit=${encodeURIComponent(cuartelId)}&fincaId=${encodeURIComponent(String(id))}`}
                               className="inline-flex"
@@ -298,7 +320,7 @@ const FincaDetail = () => {
                           </div>
 
                           {isExpanded ? (
-                            <div className="mt-3 rounded-[var(--radius-xl)] border border-[color:var(--border-default)] bg-white px-3 py-3 text-xs text-[color:var(--text-ink-muted)]">
+                            <div className="mt-3 rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-3 text-xs text-[color:var(--text-on-dark-muted)]">
                               {isLoadingDetail ? (
                                 <div>Cargando detalle...</div>
                               ) : detailError ? (
@@ -315,11 +337,11 @@ const FincaDetail = () => {
                                   </div>
                                   <div>
                                     <span className="font-semibold text-[color:var(--text-ink)]">Variedad:</span>{" "}
-                                    {detail?.variedad ?? "-"}
+                                    {getVariedadLabel(detail?.variedad)}
                                   </div>
                                   <div>
                                     <span className="font-semibold text-[color:var(--text-ink)]">Sistema de riego:</span>{" "}
-                                    {detail?.sistema_riego ?? "-"}
+                                    {getSistemaRiegoLabel(detail?.sistema_riego)}
                                   </div>
                                   <div>
                                     <span className="font-semibold text-[color:var(--text-ink)]">Superficie:</span>{" "}
@@ -327,15 +349,31 @@ const FincaDetail = () => {
                                   </div>
                                   <div>
                                     <span className="font-semibold text-[color:var(--text-ink)]">
-                                      Sistema productivo:
+                                      Manejo de cultivo:
                                     </span>{" "}
-                                    {detail?.sistema_productivo ?? "-"}
+                                    {getManejoCultivoLabel(detail?.sistema_productivo)}
                                   </div>
                                   <div>
                                     <span className="font-semibold text-[color:var(--text-ink)]">
-                                      Sistema conducción:
+                                      Sistema de conducción:
                                     </span>{" "}
-                                    {detail?.sistema_conduccion ?? "-"}
+                                    {getSistemaConduccionLabel(detail?.sistema_conduccion)}
+                                  </div>
+                                  <div>
+                                    <span className="font-semibold text-[color:var(--text-ink)]">Hileras:</span>{" "}
+                                    {detail?.cantidad_hileras ?? "-"}
+                                  </div>
+                                  <div>
+                                    <span className="font-semibold text-[color:var(--text-ink)]">Largo de hileras:</span>{" "}
+                                    {detail?.largo_hileras_m ?? "-"} m
+                                  </div>
+                                  <div>
+                                    <span className="font-semibold text-[color:var(--text-ink)]">Densidad de hileras:</span>{" "}
+                                    {detail?.densidad_hileras ?? "-"}
+                                  </div>
+                                  <div>
+                                    <span className="font-semibold text-[color:var(--text-ink)]">Distancia de plantación:</span>{" "}
+                                    {detail?.distancia_plantacion ?? "-"}
                                   </div>
                                 </div>
                               )}
