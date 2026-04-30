@@ -182,7 +182,6 @@ const SetupFinca = () => {
                 <div className="grid gap-4 md:grid-cols-2">
                   <AppSelect
                     label="Bodega"
-                    description="Se usa la bodega elegida como contexto activo para el setup."
                     value={selectedBodegaId}
                     onChange={(e) => setSelectedBodegaId(e.target.value)}
                   >

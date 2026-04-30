@@ -21,14 +21,15 @@ const Login = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-primary p-4">
       <div className="w-full max-w-lg">
-        <div className="mb-10 text-center">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-dark rounded-full mb-4">
+        <div className="mb-10 text-center mt-3">
+          <div className="inline-flex items-center justify-center w-full h-20   mb-4">
             <img src={trazaLogo} alt="Traza" className="h-10 w-auto object-contain" />
+            
           </div>
           <p className="text-cream text-sm">
             Plataforma de trazabilidad vitivinícola
           </p>
-          <div className="mt-2 inline-flex items-center gap-1 rounded-full border border-gold/40 bg-dark/70 px-3 py-1 text-xs text-cream">
+          <div className="mt-2 inline-flex items-center gap-1 rounded-full border border-gold/40  px-3 py-1 text-xs text-cream">
             <Lock className="h-3.5 w-3.5" aria-hidden="true" />
             Asegurada en blockchain
           </div>

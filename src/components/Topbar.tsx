@@ -1,6 +1,6 @@
 import { Avatar, Menu as MantineMenu } from "@mantine/core";
 import { useEffect, useMemo } from "react";
-import { ChevronDown, LogOut, Menu, Settings, Shield, UserCircle2 } from "lucide-react";
+import { LogOut, Menu, Settings, Shield, UserCircle2 } from "lucide-react";
 import { AppSelect } from "./ui";
 import { useAuthStore } from "../store/authStore";
 import { useCampaniaStore } from "../store/campaniaStore";
@@ -86,14 +86,14 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
             <Menu className="h-5 w-5" />
           </button>
 
-          <div className="hidden min-w-0 md:block">
+          {/* <div className="hidden min-w-0 md:block">
             <div className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[color:var(--text-on-dark-muted)]">
               Traza workspace
             </div>
             <div className="mt-1 truncate text-base font-semibold text-[color:var(--text-on-dark)]">
               Centro de control operativo
             </div>
-          </div>
+          </div> */}
         </div>
 
         <div className="flex items-center gap-3">
@@ -226,25 +226,17 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
               <button
                 type="button"
                 disabled={isLoading}
-                className="group inline-flex items-center gap-3 rounded-[var(--radius-xl)] border border-[color:var(--border-shell)] bg-[color:var(--surface-shell-raised)] px-2.5 py-2 text-left text-[color:var(--text-on-dark)] shadow-[var(--shadow-soft)] transition hover:border-[color:var(--border-default)] hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-60"
+                className="group inline-flex h-12 w-12 items-center justify-center rounded-full border border-[color:var(--border-shell)] bg-[color:var(--surface-shell-raised)] text-[color:var(--text-on-dark)] shadow-[var(--shadow-soft)] transition hover:border-[color:var(--border-default)] hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-60"
                 aria-label="Abrir menú de usuario"
+                title={user?.nombre ?? user?.email ?? "Usuario"}
               >
                 <Avatar
                   src={avatarGeneric}
                   alt="Avatar genérico"
                   radius="xl"
-                  size={40}
+                  size={38}
                   className="shrink-0 border border-[color:var(--border-shell)] bg-[color:var(--surface-base)]"
                 />
-                <div className="hidden min-w-0 md:block">
-                  <div className="truncate text-sm font-semibold text-[color:var(--text-on-dark)]">
-                    {user?.nombre ?? "Usuario"}
-                  </div>
-                  <div className="truncate text-xs text-[color:var(--text-on-dark-muted)]">
-                    {user?.email ?? "Sin email"}
-                  </div>
-                </div>
-                <ChevronDown className="h-4 w-4 text-[color:var(--text-on-dark-muted)] transition group-hover:text-[color:var(--text-on-dark)]" />
               </button>
             </MantineMenu.Target>
 

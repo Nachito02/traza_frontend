@@ -6,7 +6,7 @@ import {
   AppButton,
   AppCard,
   AppSelect,
-  NoticeBanner,
+  GuidedState,
   SectionIntro,
 } from "../../components/ui";
 
@@ -116,9 +116,21 @@ export default function BodegaHome() {
                   .join(" ")}
               </span>
             ) : (
-              <NoticeBanner tone="warning" className="max-w-xl">
-                Sin protocolo — las tareas en Operación no tendrán actividades disponibles.
-              </NoticeBanner>
+              <GuidedState
+                className="w-full"
+                title="La bodega no tiene protocolo activo"
+                description="Sin protocolo activo, Operación no puede mostrar las etapas y actividades necesarias para registrar órdenes y eventos."
+                action={(
+                  <Link to="/setup/protocolos">
+                    <AppButton variant="primary" size="sm">Completar setup de protocolo</AppButton>
+                  </Link>
+                )}
+                steps={[
+                  { label: "Bodega activa", done: true },
+                  { label: "Protocolo activo", done: false },
+                  { label: "Operación lista", done: false },
+                ]}
+              />
             )}
           </div>
         </AppCard>
@@ -173,13 +185,13 @@ export default function BodegaHome() {
           header={(
             <SectionIntro
               title="Eventos operativos"
-              description="El registro diario de recepción, controles, operaciones y fraccionamiento vive en la pestaña Operación."
+              description="El registro diario de recepción, controles, operaciones y fraccionamiento vive en Registro operativo."
             />
           )}
         >
           <div className="mt-4">
             <Link to="/operacion">
-              <AppButton variant="primary" size="sm">Ir a Operación</AppButton>
+              <AppButton variant="primary" size="sm">Ir a Registro operativo</AppButton>
             </Link>
           </div>
         </AppCard>

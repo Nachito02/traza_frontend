@@ -77,18 +77,18 @@
   --feedback-warning: var(--brand-warning-500);
   --feedback-danger: var(--brand-danger-500);
   --feedback-neutral: var(--brand-wine-900);
-  --feedback-success-bg: #ecfdf3;
-  --feedback-success-border: #a7f3d0;
-  --feedback-success-text: #166534;
-  --feedback-warning-bg: #fffbeb;
-  --feedback-warning-border: #fcd34d;
-  --feedback-warning-text: #92400e;
-  --feedback-danger-bg: #fef2f2;
-  --feedback-danger-border: #f5b3b3;
-  --feedback-danger-text: #a61f1f;
-  --feedback-neutral-bg: rgba(248, 250, 252, 0.94);
-  --feedback-neutral-border: rgba(200, 169, 107, 0.28);
-  --feedback-neutral-text: var(--text-ink-muted);
+  --feedback-success-bg: rgba(47, 133, 90, 0.16);
+  --feedback-success-border: rgba(72, 187, 120, 0.34);
+  --feedback-success-text: #9ae6b4;
+  --feedback-warning-bg: rgba(154, 106, 31, 0.16);
+  --feedback-warning-border: rgba(200, 169, 107, 0.38);
+  --feedback-warning-text: #f6d58f;
+  --feedback-danger-bg: rgba(184, 50, 50, 0.16);
+  --feedback-danger-border: rgba(255, 93, 93, 0.34);
+  --feedback-danger-text: #ff9b9b;
+  --feedback-neutral-bg: rgba(29, 42, 59, 0.82);
+  --feedback-neutral-border: rgba(200, 169, 107, 0.22);
+  --feedback-neutral-text: var(--text-on-dark-muted);
 
   /* Typography */
   --font-body: "Work Sans", sans-serif;

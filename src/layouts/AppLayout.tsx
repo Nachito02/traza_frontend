@@ -14,6 +14,12 @@ const AppLayout = () => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
 
+  // useEffect(() => {
+  //   window.requestAnimationFrame(() => {
+  //     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  //   });
+  // }, [location.pathname, location.search]);
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }

@@ -9,6 +9,7 @@ export type FieldDef = {
   placeholder?: string;
   defaultValue?: string;
   options?: { value: string; label: string }[];
+  optionsSource?: "bodegas";
 };
 
 export type EventoConfig = {
@@ -39,7 +40,7 @@ export const EVENTO_CONFIG: Record<string, EventoConfig> = {
       },
       { name: "cultivo", label: "Cultivo", type: "text", required: true },
       { name: "variedad", label: "Variedad", type: "text", required: true },
-      { name: "sistema_productivo", label: "Sistema productivo", type: "text" },
+      { name: "sistema_productivo", label: "Manejo de cultivo", type: "text" },
       { name: "sistema_riego", label: "Sistema de riego", type: "text" },
       { name: "sistema_conduccion", label: "Sistema de conducción", type: "text" },
       { name: "coordenadas", label: "Coordenadas / polígono", type: "textarea" },
@@ -62,7 +63,7 @@ export const EVENTO_CONFIG: Record<string, EventoConfig> = {
       { name: "fecha_cosecha", label: "Fecha de cosecha", type: "date", required: true },
       { name: "cantidad", label: "Cantidad", type: "number", required: true, step: "0.01" },
       { name: "unidad", label: "Unidad", type: "text", required: true, defaultValue: "kg" },
-      { name: "destino", label: "Destino", type: "text", required: true, defaultValue: "bodega" },
+      { name: "destino", label: "Destino", type: "select", required: true, optionsSource: "bodegas" },
     ],
   },
   fenologia: {

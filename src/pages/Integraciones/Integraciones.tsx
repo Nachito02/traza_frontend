@@ -426,7 +426,9 @@ const Integraciones = () => {
           {delegationsLoading ? (
             <NoticeBanner>Cargando delegaciones…</NoticeBanner>
           ) : delegations.length === 0 ? (
-            <NoticeBanner>No tenés delegaciones activas.</NoticeBanner>
+            <div className="rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-5 py-4 text-sm text-[color:var(--text-on-dark-muted)]">
+              No tenés delegaciones activas.
+            </div>
           ) : (
             <div className="space-y-2">
               {delegations.map((d) => (

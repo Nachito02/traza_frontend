@@ -19,6 +19,18 @@ type RouteProfile = {
 };
 
 function getRouteProfile(pathname: string): RouteProfile {
+  if (pathname.startsWith("/ordenes")) {
+    return {
+      label: "Órdenes de trabajo",
+      summary: "Puedo ayudarte a crear, asignar y seguir órdenes sin mezclarlo con la carga técnica del registro operativo.",
+      suggestions: [
+        "¿Cómo conviene ordenar las órdenes de hoy?",
+        "¿Qué significa cada estado de una orden?",
+        "Ayudame a decidir a quién asignar este trabajo",
+      ],
+    };
+  }
+
   if (pathname.startsWith("/operacion")) {
     return {
       label: "Operación",

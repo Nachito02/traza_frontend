@@ -11,6 +11,7 @@ import { useCampaniaStore } from "../../store/campaniaStore";
 import {
   AppButton,
   AppCard,
+  GuidedState,
   NoticeBanner,
   SectionIntro,
 } from "../../components/ui";
@@ -24,6 +25,37 @@ const SetupProtocolos = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const setupFincaId = sessionStorage.getItem("setupFincaId") ?? "";
+  const setupCuartelId = sessionStorage.getItem("setupCuartelId") ?? "";
+  const missingSetupStep = !activeBodegaId
+    ? {
+        title: "Primero necesitás elegir una bodega",
+        description: "El protocolo se aplica sobre una bodega activa. Elegí el contexto antes de cerrar el setup.",
+        actionLabel: "Elegir bodega",
+        actionPath: "/contexto",
+      }
+    : !setupFincaId
+      ? {
+          title: "Falta cargar la finca",
+          description: "La finca es la base para vincular cuarteles y ordenar el trabajo de campo.",
+          actionLabel: "Cargar finca",
+          actionPath: "/setup/finca",
+        }
+      : !activeCampaniaId
+        ? {
+            title: "Falta seleccionar una campaña",
+            description: "La campaña define el período de trabajo donde se registran tareas, cosecha y operación.",
+            actionLabel: "Configurar campaña",
+            actionPath: "/setup/campania",
+          }
+        : !setupCuartelId
+          ? {
+              title: "Falta crear un cuartel",
+              description: "El cuartel permite asignar órdenes de finca y sostener la trazabilidad desde el origen.",
+              actionLabel: "Crear cuartel",
+              actionPath: "/setup/cuarteles",
+            }
+          : null;
 
   useEffect(() => {
     let mounted = true;
@@ -86,7 +118,7 @@ const SetupProtocolos = () => {
       sessionStorage.removeItem("setupFincaNombre");
       sessionStorage.removeItem("setupCuartelId");
       sessionStorage.removeItem("setupCuartelCodigo");
-      navigate("/operacion/tareas");
+      navigate("/ordenes");
     } catch (e) {
       setError(getApiErrorMessage(e));
     } finally {
@@ -108,12 +140,39 @@ const SetupProtocolos = () => {
             />
           )}
         >
-          <NoticeBanner tone="info" title="Cierre del setup">
-            Al finalizar guardamos la configuración base y te llevamos directo a operación para empezar a trabajar.
-          </NoticeBanner>
+          <div className="rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-5 py-4 text-[color:var(--text-on-dark)]">
+            <p className="text-sm font-semibold text-[color:var(--text-on-dark)]">
+              Cierre del setup
+            </p>
+            <p className="mt-2 text-sm text-[color:var(--text-on-dark-muted)]">
+              Al finalizar guardamos la configuración base y te llevamos directo a operación para empezar a trabajar.
+            </p>
+          </div>
         </AppCard>
 
-        {loading ? (
+        {missingSetupStep ? (
+          <GuidedState
+            title={missingSetupStep.title}
+            description={missingSetupStep.description}
+            action={(
+              <AppButton
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() => navigate(missingSetupStep.actionPath)}
+              >
+                {missingSetupStep.actionLabel}
+              </AppButton>
+            )}
+            steps={[
+              { label: "Bodega activa", done: Boolean(activeBodegaId) },
+              { label: "Finca", done: Boolean(setupFincaId) },
+              { label: "Campaña", done: Boolean(activeCampaniaId) },
+              { label: "Cuartel", done: Boolean(setupCuartelId) },
+              { label: "Protocolo", done: false },
+            ]}
+          />
+        ) : loading ? (
           <NoticeBanner tone="info">Cargando protocolos…</NoticeBanner>
         ) : error ? (
           <NoticeBanner tone="danger">{error}</NoticeBanner>

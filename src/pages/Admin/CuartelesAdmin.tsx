@@ -19,16 +19,34 @@ import {
   NoticeBanner,
   SectionIntro,
 } from "../../components/ui";
+import {
+  getTipoVariedadForVariedad,
+  getManejoCultivoLabel,
+  getSistemaRiegoLabel,
+  getSistemaConduccionLabel,
+  getVariedadLabel,
+  getVariedadesByTipo,
+  MANEJO_CULTIVO_OPTIONS,
+  SISTEMA_CONDUCCION_OPTIONS,
+  SISTEMA_RIEGO_OPTIONS,
+  TIPO_VARIEDAD_OPTIONS,
+  type TipoVariedadVid,
+} from "../../domain/viticultura/catalogos";
 
 type FormState = {
   fincaId: string;
   codigo_cuartel: string;
   superficie_ha: string;
   cultivo: string;
+  tipo_variedad: TipoVariedadVid;
   variedad: string;
   sistema_riego: string;
   sistema_productivo: string;
   sistema_conduccion: string;
+  cantidad_hileras: string;
+  largo_hileras_m: string;
+  densidad_hileras: string;
+  distancia_plantacion: string;
 };
 
 const emptyForm: FormState = {
@@ -36,13 +54,22 @@ const emptyForm: FormState = {
   codigo_cuartel: "",
   superficie_ha: "",
   cultivo: "Vid",
+  tipo_variedad: "tinta",
   variedad: "",
   sistema_riego: "",
   sistema_productivo: "",
   sistema_conduccion: "",
+  cantidad_hileras: "",
+  largo_hileras_m: "",
+  densidad_hileras: "",
+  distancia_plantacion: "",
 };
 
 type CuartelRow = Cuartel & { fincaId: string };
+
+function optionalNumber(value: string) {
+  return value.trim() ? Number(value) : null;
+}
 
 export default function CuartelesAdmin() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -97,6 +124,22 @@ export default function CuartelesAdmin() {
   const selectedFincaLabel = fincaIdParam
     ? fincaById[fincaIdParam] ?? "Finca seleccionada"
     : "Todas las fincas";
+  const variedadOptions = useMemo(
+    () => getVariedadesByTipo(form.tipo_variedad),
+    [form.tipo_variedad],
+  );
+
+  const onChangeTipoVariedad = (value: TipoVariedadVid) => {
+    setForm((prev) => ({ ...prev, tipo_variedad: value, variedad: "" }));
+  };
+
+  const onChangeVariedad = (value: string) => {
+    setForm((prev) => ({
+      ...prev,
+      variedad: value,
+      tipo_variedad: value ? getTipoVariedadForVariedad(value) : prev.tipo_variedad,
+    }));
+  };
 
   const load = async () => {
     if (!activeBodegaId) {
@@ -164,6 +207,18 @@ export default function CuartelesAdmin() {
       setError("Superficie válida requerida.");
       return;
     }
+    const numericFields = [
+      { label: "Cantidad de hileras", value: form.cantidad_hileras },
+      { label: "Largo de hileras", value: form.largo_hileras_m },
+      { label: "Densidad de hileras", value: form.densidad_hileras },
+    ];
+    const invalidField = numericFields.find(
+      (field) => field.value.trim() && (Number.isNaN(Number(field.value)) || Number(field.value) < 0),
+    );
+    if (invalidField) {
+      setError(`${invalidField.label} debe ser un número válido.`);
+      return;
+    }
 
     setSaving(true);
     setError(null);
@@ -174,10 +229,15 @@ export default function CuartelesAdmin() {
           codigo_cuartel: form.codigo_cuartel.trim(),
           superficie_ha: Number(form.superficie_ha),
           cultivo: "Vid",
-          variedad: form.variedad.trim(),
+          tipo_variedad: form.tipo_variedad,
+          variedad: form.variedad,
           sistema_riego: form.sistema_riego.trim() || null,
           sistema_productivo: form.sistema_productivo.trim() || null,
           sistema_conduccion: form.sistema_conduccion.trim() || null,
+          cantidad_hileras: optionalNumber(form.cantidad_hileras),
+          largo_hileras_m: optionalNumber(form.largo_hileras_m),
+          densidad_hileras: optionalNumber(form.densidad_hileras),
+          distancia_plantacion: form.distancia_plantacion.trim() || null,
         });
         setSuccess("Cuartel actualizado.");
       } else {
@@ -186,10 +246,15 @@ export default function CuartelesAdmin() {
           codigo_cuartel: form.codigo_cuartel.trim(),
           superficie_ha: Number(form.superficie_ha),
           cultivo: "Vid",
-          variedad: form.variedad.trim(),
+          tipo_variedad: form.tipo_variedad,
+          variedad: form.variedad,
           sistema_riego: form.sistema_riego.trim() || null,
           sistema_productivo: form.sistema_productivo.trim() || null,
           sistema_conduccion: form.sistema_conduccion.trim() || null,
+          cantidad_hileras: optionalNumber(form.cantidad_hileras),
+          largo_hileras_m: optionalNumber(form.largo_hileras_m),
+          densidad_hileras: optionalNumber(form.densidad_hileras),
+          distancia_plantacion: form.distancia_plantacion.trim() || null,
         });
         setSuccess("Cuartel creado.");
       }
@@ -222,10 +287,24 @@ export default function CuartelesAdmin() {
             ? ""
             : String(detail.superficie_ha),
         cultivo: "Vid",
+        tipo_variedad: (detail.tipo_variedad as TipoVariedadVid | null) ?? getTipoVariedadForVariedad(detail.variedad),
         variedad: detail.variedad ?? "",
         sistema_riego: detail.sistema_riego ?? "",
         sistema_productivo: detail.sistema_productivo ?? "",
         sistema_conduccion: detail.sistema_conduccion ?? "",
+        cantidad_hileras:
+          detail.cantidad_hileras === undefined || detail.cantidad_hileras === null
+            ? ""
+            : String(detail.cantidad_hileras),
+        largo_hileras_m:
+          detail.largo_hileras_m === undefined || detail.largo_hileras_m === null
+            ? ""
+            : String(detail.largo_hileras_m),
+        densidad_hileras:
+          detail.densidad_hileras === undefined || detail.densidad_hileras === null
+            ? ""
+            : String(detail.densidad_hileras),
+        distancia_plantacion: detail.distancia_plantacion ?? "",
       });
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
@@ -390,7 +469,7 @@ export default function CuartelesAdmin() {
                       <div className="mt-3 grid gap-2 text-xs text-[color:var(--text-ink-muted)] md:grid-cols-2">
                         <div className="rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-2">
                           <span className="font-semibold text-[color:var(--text-on-dark)]">Variedad:</span>{" "}
-                          {item.variedad || "-"}
+                          {getVariedadLabel(item.variedad)}
                         </div>
                         <div className="rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-2">
                           <span className="font-semibold text-[color:var(--text-on-dark)]">Superficie:</span>{" "}
@@ -449,13 +528,13 @@ export default function CuartelesAdmin() {
                                 <span className="font-semibold text-[color:var(--text-ink)]">
                                   Variedad:
                                 </span>{" "}
-                                {detail?.variedad ?? "-"}
+                                {getVariedadLabel(detail?.variedad)}
                               </div>
                               <div>
                                 <span className="font-semibold text-[color:var(--text-ink)]">
                                   Sistema de riego:
                                 </span>{" "}
-                                {detail?.sistema_riego ?? "-"}
+                                {getSistemaRiegoLabel(detail?.sistema_riego)}
                               </div>
                               <div>
                                 <span className="font-semibold text-[color:var(--text-ink)]">
@@ -465,15 +544,39 @@ export default function CuartelesAdmin() {
                               </div>
                               <div>
                                 <span className="font-semibold text-[color:var(--text-ink)]">
-                                  Sistema productivo:
+                                  Manejo de cultivo:
                                 </span>{" "}
-                                {detail?.sistema_productivo ?? "-"}
+                                {getManejoCultivoLabel(detail?.sistema_productivo)}
                               </div>
                               <div>
                                 <span className="font-semibold text-[color:var(--text-ink)]">
-                                  Sistema conducción:
+                                  Sistema de conducción:
                                 </span>{" "}
-                                {detail?.sistema_conduccion ?? "-"}
+                                {getSistemaConduccionLabel(detail?.sistema_conduccion)}
+                              </div>
+                              <div>
+                                <span className="font-semibold text-[color:var(--text-ink)]">
+                                  Hileras:
+                                </span>{" "}
+                                {detail?.cantidad_hileras ?? "-"}
+                              </div>
+                              <div>
+                                <span className="font-semibold text-[color:var(--text-ink)]">
+                                  Largo de hileras:
+                                </span>{" "}
+                                {detail?.largo_hileras_m ?? "-"} m
+                              </div>
+                              <div>
+                                <span className="font-semibold text-[color:var(--text-ink)]">
+                                  Densidad de hileras:
+                                </span>{" "}
+                                {detail?.densidad_hileras ?? "-"}
+                              </div>
+                              <div>
+                                <span className="font-semibold text-[color:var(--text-ink)]">
+                                  Distancia de plantación:
+                                </span>{" "}
+                                {detail?.distancia_plantacion ?? "-"}
                               </div>
                             </div>
                           )}
@@ -565,47 +668,123 @@ export default function CuartelesAdmin() {
                 <AppInput
                   label="Cultivo"
                   value="Vid"
-                  description="Cultivo fijo para este flujo."
+                 
                   uiSize="lg"
                   disabled
                 />
-                <AppInput
+                <AppSelect
+                  label="Tipo de variedad"
+                  value={form.tipo_variedad}
+                  onChange={(e) => onChangeTipoVariedad(e.target.value as TipoVariedadVid)}
+                  uiSize="lg"
+                >
+                  {TIPO_VARIEDAD_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </AppSelect>
+                <AppSelect
                   label="Variedad"
-                    value={form.variedad}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, variedad: e.target.value }))
-                    }
-                    placeholder="Malbec"
-                    uiSize="lg"
-                  />
+                  value={form.variedad}
+                  onChange={(e) => onChangeVariedad(e.target.value)}
+                  uiSize="lg"
+                >
+                  <option value="">Seleccionar variedad</option>
+                  {variedadOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </AppSelect>
                 <AppInput
+                  label="Cantidad de hileras"
+                  type="number"
+                  step="1"
+                  value={form.cantidad_hileras}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, cantidad_hileras: e.target.value }))
+                  }
+                  placeholder="Ej. 42"
+                  uiSize="lg"
+                />
+                <AppInput
+                  label="Largo de hileras (m)"
+                  type="number"
+                  step="0.01"
+                  value={form.largo_hileras_m}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, largo_hileras_m: e.target.value }))
+                  }
+                  placeholder="Ej. 120"
+                  uiSize="lg"
+                />
+                <AppInput
+                  label="Densidad de hileras"
+                  type="number"
+                  step="0.01"
+                  value={form.densidad_hileras}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, densidad_hileras: e.target.value }))
+                  }
+                  placeholder="Ej. 2.5"
+                  uiSize="lg"
+                />
+                <AppInput
+                  label="Distancia de plantación"
+                  value={form.distancia_plantacion}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, distancia_plantacion: e.target.value }))
+                  }
+                  placeholder="Ej. 2.5 x 1.2 m"
+                  uiSize="lg"
+                />
+                <AppSelect
                   label="Sistema de riego"
-                    value={form.sistema_riego}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, sistema_riego: e.target.value }))
-                    }
-                    placeholder="Goteo"
-                    uiSize="lg"
-                  />
-                <AppInput
-                  label="Sistema productivo"
-                    value={form.sistema_productivo}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, sistema_productivo: e.target.value }))
-                    }
-                    placeholder="Convencional, orgánico..."
-                    uiSize="lg"
-                  />
-                <AppInput
+                  value={form.sistema_riego}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, sistema_riego: e.target.value }))
+                  }
+                  uiSize="lg"
+                >
+                  <option value="">Seleccionar sistema</option>
+                  {SISTEMA_RIEGO_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </AppSelect>
+                <AppSelect
+                  label="Manejo de cultivo"
+                  value={form.sistema_productivo}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, sistema_productivo: e.target.value }))
+                  }
+                  uiSize="lg"
+                >
+                  <option value="">Seleccionar manejo</option>
+                  {MANEJO_CULTIVO_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </AppSelect>
+                <AppSelect
                   label="Sistema de conducción"
                   className="md:col-span-2"
-                    value={form.sistema_conduccion}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, sistema_conduccion: e.target.value }))
-                    }
-                    placeholder="Espaldera, parral..."
-                    uiSize="lg"
-                  />
+                  value={form.sistema_conduccion}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, sistema_conduccion: e.target.value }))
+                  }
+                  uiSize="lg"
+                >
+                  <option value="">Seleccionar sistema</option>
+                  {SISTEMA_CONDUCCION_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </AppSelect>
               </div>
             </AppCard>
             <div className="mt-4 flex flex-wrap gap-2">

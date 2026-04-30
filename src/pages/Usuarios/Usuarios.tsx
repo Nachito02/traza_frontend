@@ -921,9 +921,9 @@ const Usuarios = () => {
 
               </div>
             ) : (
-              <NoticeBanner>
+              <div className="rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-5 py-4 text-sm text-[color:var(--text-on-dark-muted)]">
                 Podés crear usuarios nuevos o editar/baja desde cada tarjeta.
-              </NoticeBanner>
+              </div>
             )}
           </AppCard>
 

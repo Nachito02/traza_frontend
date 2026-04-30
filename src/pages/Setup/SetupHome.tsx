@@ -25,7 +25,7 @@ const steps = [
   {
     title: "Ir a operación",
     description: "Entrar al trabajo diario de tareas, recepción y seguimiento.",
-    to: "/operacion/tareas",
+    to: "/ordenes",
   },
 ];
 

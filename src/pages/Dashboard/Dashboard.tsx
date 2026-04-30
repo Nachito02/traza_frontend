@@ -16,6 +16,7 @@ const Dashboard = () => {
 
   const activeBodega = bodegas.find((bodega) => bodega.bodega_id === String(activeBodegaId));
   const access = resolveModuleAccess(user, activeBodegaId);
+  const dailyOrdersPath = access.canAccessOperacion ? "/ordenes" : "/tareas";
 
   useEffect(() => {
     if (!activeBodegaId) return;
@@ -54,11 +55,11 @@ const Dashboard = () => {
             className="[&>div>p]:text-[color:var(--text-on-dark-muted)]"
             actions={(
               <>
-                <AppButton type="button" variant="secondary" onClick={() => navigate("/operacion/tareas")}>
-                  Ir a tareas
+                <AppButton type="button" variant="secondary" onClick={() => navigate("/ordenes")}>
+                  Ir a órdenes
                 </AppButton>
                 <AppButton type="button" variant="secondary" onClick={() => navigate("/operacion")}>
-                  Ir a Operación
+                  Ir a Registro operativo
                 </AppButton>
                 <AppButton type="button" variant="secondary" onClick={() => navigate("/progreso")}>
                   Ver progreso
@@ -138,12 +139,12 @@ const Dashboard = () => {
                 <Link to="/bodega" className="block h-full">
                   <MetricCard label="Vasijas" value={loading ? "…" : vasijasCount} className={metricLinkClass} />
                 </Link>
-                <Link to="/tareas" className="block h-full">
-                  <MetricCard label="Mis tareas pendientes" value={loading ? "…" : tareasCount} className={metricLinkClass} />
+                <Link to={dailyOrdersPath} className="block h-full">
+                  <MetricCard label="Órdenes pendientes" value={loading ? "…" : tareasCount} className={metricLinkClass} />
                 </Link>
                 {access.canAccessOperacion ? (
                   <Link to="/operacion" className="block h-full">
-                    <MetricCard label="Operación" value="Disponible" className={metricLinkClass} />
+                    <MetricCard label="Registro operativo" value="Disponible" className={metricLinkClass} />
                   </Link>
                 ) : null}
               </div>

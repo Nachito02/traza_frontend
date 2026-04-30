@@ -8,6 +8,7 @@ import {
 import {
   AppButton,
   AppCard,
+  GuidedState,
   NoticeBanner,
   SectionIntro,
 } from "../../components/ui";
@@ -143,13 +144,45 @@ export default function BodegaVasijasPage() {
 
           <div className="mt-4">
             {!activeBodegaId ? (
-              <NoticeBanner>
-                Seleccioná una bodega para ver las vasijas.
-              </NoticeBanner>
+              <GuidedState
+                title="Seleccioná una bodega para administrar vasijas"
+                description="Las vasijas se guardan por bodega. Antes de cargar, editar o revisar el inventario, necesitás activar el contexto correcto."
+                action={(
+                  <Link to="/contexto">
+                    <AppButton variant="primary" size="sm">Elegir bodega</AppButton>
+                  </Link>
+                )}
+                steps={[
+                  { label: "Bodega activa", done: false },
+                  { label: "Inventario de vasijas", done: false },
+                ]}
+              />
             ) : loading ? (
               <NoticeBanner>Cargando vasijas...</NoticeBanner>
             ) : items.length === 0 ? (
-              <NoticeBanner>No hay vasijas cargadas.</NoticeBanner>
+              <GuidedState
+                title="Todavía no hay vasijas cargadas"
+                description="Para registrar operaciones de bodega, cortes, existencias o fermentación, primero necesitás crear al menos una vasija."
+                action={(
+                  <Link to="/bodega/vasijas/nueva">
+                    <AppButton variant="primary" size="sm">Crear primera vasija</AppButton>
+                  </Link>
+                )}
+                secondaryAction={(
+                  <AppButton
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => void reload()}
+                  >
+                    Actualizar listado
+                  </AppButton>
+                )}
+                steps={[
+                  { label: "Bodega activa", done: true },
+                  { label: "Primera vasija", done: false },
+                ]}
+              />
             ) : (
               <div className="grid gap-3 md:grid-cols-2">
                 {items.map((item) => {

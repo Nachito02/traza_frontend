@@ -10,8 +10,11 @@ export type ElaboracionEntity = Record<string, unknown> & {
   loteFraccionamientoId?: string;
   codigoEnvaseId?: string;
   remitoId?: string;
+  remito_uva_id?: string;
   recepcionId?: string;
+  recepcion_bodega_id?: string;
   analisisId?: string;
+  analisis_recepcion_id?: string;
   operacionId?: string;
   despachoId?: string;
 };
@@ -40,6 +43,26 @@ export type TrazabilidadQrResponse = {
   corte?: Record<string, unknown>;
   origenes?: Array<Record<string, unknown>>;
 } & Record<string, unknown>;
+
+export type LoteCosechaOption = {
+  lote_cosecha_id: string;
+  fecha_cosecha: string;
+  cantidad: string | number;
+  unidad: string;
+  destino?: string | null;
+  cuartel_id: string;
+  campania_id: string;
+  cuartel?: {
+    cuartel_id: string;
+    codigo_cuartel: string;
+    finca_id: string;
+    finca?: {
+      finca_id: string;
+      nombre_finca: string;
+      bodega_id: string;
+    };
+  };
+};
 
 function normalizeListResponse(data: unknown) {
   if (Array.isArray(data)) {
@@ -78,6 +101,15 @@ export async function listElaboracionResource(
     `/elaboracion/${resource}${toQueryString(params)}`,
   );
   return normalizeListResponse(response.data);
+}
+
+export async function listLotesCosecha(
+  params: Record<string, string | number | undefined>,
+) {
+  const response = await apiClient.get<LoteCosechaOption[]>(
+    `/elaboracion/lotes-cosecha${toQueryString(params)}`,
+  );
+  return response.data ?? [];
 }
 
 export async function createElaboracionResource(

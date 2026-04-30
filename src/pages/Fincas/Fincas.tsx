@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AppButton, AppCard, NoticeBanner, SectionIntro } from "../../components/ui";
+import { AppButton, AppCard, GuidedState, NoticeBanner, SectionIntro } from "../../components/ui";
 import {
   deleteFinca,
   type Finca as FincaDetail,
@@ -82,17 +82,37 @@ const Fincas = () => {
 
           <div className="mt-4">
             {!activeBodegaId ? (
-              <NoticeBanner>
-                Seleccioná una bodega para ver las fincas.
-              </NoticeBanner>
+              <GuidedState
+                title="Seleccioná una bodega para administrar fincas"
+                description="Las fincas se vinculan a la bodega activa. Elegí el contexto para ver, editar o cargar nuevas fincas."
+                action={(
+                  <Link to="/contexto">
+                    <AppButton variant="primary" size="sm">Elegir bodega</AppButton>
+                  </Link>
+                )}
+                steps={[
+                  { label: "Bodega activa", done: false },
+                  { label: "Fincas disponibles", done: false },
+                ]}
+              />
             ) : fincasLoading ? (
               <NoticeBanner>Cargando fincas…</NoticeBanner>
             ) : fincasError ? (
               <NoticeBanner tone="danger">{fincasError}</NoticeBanner>
             ) : fincas.length === 0 ? (
-              <NoticeBanner>
-                No hay fincas cargadas.
-              </NoticeBanner>
+              <GuidedState
+                title="Todavía no hay fincas cargadas"
+                description="Para planificar trabajo de campo y vincular cuarteles, primero cargá la finca base de esta bodega."
+                action={(
+                  <Link to="/setup/finca">
+                    <AppButton variant="primary" size="sm">Crear primera finca</AppButton>
+                  </Link>
+                )}
+                steps={[
+                  { label: "Bodega activa", done: true },
+                  { label: "Primera finca", done: false },
+                ]}
+              />
             ) : (
               <div className="grid gap-3 md:grid-cols-2">
                 {fincas.map((finca) => (
