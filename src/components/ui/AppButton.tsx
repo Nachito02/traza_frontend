@@ -19,7 +19,7 @@ function joinClasses(...classes: Array<string | false | null | undefined>) {
 
 const variantClasses: Record<AppButtonVariant, string> = {
   primary:
-    "border-[color:var(--border-default)] bg-[color:var(--action-primary-bg)] text-[color:var(--text-primary)] hover:border-[color:var(--accent-secondary)] hover:bg-[color:var(--action-primary-hover)] hover:shadow-[0_0_0_1px_rgba(200,169,107,0.14),0_10px_22px_rgba(78,147,183,0.16)]",
+    "border-[color:var(--border-default)] bg-[color:var(--action-primary-bg)] text-[color:var(--action-primary-text)] hover:border-[color:var(--accent-secondary)] hover:bg-[color:var(--action-primary-hover)] hover:shadow-[0_0_0_1px_rgba(0,212,122,0.2),0_10px_22px_rgba(0,212,122,0.18)]",
   secondary:
     "border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] text-[color:var(--text-on-dark)] hover:border-[color:var(--border-default)] hover:bg-[color:var(--action-secondary-hover)]",
   ghost:

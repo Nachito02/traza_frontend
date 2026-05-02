@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Lock } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
-import trazaLogo from "../../assets/traza.png";
+import trazaLogo from "../../assets/traza_logo_02.png";
 import { AppButton, AppCard, AppInput, NoticeBanner } from "../../components/ui";
 
 const ChangePassword = () => {

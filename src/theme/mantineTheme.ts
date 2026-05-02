@@ -1,7 +1,7 @@
 import { createTheme } from "@mantine/core";
 import { colorPrimitives, radius, semanticColors, shadows, typography } from "./tokens";
 
-const winePalette = [
+const navyPalette = [
   colorPrimitives.cream50,
   colorPrimitives.cream100,
   colorPrimitives.cream200,
@@ -14,7 +14,7 @@ const winePalette = [
   colorPrimitives.wine900,
 ] as const;
 
-const sandPalette = [
+const aiGreenPalette = [
   colorPrimitives.cream50,
   colorPrimitives.cream100,
   colorPrimitives.cream200,
@@ -28,11 +28,11 @@ const sandPalette = [
 ] as const;
 
 export const mantineTheme = createTheme({
-  primaryColor: "wine",
-  primaryShade: 7,
+  primaryColor: "aiGreen",
+  primaryShade: 5,
   colors: {
-    wine: winePalette,
-    sand: sandPalette,
+    navy: navyPalette,
+    aiGreen: aiGreenPalette,
   },
   white: semanticColors.bg.surfaceMuted,
   black: semanticColors.text.ink,

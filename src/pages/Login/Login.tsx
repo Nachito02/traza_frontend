@@ -2,7 +2,7 @@ import { Formik } from "formik";
 import { Lock, Mail } from "lucide-react";
 import * as Yup from "yup";
 import { Link } from "react-router-dom";
-import trazaLogo from "../../assets/traza.png";
+import trazaLogo from "../../assets/traza_logo_02.png";
 import { AppButton, AppCard, AppInput, NoticeBanner } from "../../components/ui";
 import { useLogin, type LoginValues } from "../../hooks/useLogin";
 

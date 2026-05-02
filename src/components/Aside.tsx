@@ -14,7 +14,7 @@ import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
 import { resolveModuleAccess } from "../lib/permissions";
-import trazaLogo from "../assets/traza.png";
+import trazaLogo from "../assets/traza_logo_02.png";
 
 type AsideProps = {
   className?: string;
