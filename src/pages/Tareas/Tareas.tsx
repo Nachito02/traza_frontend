@@ -79,7 +79,6 @@ type ProtocoloTaskOption = {
 
 type OperacionCategoria =
   | "recepcion"
-  | "ciu-qc"
   | "vasijas"
   | "cortes"
   | "fraccionamiento"
@@ -93,8 +92,7 @@ type OperacionTaskTemplate = {
 };
 
 const OPERACION_CATEGORY_OPTIONS: Array<{ value: OperacionCategoria; label: string }> = [
-  { value: "recepcion", label: "Recepción" },
-  { value: "ciu-qc", label: "CIU y QC" },
+  { value: "recepcion", label: "Ingreso de uva" },
   { value: "vasijas", label: "Vasijas y Proceso" },
   { value: "cortes", label: "Cortes y Producto" },
   { value: "fraccionamiento", label: "Fraccionamiento y Despacho" },
@@ -105,9 +103,8 @@ const OPERACION_TASK_TEMPLATES: OperacionTaskTemplate[] = [
   { id: "remito_uva", categoria: "recepcion", titulo: "Remito Uva", label: "Remito Uva" },
   { id: "recepcion_bodega", categoria: "recepcion", titulo: "Recepción Bodega", label: "Recepción Bodega" },
   { id: "analisis_recepcion", categoria: "recepcion", titulo: "Análisis Recepción", label: "Análisis Recepción" },
-  { id: "ciu", categoria: "ciu-qc", titulo: "CIU", label: "CIU" },
-  { id: "ciu_recepcion", categoria: "ciu-qc", titulo: "CIU-Recepción", label: "CIU-Recepción" },
-  { id: "qc_ingreso_uva", categoria: "ciu-qc", titulo: "QC Ingreso Uva", label: "QC Ingreso Uva" },
+  { id: "ciu", categoria: "recepcion", titulo: "CIU", label: "CIU" },
+  { id: "ciu_recepcion", categoria: "recepcion", titulo: "CIU-Recepción", label: "CIU-Recepción" },
   { id: "vasija", categoria: "vasijas", titulo: "Vasija", label: "Vasija" },
   { id: "operacion_vasija", categoria: "vasijas", titulo: "Operación Vasija", label: "Operación Vasija" },
   { id: "existencia_vasija", categoria: "vasijas", titulo: "Existencia Vasija", label: "Existencia Vasija" },
@@ -124,9 +121,8 @@ const OPERACION_TASK_ROUTES: Record<string, string> = {
   remito_uva: "/operacion/recepcion?section=remito",
   recepcion_bodega: "/operacion/recepcion?section=recepcion",
   analisis_recepcion: "/operacion/recepcion?section=analisis",
-  ciu: "/operacion/ciu-qc?section=ciu",
-  ciu_recepcion: "/operacion/ciu-qc?section=vinculo",
-  qc_ingreso_uva: "/operacion/ciu-qc?section=qc",
+  ciu: "/operacion/recepcion?paso=ciu",
+  ciu_recepcion: "/operacion/recepcion?paso=ciu",
   vasija: "/operacion/vasijas?section=vasijas",
   operacion_vasija: "/operacion/vasijas?section=operaciones",
   existencia_vasija: "/operacion/vasijas?section=existencias",
@@ -1462,20 +1458,6 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                   ? "Cuando crees una orden de trabajo, aparecerá acá para seguir su estado y completar el registro operativo."
                   : "Cuando te asignen una orden, aparecerá en este espacio con la acción correspondiente."
               }
-              action={isManagerMode ? (
-                <AppButton
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  onClick={() => setShowCreateForm(true)}
-                >
-                  Crear orden de trabajo
-                </AppButton>
-              ) : undefined}
-              steps={[
-                { label: "Bodega activa", done: true },
-                { label: "Órdenes pendientes", done: false },
-              ]}
             />
           ) : (
             <div className="space-y-3">

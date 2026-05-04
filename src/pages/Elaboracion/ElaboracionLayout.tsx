@@ -2,8 +2,7 @@ import { Link, NavLink, Outlet } from "react-router-dom";
 import { AppCard, SectionIntro } from "../../components/ui";
 
 const LINKS = [
-  { to: "/bodega/recepcion", label: "Recepción" },
-  { to: "/bodega/ciu-qc", label: "CIU y QC" },
+  { to: "/bodega/recepcion", label: "Ingreso de uva" },
   { to: "/bodega/vasijas", label: "Vasijas y Proceso" },
   { to: "/bodega/cortes", label: "Cortes y Producto" },
   { to: "/bodega/fraccionamiento", label: "Fraccionamiento y Despacho" },
@@ -22,7 +21,7 @@ export default function ElaboracionLayout() {
           header={(
             <SectionIntro
               title="Bodega"
-              description="Flujo operativo completo: recepción, control, elaboración, fraccionamiento y trazabilidad de producto final."
+              description="Flujo operativo completo: ingreso de uva, elaboración, fraccionamiento y trazabilidad de producto final."
               descriptionClassName="text-[color:var(--text-on-dark-muted)]"
               actions={(
                 <Link

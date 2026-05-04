@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Lock } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
-import trazaLogo from "../../assets/traza.png";
+import trazaLogo from "../../assets/traza_logo_02.png";
 import { AppButton, AppCard, AppInput, NoticeBanner } from "../../components/ui";
 
 const ChangePassword = () => {
@@ -42,9 +42,9 @@ const ChangePassword = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-primary p-4">
       <div className="w-full max-w-lg">
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-dark rounded-full mb-4">
-            <img src={trazaLogo} alt="Traza" className="h-10 w-auto object-contain" />
+        <div className="mb-10 text-center">
+          <div className="mx-auto mb-5 inline-flex w-full max-w-sm items-center justify-center rounded-[var(--radius-lg)] border border-[color:var(--border-default)] bg-[color:var(--brand-white)] px-6 py-4 shadow-[var(--shadow-raised)]">
+            <img src={trazaLogo} alt="Traza" className="h-auto w-full max-w-[280px] object-contain" />
           </div>
           <p className="text-cream text-sm">Primera vez que ingresás</p>
         </div>

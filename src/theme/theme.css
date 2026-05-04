@@ -2,42 +2,42 @@
   color-scheme: dark;
 
   /* Brand primitives */
-  --brand-wine-950: #08131d;
-  --brand-wine-900: #102433;
-  --brand-wine-800: #17384b;
-  --brand-wine-700: #225470;
-  --brand-wine-600: #2f7295;
-  --brand-wine-500: #4e93b7;
-  --brand-sand-600: #a88444;
-  --brand-sand-500: #c8a96b;
+  --brand-wine-950: #050b2f;
+  --brand-wine-900: #07135f;
+  --brand-wine-800: #0b1a78;
+  --brand-wine-700: #10258f;
+  --brand-wine-600: #1732a8;
+  --brand-wine-500: #304bd1;
+  --brand-sand-600: #00a862;
+  --brand-sand-500: #00d47a;
   --brand-cream-50: #f8fafc;
   --brand-cream-100: #edf2f7;
   --brand-cream-200: #d9e3ed;
-  --brand-slate-500: #708397;
+  --brand-slate-500: #8ea4cf;
   --brand-white: #ffffff;
-  --brand-success-500: #2f855a;
+  --brand-success-500: #00d47a;
   --brand-warning-500: #9a6a1f;
   --brand-danger-500: #b83232;
 
   /* Semantic surfaces */
   --app-bg: var(--brand-wine-950);
-  --surface-base: var(--brand-wine-800);
-  --surface-base-soft: rgba(23, 56, 75, 0.32);
-  --surface-shell: rgba(11, 26, 37, 0.96);
-  --surface-shell-raised: rgba(18, 43, 58, 0.94);
-  --surface-hero: #122b3a;
-  --surface-muted: #172334;
-  --surface-soft: #1d2a3b;
-  --surface-accent-soft: rgba(78, 147, 183, 0.12);
-  --surface-overlay: rgba(8, 19, 29, 0.74);
+  --surface-base: #0b1a78;
+  --surface-base-soft: rgba(11, 26, 120, 0.34);
+  --surface-shell: rgba(5, 11, 47, 0.98);
+  --surface-shell-raised: rgba(7, 19, 95, 0.94);
+  --surface-hero: #07135f;
+  --surface-muted: #101a3a;
+  --surface-soft: #172143;
+  --surface-accent-soft: rgba(0, 212, 122, 0.12);
+  --surface-overlay: rgba(5, 11, 47, 0.78);
 
   /* Form fields */
-  --field-bg: #1d2a3b;
-  --field-bg-hover: #223249;
-  --field-bg-focus: #223249;
-  --field-border: rgba(148, 163, 184, 0.16);
-  --field-border-hover: rgba(148, 163, 184, 0.28);
-  --field-border-focus: rgba(78, 147, 183, 0.72);
+  --field-bg: #111c3a;
+  --field-bg-hover: #15244c;
+  --field-bg-focus: #15244c;
+  --field-border: rgba(142, 164, 207, 0.18);
+  --field-border-hover: rgba(142, 164, 207, 0.34);
+  --field-border-focus: rgba(0, 212, 122, 0.72);
   --field-text: var(--brand-cream-50);
   --field-placeholder: rgba(237, 242, 247, 0.48);
   --field-label: rgba(190, 205, 224, 0.82);
@@ -51,22 +51,23 @@
   --text-on-dark-muted: rgba(237, 242, 247, 0.82);
   --text-ink: var(--brand-cream-50);
   --text-ink-muted: rgba(190, 205, 224, 0.72);
-  --text-accent: var(--brand-wine-600);
+  --text-accent: var(--brand-sand-500);
 
   /* Semantic borders */
-  --border-subtle: rgba(200, 169, 107, 0.18);
-  --border-default: rgba(200, 169, 107, 0.34);
+  --border-subtle: rgba(0, 212, 122, 0.18);
+  --border-default: rgba(0, 212, 122, 0.34);
   --border-strong: var(--brand-sand-500);
   --border-shell: rgba(237, 242, 247, 0.08);
 
   /* Semantic actions */
-  --accent-primary: var(--brand-wine-600);
-  --accent-primary-hover: var(--brand-wine-700);
+  --accent-primary: var(--brand-sand-500);
+  --accent-primary-hover: var(--brand-sand-600);
   --accent-secondary: var(--brand-sand-500);
-  --action-primary-bg: var(--brand-wine-600);
-  --action-primary-hover: var(--brand-wine-700);
-  --action-secondary-bg: #1d2a3b;
-  --action-secondary-hover: #223249;
+  --action-primary-bg: var(--brand-sand-500);
+  --action-primary-hover: var(--brand-sand-600);
+  --action-primary-text: var(--brand-wine-950);
+  --action-secondary-bg: #111c3a;
+  --action-secondary-hover: #15244c;
   --action-ghost-bg: rgba(255, 255, 255, 0.04);
   --action-ghost-hover: rgba(255, 255, 255, 0.08);
   --action-danger-bg: rgba(184, 50, 50, 0.16);
@@ -78,16 +79,16 @@
   --feedback-danger: var(--brand-danger-500);
   --feedback-neutral: var(--brand-wine-900);
   --feedback-success-bg: rgba(47, 133, 90, 0.16);
-  --feedback-success-border: rgba(72, 187, 120, 0.34);
-  --feedback-success-text: #9ae6b4;
+  --feedback-success-border: rgba(0, 212, 122, 0.38);
+  --feedback-success-text: #9dffd0;
   --feedback-warning-bg: rgba(154, 106, 31, 0.16);
   --feedback-warning-border: rgba(200, 169, 107, 0.38);
   --feedback-warning-text: #f6d58f;
   --feedback-danger-bg: rgba(184, 50, 50, 0.16);
   --feedback-danger-border: rgba(255, 93, 93, 0.34);
   --feedback-danger-text: #ff9b9b;
-  --feedback-neutral-bg: rgba(29, 42, 59, 0.82);
-  --feedback-neutral-border: rgba(200, 169, 107, 0.22);
+  --feedback-neutral-bg: rgba(17, 28, 58, 0.86);
+  --feedback-neutral-border: rgba(0, 212, 122, 0.22);
   --feedback-neutral-text: var(--text-on-dark-muted);
 
   /* Typography */
@@ -111,8 +112,8 @@
   --radius-pill: 9999px;
 
   /* Shadows */
-  --shadow-soft: 0 12px 28px rgba(8, 19, 29, 0.14);
-  --shadow-raised: 0 18px 40px rgba(8, 19, 29, 0.18);
+  --shadow-soft: 0 12px 28px rgba(5, 11, 47, 0.22);
+  --shadow-raised: 0 18px 40px rgba(5, 11, 47, 0.28);
   --shadow-inset-soft: inset 0 1px 0 rgba(248, 250, 252, 0.4);
 
   /* Motion */
@@ -130,6 +131,6 @@
   --color-dark: var(--text-ink);
   --color-text-dark-secondary: var(--text-ink);
   --color-wine: var(--accent-primary);
-  --color-wine-light: var(--brand-wine-500);
+  --color-wine-light: var(--brand-sand-500);
   --color-gold: var(--accent-secondary);
 }

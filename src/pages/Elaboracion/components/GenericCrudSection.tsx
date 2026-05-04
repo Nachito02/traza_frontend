@@ -518,11 +518,6 @@ export default function GenericCrudSection({
         <GuidedState
           title={`Sin registros en ${title.toLowerCase()}`}
           description="Cuando cargues el primer registro, aparecerá acá para editarlo, revisarlo o continuar el flujo operativo."
-          action={(
-            <AppButton type="button" variant="primary" size="sm" onClick={onStartCreate}>
-              Cargar primer registro
-            </AppButton>
-          )}
           steps={[
             { label: "Bodega activa", done: true },
             { label: "Primer registro", done: false },
