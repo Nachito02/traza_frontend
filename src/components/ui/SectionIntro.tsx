@@ -1,6 +1,7 @@
 import type { HTMLAttributes, ReactNode } from "react";
 
 export type SectionIntroProps = Omit<HTMLAttributes<HTMLDivElement>, "title"> & {
+  eyebrow?: ReactNode;
   title: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
@@ -14,6 +15,7 @@ function joinClasses(...classes: Array<string | false | null | undefined>) {
 }
 
 function SectionIntro({
+  eyebrow,
   title,
   description,
   actions,
@@ -32,6 +34,11 @@ function SectionIntro({
       {...props}
     >
       <div>
+        {eyebrow ? (
+          <div className="mb-2 text-xs font-black uppercase tracking-[0.28em] text-[color:var(--accent-primary)]">
+            {eyebrow}
+          </div>
+        ) : null}
         <h2 className={joinClasses("text-xl font-semibold text-[color:inherit]", titleClassName)}>{title}</h2>
         {description ? (
           <p

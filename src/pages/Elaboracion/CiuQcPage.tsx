@@ -37,8 +37,53 @@ function getCiuRecepcionKey(item: ElaboracionEntity) {
   return `${ciuId}::${recepcionBodegaId}`;
 }
 
+function formatRecepcionOption(item: ElaboracionEntity): SelectOption | null {
+  const id = item.recepcion_bodega_id ?? item.id_recepcion ?? item.recepcion_id ?? item.id;
+  if (typeof id !== "string" && typeof id !== "number") return null;
+
+  const fecha = typeof item.fecha_hora === "string" ? new Date(item.fecha_hora) : null;
+  const fechaLabel = fecha && !Number.isNaN(fecha.getTime())
+    ? fecha.toLocaleString("es-AR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "Sin fecha";
+
+  const remito = item.remito_uva && typeof item.remito_uva === "object"
+    ? item.remito_uva as Record<string, unknown>
+    : {};
+  const finca = remito.finca && typeof remito.finca === "object"
+    ? remito.finca as Record<string, unknown>
+    : {};
+  const cuartel = remito.cuartel && typeof remito.cuartel === "object"
+    ? remito.cuartel as Record<string, unknown>
+    : {};
+
+  const fincaLabel = typeof finca.nombre_finca === "string" ? finca.nombre_finca : null;
+  const cuartelLabel = typeof cuartel.codigo_cuartel === "string" ? cuartel.codigo_cuartel : null;
+  const kgPesados = typeof item.kg_pesados === "string" || typeof item.kg_pesados === "number"
+    ? `${item.kg_pesados} kg`
+    : null;
+  const patente = typeof remito.patente === "string" && remito.patente.trim()
+    ? `Patente ${remito.patente}`
+    : null;
+
+  return {
+    value: String(id),
+    label: [
+      fechaLabel,
+      [fincaLabel, cuartelLabel].filter(Boolean).join(" / "),
+      kgPesados,
+      patente,
+    ].filter(Boolean).join(" · "),
+  };
+}
+
 type CiuQcPageProps = {
-  initialSection?: "ciu" | "vinculo" | "qc";
+  initialSection?: "ciu" | "vinculo";
   hideSectionSelector?: boolean;
   hidePrimaryAction?: boolean;
 };
@@ -50,7 +95,7 @@ export default function CiuQcPage({
 }: CiuQcPageProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
-  const [activeSection, setActiveSection] = useState<"ciu" | "vinculo" | "qc">(initialSection);
+  const [activeSection, setActiveSection] = useState<"ciu" | "vinculo">(initialSection);
   const [ciuOptions, setCiuOptions] = useState<SelectOption[]>([]);
   const [recepcionOptions, setRecepcionOptions] = useState<SelectOption[]>([]);
 
@@ -60,7 +105,7 @@ export default function CiuQcPage({
       return;
     }
     const section = searchParams.get("section");
-    if (section === "ciu" || section === "vinculo" || section === "qc") {
+    if (section === "ciu" || section === "vinculo") {
       setActiveSection(section);
       return;
     }
@@ -75,7 +120,9 @@ export default function CiuQcPage({
     ]).then(([cius, recepciones]) => {
       setCiuOptions(toOptions(cius, ["id_ciu", "ciu_id", "id"], ["codigo_ciu", "id_ciu"]));
       setRecepcionOptions(
-        toOptions(recepciones, ["id_recepcion", "recepcion_id", "id"], ["fecha_hora", "clasificacion", "id_recepcion"]),
+        recepciones
+          .map(formatRecepcionOption)
+          .filter((option): option is SelectOption => option !== null),
       );
     });
   }, [activeBodegaId]);
@@ -104,7 +151,6 @@ export default function CiuQcPage({
           options={[
             { key: "ciu", label: "CIU" },
             { key: "vinculo", label: "CIU-Recepción" },
-            { key: "qc", label: "QC Ingreso Uva" },
           ]}
         />
       ) : null}
@@ -177,35 +223,6 @@ export default function CiuQcPage({
           ]}
           hidePrimaryAction={hidePrimaryAction}
           separatedLayout={!hidePrimaryAction}
-        />
-      ) : null}
-
-      {activeSection === "qc" ? (
-        <GenericCrudSection
-          title="QC Ingreso Uva"
-          description="Control de calidad por recepción."
-          resource="qc-ingreso-uva"
-          bodegaId={activeBodegaId}
-          hidePrimaryAction={hidePrimaryAction}
-          separatedLayout={!hidePrimaryAction}
-          fields={[
-            {
-              name: "recepcionBodegaId",
-              label: "Recepción",
-              type: "select",
-              required: true,
-              options: recepcionOptions,
-              sourceKey: "recepcion_bodega_id",
-            },
-            { name: "fecha_hora", label: "Fecha y hora", type: "datetime-local", required: true },
-            { name: "brix", label: "Brix", type: "number" },
-            { name: "ph", label: "pH", type: "number" },
-            { name: "acidez", label: "Acidez", type: "number" },
-            { name: "temperatura_uva", label: "Temp. Uva", type: "number" },
-            { name: "estado_pcc", label: "Estado PCC", type: "text" },
-            { name: "aprobado", label: "Aprobado", type: "checkbox" },
-            { name: "observaciones", label: "Observaciones", type: "textarea" },
-          ]}
         />
       ) : null}
     </div>

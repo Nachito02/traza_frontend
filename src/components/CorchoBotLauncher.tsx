@@ -34,7 +34,7 @@ function getRouteProfile(pathname: string): RouteProfile {
   if (pathname.startsWith("/operacion")) {
     return {
       label: "Operación",
-      summary: "Puedo orientarte en recepción, CIU/QC, vasijas, cortes, fraccionamiento y cómo ordenar mejor el trabajo operativo.",
+      summary: "Puedo orientarte en ingreso de uva, CIU, vasijas, cortes, fraccionamiento y cómo ordenar mejor el trabajo operativo.",
       suggestions: [
         "Explicame el flujo operativo de esta sección",
         "¿Qué datos conviene cargar primero acá?",

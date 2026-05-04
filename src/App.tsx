@@ -23,8 +23,7 @@ import Fincas from "./pages/Fincas/Fincas";
 import Usuarios from "./pages/Usuarios/Usuarios";
 import Integraciones from "./pages/Integraciones/Integraciones";
 import Tareas from "./pages/Tareas/Tareas";
-import RecepcionPage from "./pages/Elaboracion/RecepcionPage";
-import CiuQcPage from "./pages/Elaboracion/CiuQcPage";
+import IngresoUvaFlowPage from "./pages/Elaboracion/IngresoUvaFlowPage";
 import VasijasProcesoPage from "./pages/Elaboracion/VasijasProcesoPage";
 import CortesProductoPage from "./pages/Elaboracion/CortesProductoPage";
 import FraccionamientoDespachoPage from "./pages/Elaboracion/FraccionamientoDespachoPage";
@@ -125,7 +124,7 @@ export default function App() {
         <Route path="/bodega/vasijas/nueva" element={access.canAccessBodega ? <BodegaVasijaFormPage mode="create" /> : <Navigate to="/fincas" replace />} />
         <Route path="/bodega/vasijas/:id/editar" element={access.canAccessBodega ? <BodegaVasijaFormPage mode="edit" /> : <Navigate to="/fincas" replace />} />
         <Route path="/bodega/recepcion" element={canUseOperacionBodega ? <Navigate to="/operacion/recepcion" replace /> : <Navigate to="/fincas" replace />} />
-        <Route path="/bodega/ciu-qc" element={canUseOperacionBodega ? <Navigate to="/operacion/ciu-qc" replace /> : <Navigate to="/fincas" replace />} />
+        <Route path="/bodega/ciu-qc" element={canUseOperacionBodega ? <Navigate to="/operacion/recepcion?paso=ciu" replace /> : <Navigate to="/fincas" replace />} />
         <Route path="/bodega/vasijas-proceso" element={canUseOperacionBodega ? <Navigate to="/operacion/vasijas" replace /> : <Navigate to="/fincas" replace />} />
         <Route path="/bodega/cortes" element={canUseOperacionBodega ? <Navigate to="/operacion/cortes" replace /> : <Navigate to="/fincas" replace />} />
         <Route path="/bodega/fraccionamiento" element={canUseOperacionBodega ? <Navigate to="/operacion/fraccionamiento" replace /> : <Navigate to="/fincas" replace />} />
@@ -140,8 +139,8 @@ export default function App() {
         />
         <Route path="/operacion" element={canUseOperacionBodega ? <OperacionLayout /> : <Navigate to="/ordenes" replace />}>
           <Route path="tareas" element={<Navigate to="/ordenes" replace />} />
-          <Route path="recepcion" element={<RecepcionPage />} />
-          <Route path="ciu-qc" element={<CiuQcPage />} />
+          <Route path="recepcion" element={<IngresoUvaFlowPage />} />
+          <Route path="ciu-qc" element={<Navigate to="/operacion/recepcion?paso=ciu" replace />} />
           <Route path="vasijas" element={<VasijasProcesoPage />} />
           <Route path="cortes" element={<CortesProductoPage />} />
           <Route path="fraccionamiento" element={<FraccionamientoDespachoPage />} />

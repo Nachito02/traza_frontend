@@ -4,8 +4,7 @@ import { useAuthStore } from "../../store/authStore";
 import { useOperacionStore } from "../../store/operacionStore";
 
 const LINKS_BODEGA = [
-  { to: "/operacion/recepcion", label: "Recepción" },
-  { to: "/operacion/ciu-qc", label: "CIU y QC" },
+  { to: "/operacion/recepcion", label: "Ingreso de uva" },
   { to: "/operacion/vasijas", label: "Vasijas y Proceso" },
   { to: "/operacion/cortes", label: "Cortes y Producto" },
   { to: "/operacion/fraccionamiento", label: "Fraccionamiento y Despacho" },
