@@ -90,10 +90,6 @@ const Fincas = () => {
                     <AppButton variant="primary" size="sm">Elegir bodega</AppButton>
                   </Link>
                 )}
-                steps={[
-                  { label: "Bodega activa", done: false },
-                  { label: "Fincas disponibles", done: false },
-                ]}
               />
             ) : fincasLoading ? (
               <NoticeBanner>Cargando fincas…</NoticeBanner>
@@ -108,10 +104,6 @@ const Fincas = () => {
                     <AppButton variant="primary" size="sm">Crear primera finca</AppButton>
                   </Link>
                 )}
-                steps={[
-                  { label: "Bodega activa", done: true },
-                  { label: "Primera finca", done: false },
-                ]}
               />
             ) : (
               <div className="grid gap-3 md:grid-cols-2">

@@ -152,10 +152,6 @@ export default function BodegaVasijasPage() {
                     <AppButton variant="primary" size="sm">Elegir bodega</AppButton>
                   </Link>
                 )}
-                steps={[
-                  { label: "Bodega activa", done: false },
-                  { label: "Inventario de vasijas", done: false },
-                ]}
               />
             ) : loading ? (
               <NoticeBanner>Cargando vasijas...</NoticeBanner>
@@ -178,10 +174,6 @@ export default function BodegaVasijasPage() {
                     Actualizar listado
                   </AppButton>
                 )}
-                steps={[
-                  { label: "Bodega activa", done: true },
-                  { label: "Primera vasija", done: false },
-                ]}
               />
             ) : (
               <div className="grid gap-3 md:grid-cols-2">

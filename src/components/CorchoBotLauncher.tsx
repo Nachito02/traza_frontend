@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Bot, MessageSquare, Send, Sparkles, X } from "lucide-react";
+import { Bot, MessageSquare, Send, X } from "lucide-react";
 import { AppButton, AppModal, AppTextarea, NoticeBanner } from "./ui";
 import { useAuthStore } from "../store/authStore";
 import { consultarIa } from "../features/ia/api";
@@ -246,21 +246,11 @@ export default function CorchoBotLauncher() {
       <button
         type="button"
         onClick={() => setOpened(true)}
-        className="fixed bottom-5 right-5 z-30 inline-flex items-center gap-3 rounded-[var(--radius-xl)] border border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] px-4 py-3 text-left text-[color:var(--text-on-dark)] shadow-[var(--shadow-raised)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)] hover:-translate-y-0.5 hover:border-[color:var(--border-default)] hover:bg-[color:var(--action-secondary-hover)] sm:bottom-6 sm:right-6"
+        className="fixed bottom-5 right-5 z-30 inline-flex h-14 w-14 items-center justify-center rounded-full border border-[color:var(--border-default)] bg-[color:var(--accent-primary)] text-[color:var(--text-primary)] shadow-[var(--shadow-raised)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)] hover:-translate-y-0.5 hover:scale-105 hover:shadow-[0_0_0_6px_color-mix(in_srgb,var(--accent-primary)_18%,transparent),var(--shadow-raised)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-primary)] focus:ring-offset-2 focus:ring-offset-[color:var(--surface-shell)] sm:bottom-6 sm:right-6"
         aria-label="Abrir CorchoBot"
+        title="Abrir CorchoBot"
       >
-        <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[color:var(--accent-primary)] text-[color:var(--text-primary)] shadow-[var(--shadow-inset-soft)]">
-          <Bot className="h-5 w-5" />
-        </span>
-        <span className="hidden min-w-0 sm:block">
-          <span className="flex items-center gap-2 text-sm font-semibold leading-none">
-            CorchoBot
-            <Sparkles className="h-3.5 w-3.5 text-[color:var(--accent-secondary)]" />
-          </span>
-          <span className="mt-1 block text-xs text-[color:var(--text-ink-muted)]">
-            Asistente contextual de Traza
-          </span>
-        </span>
+        <Bot className="h-6 w-6" />
       </button>
 
       {opened ? (
