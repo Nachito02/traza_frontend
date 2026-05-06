@@ -86,12 +86,18 @@ type CiuQcPageProps = {
   initialSection?: "ciu" | "vinculo";
   hideSectionSelector?: boolean;
   hidePrimaryAction?: boolean;
+  vinculoDefaults?: Record<string, string | boolean>;
+  onCiuCreated?: (item: ElaboracionEntity) => void | Promise<void>;
+  onVinculoCreated?: (item: ElaboracionEntity) => void | Promise<void>;
 };
 
 export default function CiuQcPage({
   initialSection = "ciu",
   hideSectionSelector = false,
   hidePrimaryAction = false,
+  vinculoDefaults,
+  onCiuCreated,
+  onVinculoCreated,
 }: CiuQcPageProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
@@ -169,6 +175,7 @@ export default function CiuQcPage({
             { name: "estado", label: "Estado", type: "text" },
             { name: "observaciones", label: "Observaciones", type: "textarea" },
           ]}
+          onCreated={onCiuCreated}
         />
       ) : null}
 
@@ -221,6 +228,8 @@ export default function CiuQcPage({
               sourceKey: "recepcion_bodega_id",
             },
           ]}
+          defaultValues={vinculoDefaults}
+          onCreated={onVinculoCreated}
           hidePrimaryAction={hidePrimaryAction}
           separatedLayout={!hidePrimaryAction}
         />

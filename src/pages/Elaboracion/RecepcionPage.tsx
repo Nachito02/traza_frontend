@@ -96,6 +96,11 @@ type RecepcionPageProps = {
   initialSection?: "remito" | "recepcion" | "analisis";
   hideSectionSelector?: boolean;
   hidePrimaryAction?: boolean;
+  onSectionChange?: (section: "remito" | "recepcion" | "analisis") => void;
+  recepcionDefaultValues?: Record<string, string | boolean>;
+  analisisDefaultValues?: Record<string, string | boolean>;
+  onRecepcionDefaultsChange?: (values: Record<string, string | boolean>) => void;
+  onAnalisisDefaultsChange?: (values: Record<string, string | boolean>) => void;
 };
 
 type PendingNextStep =
@@ -120,6 +125,11 @@ export default function RecepcionPage({
   initialSection = "remito",
   hideSectionSelector = false,
   hidePrimaryAction = false,
+  onSectionChange,
+  recepcionDefaultValues,
+  analisisDefaultValues,
+  onRecepcionDefaultsChange,
+  onAnalisisDefaultsChange,
 }: RecepcionPageProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
@@ -139,6 +149,7 @@ export default function RecepcionPage({
   const goToSection = useCallback(
     (section: "remito" | "recepcion" | "analisis") => {
       setActiveSection(section);
+      onSectionChange?.(section);
       if (hideSectionSelector) return;
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
@@ -146,7 +157,7 @@ export default function RecepcionPage({
         return next;
       });
     },
-    [hideSectionSelector, setSearchParams],
+    [hideSectionSelector, onSectionChange, setSearchParams],
   );
 
   const loadOperationalOptions = useCallback(async () => {
@@ -357,7 +368,6 @@ export default function RecepcionPage({
   const handleRemitoCreated = useCallback(
     async (item: ElaboracionEntity) => {
       await loadOperationalOptions();
-      if (hideSectionSelector) return;
       const remitoId = resolveStringId(item, ["remito_uva_id", "id_remito", "remito_id", "id"]);
       if (!remitoId) return;
       setPendingNextStep({
@@ -370,13 +380,12 @@ export default function RecepcionPage({
         remitoId,
       });
     },
-    [hideSectionSelector, loadOperationalOptions],
+    [loadOperationalOptions],
   );
 
   const handleRecepcionCreated = useCallback(
     async (item: ElaboracionEntity) => {
       await loadOperationalOptions();
-      if (hideSectionSelector) return;
       const recepcionId = resolveStringId(item, [
         "recepcion_bodega_id",
         "id_recepcion",
@@ -394,16 +403,20 @@ export default function RecepcionPage({
         recepcionId,
       });
     },
-    [hideSectionSelector, loadOperationalOptions],
+    [loadOperationalOptions],
   );
 
   const continuePendingStep = () => {
     if (!pendingNextStep) return;
     if (pendingNextStep.from === "remito") {
-      setRecepcionDefaults({ remitoUvaId: pendingNextStep.remitoId });
+      const defaults = { remitoUvaId: pendingNextStep.remitoId };
+      setRecepcionDefaults(defaults);
+      onRecepcionDefaultsChange?.(defaults);
       goToSection("recepcion");
     } else {
-      setAnalisisDefaults({ recepcionBodegaId: pendingNextStep.recepcionId });
+      const defaults = { recepcionBodegaId: pendingNextStep.recepcionId };
+      setAnalisisDefaults(defaults);
+      onAnalisisDefaultsChange?.(defaults);
       goToSection("analisis");
     }
     setPendingNextStep(null);
@@ -480,7 +493,7 @@ export default function RecepcionPage({
           hidePrimaryAction={hidePrimaryAction}
           separatedLayout={!hidePrimaryAction}
           fields={recepcionFields}
-          defaultValues={recepcionDefaults}
+          defaultValues={recepcionDefaultValues ?? recepcionDefaults}
           onCreated={handleRecepcionCreated}
         />
       ) : null}
@@ -494,7 +507,7 @@ export default function RecepcionPage({
           hidePrimaryAction={hidePrimaryAction}
           separatedLayout={!hidePrimaryAction}
           fields={analisisFields}
-          defaultValues={analisisDefaults}
+          defaultValues={analisisDefaultValues ?? analisisDefaults}
         />
       ) : null}
 

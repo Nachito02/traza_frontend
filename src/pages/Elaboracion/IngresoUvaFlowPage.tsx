@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { AppButton, AppCard, NoticeBanner, SectionIntro } from "../../components/ui";
+import { AppButton, AppCard, AppModal, NoticeBanner, SectionIntro } from "../../components/ui";
+import type { ElaboracionEntity } from "../../features/elaboracion/api";
 import CiuQcPage from "./CiuQcPage";
 import RecepcionPage from "./RecepcionPage";
 
@@ -9,45 +11,48 @@ type StepConfig = {
   key: IngresoUvaStep;
   eyebrow: string;
   title: string;
-  description: string;
-  helper: string;
 };
+
+type PendingCiuNextStep =
+  | {
+      from: "ciu";
+      title: string;
+      description: string;
+      primaryLabel: string;
+      ciuId: string;
+    }
+  | {
+      from: "vinculo";
+      title: string;
+      description: string;
+      primaryLabel: string;
+    };
 
 const STEPS: StepConfig[] = [
   {
     key: "remito",
     eyebrow: "01",
     title: "Remito de uva",
-    description: "Origen, finca, cuartel, lote cosecha y traslado.",
-    helper: "Arrancá por el origen real de la uva. Este paso deja trazado de dónde viene el ingreso.",
   },
   {
     key: "recepcion",
     eyebrow: "02",
     title: "Recepción y pesaje",
-    description: "Ingreso efectivo a bodega, kilos pesados y clasificación.",
-    helper: "Usá este paso cuando la uva ya llegó a bodega y tenés el dato de báscula.",
   },
   {
     key: "analisis",
     eyebrow: "03",
     title: "Análisis de recepción",
-    description: "Brix, pH, acidez, temperatura, sanidad y observaciones.",
-    helper: "Podés cargarlo en el momento o volver después si laboratorio todavía no entregó los datos.",
   },
   {
     key: "ciu",
     eyebrow: "04",
     title: "Emitir CIU",
-    description: "Comprobante interno del ingreso de uva.",
-    helper: "El CIU debería representar el ingreso ya recepcionado. En esta etapa evitamos que quede como un registro aislado.",
   },
   {
     key: "vasija",
     eyebrow: "05",
     title: "Enviar a vasija",
-    description: "Registrar el ingreso al inventario de vasijas.",
-    helper: "El cierre natural del ingreso es indicar a qué vasija entra la uva o mosto para continuar elaboración.",
   },
 ];
 
@@ -55,11 +60,21 @@ function getStepFromParams(value: string | null): IngresoUvaStep {
   return STEPS.some((step) => step.key === value) ? (value as IngresoUvaStep) : "remito";
 }
 
+function resolveStringId(item: ElaboracionEntity, keys: string[]) {
+  const id = keys
+    .map((key) => item[key])
+    .find((value) => typeof value === "string" || typeof value === "number");
+  return id === undefined || id === null ? "" : String(id);
+}
+
 export default function IngresoUvaFlowPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const [recepcionDefaults, setRecepcionDefaults] = useState<Record<string, string | boolean>>({});
+  const [analisisDefaults, setAnalisisDefaults] = useState<Record<string, string | boolean>>({});
+  const [vinculoDefaults, setVinculoDefaults] = useState<Record<string, string | boolean>>({});
+  const [pendingCiuNextStep, setPendingCiuNextStep] = useState<PendingCiuNextStep | null>(null);
   const activeStep = getStepFromParams(searchParams.get("paso") ?? searchParams.get("section"));
   const activeStepIndex = STEPS.findIndex((step) => step.key === activeStep);
-  const currentStep = STEPS[activeStepIndex] ?? STEPS[0];
 
   const goToStep = (step: IngresoUvaStep) => {
     setSearchParams((prev) => {
@@ -70,8 +85,39 @@ export default function IngresoUvaFlowPage() {
     });
   };
 
-  const nextStep = STEPS[activeStepIndex + 1];
-  const previousStep = STEPS[activeStepIndex - 1];
+  const handleCiuCreated = (item: ElaboracionEntity) => {
+    const ciuId = resolveStringId(item, ["ciu_id", "id_ciu", "id"]);
+    if (!ciuId) return;
+    setVinculoDefaults({ ciuId });
+    setPendingCiuNextStep({
+      from: "ciu",
+      title: "CIU guardado",
+      description:
+        "El comprobante ya quedó registrado. Ahora podés vincularlo con la recepción correspondiente para cerrar el ingreso sin dejar el CIU suelto.",
+      primaryLabel: "Vincular recepción",
+      ciuId,
+    });
+  };
+
+  const handleVinculoCreated = () => {
+    setPendingCiuNextStep({
+      from: "vinculo",
+      title: "CIU vinculado",
+      description:
+        "El CIU ya quedó asociado a la recepción. Podés continuar con el ingreso a vasija o volver más tarde si todavía no está definido el destino.",
+      primaryLabel: "Continuar a vasija",
+    });
+  };
+
+  const continueCiuNextStep = () => {
+    if (!pendingCiuNextStep) return;
+    if (pendingCiuNextStep.from === "ciu") {
+      setVinculoDefaults({ ciuId: pendingCiuNextStep.ciuId });
+    } else {
+      goToStep("vasija");
+    }
+    setPendingCiuNextStep(null);
+  };
 
   return (
     <div className="space-y-5">
@@ -116,58 +162,42 @@ export default function IngresoUvaFlowPage() {
                   ) : null}
                 </div>
                 <h3 className="mt-3 text-sm font-bold">{step.title}</h3>
-                <p className="mt-2 text-xs leading-relaxed text-inherit opacity-80">
-                  {step.description}
-                </p>
               </button>
             );
           })}
         </div>
       </AppCard>
 
-      <AppCard
-        as="section"
-        tone="soft"
-        padding="md"
-        className="border-[color:var(--border-shell)] bg-[color:var(--surface-muted)]"
-      >
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div className="text-xs font-black uppercase tracking-[0.28em] text-[color:var(--accent-primary)]">
-              Paso {currentStep.eyebrow}
-            </div>
-            <h2 className="mt-2 text-2xl font-bold text-[color:var(--text-on-dark)]">
-              {currentStep.title}
-            </h2>
-            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[color:var(--text-on-dark-muted)]">
-              {currentStep.helper}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {previousStep ? (
-              <AppButton type="button" variant="secondary" size="sm" onClick={() => goToStep(previousStep.key)}>
-                Volver
-              </AppButton>
-            ) : null}
-            {nextStep ? (
-              <AppButton type="button" variant="primary" size="sm" onClick={() => goToStep(nextStep.key)}>
-                Ir a {nextStep.title}
-              </AppButton>
-            ) : null}
-          </div>
-        </div>
-      </AppCard>
-
       {activeStep === "remito" ? (
-        <RecepcionPage initialSection="remito" hideSectionSelector />
+        <RecepcionPage
+          initialSection="remito"
+          hideSectionSelector
+          onSectionChange={(section) => goToStep(section)}
+          onRecepcionDefaultsChange={setRecepcionDefaults}
+          onAnalisisDefaultsChange={setAnalisisDefaults}
+        />
       ) : null}
 
       {activeStep === "recepcion" ? (
-        <RecepcionPage initialSection="recepcion" hideSectionSelector />
+        <RecepcionPage
+          initialSection="recepcion"
+          hideSectionSelector
+          onSectionChange={(section) => goToStep(section)}
+          recepcionDefaultValues={recepcionDefaults}
+          onRecepcionDefaultsChange={setRecepcionDefaults}
+          onAnalisisDefaultsChange={setAnalisisDefaults}
+        />
       ) : null}
 
       {activeStep === "analisis" ? (
-        <RecepcionPage initialSection="analisis" hideSectionSelector />
+        <RecepcionPage
+          initialSection="analisis"
+          hideSectionSelector
+          onSectionChange={(section) => goToStep(section)}
+          analisisDefaultValues={analisisDefaults}
+          onRecepcionDefaultsChange={setRecepcionDefaults}
+          onAnalisisDefaultsChange={setAnalisisDefaults}
+        />
       ) : null}
 
       {activeStep === "ciu" ? (
@@ -175,8 +205,17 @@ export default function IngresoUvaFlowPage() {
           <NoticeBanner tone="info" title="CIU como cierre del ingreso">
             Creá el CIU cuando la recepción ya exista. Después vinculalo con esa recepción para que el comprobante no quede suelto.
           </NoticeBanner>
-          <CiuQcPage initialSection="ciu" hideSectionSelector />
-          <CiuQcPage initialSection="vinculo" hideSectionSelector />
+          <CiuQcPage
+            initialSection="ciu"
+            hideSectionSelector
+            onCiuCreated={handleCiuCreated}
+          />
+          <CiuQcPage
+            initialSection="vinculo"
+            hideSectionSelector
+            vinculoDefaults={vinculoDefaults}
+            onVinculoCreated={handleVinculoCreated}
+          />
         </div>
       ) : null}
 
@@ -205,6 +244,36 @@ export default function IngresoUvaFlowPage() {
           </div>
         </AppCard>
       ) : null}
+
+      <AppModal
+        opened={pendingCiuNextStep !== null}
+        onClose={() => setPendingCiuNextStep(null)}
+        title={pendingCiuNextStep?.title}
+        description="Flujo asistido de CIU"
+        size="sm"
+        footer={(
+          <div className="flex flex-wrap justify-end gap-2">
+            <AppButton
+              type="button"
+              variant="secondary"
+              onClick={() => setPendingCiuNextStep(null)}
+            >
+              Continuar más tarde
+            </AppButton>
+            <AppButton
+              type="button"
+              variant="primary"
+              onClick={continueCiuNextStep}
+            >
+              {pendingCiuNextStep?.primaryLabel ?? "Continuar"}
+            </AppButton>
+          </div>
+        )}
+      >
+        <p className="text-sm leading-relaxed text-[color:var(--text-ink-muted)]">
+          {pendingCiuNextStep?.description}
+        </p>
+      </AppModal>
     </div>
   );
 }

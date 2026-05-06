@@ -161,6 +161,99 @@ function formatItemFieldValue(value: unknown) {
   return String(value);
 }
 
+function formatDateTimeValue(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function getNestedRecord(item: ElaboracionEntity, key: string) {
+  const value = item[key];
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function formatRelatedFieldValue(
+  item: ElaboracionEntity,
+  field: CrudField,
+  resource: ElaboracionResourceKey,
+) {
+  const sourceKey = field.sourceKey ?? field.name;
+
+  if (field.type === "date" || field.type === "datetime-local") {
+    return formatDateTimeValue(item[sourceKey]) ?? formatItemFieldValue(item[sourceKey]);
+  }
+
+  if (resource === "remitos-uva") {
+    if (sourceKey === "finca_id") {
+      const finca = getNestedRecord(item, "finca");
+      const nombre = finca?.nombre_finca ?? finca?.nombre ?? item[sourceKey];
+      return formatItemFieldValue(nombre);
+    }
+
+    if (sourceKey === "cuartel_id") {
+      const cuartel = getNestedRecord(item, "cuartel");
+      const codigo = cuartel?.codigo_cuartel ?? item[sourceKey];
+      return formatItemFieldValue(codigo);
+    }
+
+    if (sourceKey === "lote_cosecha_id") {
+      const lote = getNestedRecord(item, "evento_cosecha");
+      const fecha = formatDateTimeValue(lote?.fecha_cosecha);
+      const cantidad = lote?.cantidad !== undefined && lote?.cantidad !== null
+        ? `${lote.cantidad} ${typeof lote.unidad === "string" ? lote.unidad : ""}`.trim()
+        : null;
+      const label = [fecha, cantidad].filter(Boolean).join(" · ");
+      return label || formatItemFieldValue(item[sourceKey]);
+    }
+  }
+
+  if (resource === "recepciones-bodega" && sourceKey === "remito_uva_id") {
+    const remito = getNestedRecord(item, "remito_uva");
+    const finca = remito?.finca && typeof remito.finca === "object" && !Array.isArray(remito.finca)
+      ? remito.finca as Record<string, unknown>
+      : null;
+    const cuartel = remito?.cuartel && typeof remito.cuartel === "object" && !Array.isArray(remito.cuartel)
+      ? remito.cuartel as Record<string, unknown>
+      : null;
+    const salida = formatDateTimeValue(remito?.salida_finca);
+    const origen = [finca?.nombre_finca, cuartel?.codigo_cuartel].filter(Boolean).join(" / ");
+    const patente = typeof remito?.patente === "string" && remito.patente.trim()
+      ? `Patente ${remito.patente}`
+      : null;
+    const label = [salida, origen, patente].filter(Boolean).join(" · ");
+    return label || formatItemFieldValue(item[sourceKey]);
+  }
+
+  if (
+    (resource === "analisis-recepcion" || resource === "ciu-recepciones") &&
+    sourceKey === "recepcion_bodega_id"
+  ) {
+    const recepcion = getNestedRecord(item, "recepcion_bodega");
+    const fecha = formatDateTimeValue(recepcion?.fecha_hora);
+    const kilos = recepcion?.kg_pesados !== undefined && recepcion?.kg_pesados !== null
+      ? `${recepcion.kg_pesados} kg`
+      : null;
+    const label = [fecha, kilos].filter(Boolean).join(" · ");
+    return label || formatItemFieldValue(item[sourceKey]);
+  }
+
+  if (resource === "ciu-recepciones" && sourceKey === "ciu_id") {
+    const ciu = getNestedRecord(item, "ciu");
+    return formatItemFieldValue(ciu?.codigo_ciu ?? item[sourceKey]);
+  }
+
+  return formatItemFieldValue(item[sourceKey]);
+}
+
 function applyFieldValueChange(
   prev: Record<string, string | boolean>,
   field: CrudField,
@@ -507,10 +600,6 @@ export default function GenericCrudSection({
               <AppButton variant="primary" size="sm">Elegir bodega</AppButton>
             </Link>
           )}
-          steps={[
-            { label: "Bodega activa", done: false },
-            { label: "Registros disponibles", done: false },
-          ]}
         />
       ) : loading ? (
         <NoticeBanner>Cargando registros...</NoticeBanner>
@@ -518,15 +607,12 @@ export default function GenericCrudSection({
         <GuidedState
           title={`Sin registros en ${title.toLowerCase()}`}
           description="Cuando cargues el primer registro, aparecerá acá para editarlo, revisarlo o continuar el flujo operativo."
-          steps={[
-            { label: "Bodega activa", done: true },
-            { label: "Primer registro", done: false },
-          ]}
         />
       ) : (
         items.map((item, index) => {
           const itemId = idResolver ? idResolver(item) : resolveId(item, resource);
           const displayId = itemId || `fila-${index}`;
+          const shortId = itemId ? itemId.slice(0, 8) : String(index + 1).padStart(2, "0");
           const previewRows = fields
             .map((field) => {
               const sourceKey = field.sourceKey ?? field.name;
@@ -535,41 +621,69 @@ export default function GenericCrudSection({
               return {
                 key: field.name,
                 label: field.label,
-                value: formatItemFieldValue(raw),
+                value: formatRelatedFieldValue(item, field, resource),
               };
             })
             .filter((row): row is { key: string; label: string; value: string } => row !== null)
             .slice(0, 5);
           return (
-            <AppCard key={displayId} as="article" tone="soft" padding="sm">
-              <div className="text-xs font-semibold text-[color:var(--accent-primary)]">ID: {displayId}</div>
+            <AppCard
+              key={displayId}
+              as="article"
+              tone="soft"
+              padding="sm"
+              className="border-[color:var(--border-shell)] bg-[color:var(--surface-elevated)]"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="text-[0.68rem] font-black uppercase tracking-[0.24em] text-[color:var(--accent-primary)]">
+                    Registro
+                  </div>
+                  <div className="mt-1 text-sm font-bold text-[color:var(--text-on-dark)]">
+                    {title} #{shortId}
+                  </div>
+                </div>
+                <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
+                  <div className="max-w-full rounded-full border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-1 text-[0.68rem] font-semibold text-[color:var(--text-on-dark-muted)]">
+                    ID {displayId}
+                  </div>
+                  <AppButton
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => onEdit(item)}
+                  >
+                    Editar
+                  </AppButton>
+                  <AppButton
+                    type="button"
+                    variant="danger"
+                    size="sm"
+                    onClick={() => onDelete(item)}
+                  >
+                    Eliminar
+                  </AppButton>
+                </div>
+              </div>
+
               {previewRows.length > 0 ? (
-                <div className="mt-2 grid gap-1 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] p-2 text-xs text-[color:var(--text-on-dark)]">
+                <div className="mt-3 grid gap-2 md:grid-cols-2">
                   {previewRows.map((row) => (
-                    <div key={row.key}>
-                      <span className="font-semibold">{row.label}:</span> {row.value}
+                    <div
+                      key={row.key}
+                      className="rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-2 shadow-[var(--shadow-inset-soft)]"
+                    >
+                      <div className="text-[0.64rem] font-black uppercase tracking-[0.18em] text-[color:var(--text-on-dark-muted)]">
+                        {row.label}
+                      </div>
+                      <div className="mt-1 break-words text-sm font-semibold text-[color:var(--text-on-dark)]">
+                        {row.value}
+                      </div>
                     </div>
                   ))}
                 </div>
               ) : null}
-              <div className="mt-2 flex gap-2">
-                <AppButton
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => onEdit(item)}
-                >
-                  Editar
-                </AppButton>
-                <AppButton
-                  type="button"
-                  variant="danger"
-                  size="sm"
-                  onClick={() => onDelete(item)}
-                >
-                  Eliminar
-                </AppButton>
-              </div>
+
             </AppCard>
           );
         })

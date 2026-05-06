@@ -1162,10 +1162,6 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                 <AppButton variant="primary" size="sm">Elegir bodega</AppButton>
               </Link>
             )}
-            steps={[
-              { label: "Bodega activa", done: false },
-              { label: "Órdenes disponibles", done: false },
-            ]}
           />
         ) : canRenderManagerFlow ? (
           <AppCard
