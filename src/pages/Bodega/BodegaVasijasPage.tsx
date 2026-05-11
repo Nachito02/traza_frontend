@@ -187,10 +187,10 @@ export default function BodegaVasijasPage() {
                     typeof item.tipo === "string" && item.tipo.trim()
                       ? item.tipo
                       : "Tipo sin definir";
-                  const estado =
-                    typeof item.estado === "string" && item.estado.trim()
-                      ? item.estado
-                      : "Estado sin definir";
+                  const etapa =
+                    typeof item.etapa === "string" && item.etapa.trim()
+                      ? item.etapa
+                      : "Sin etapa";
                   const ubicacion =
                     typeof item.ubicacion === "string" && item.ubicacion.trim()
                       ? item.ubicacion
@@ -228,7 +228,7 @@ export default function BodegaVasijasPage() {
                             <span className="font-semibold text-[color:var(--text-on-dark)]">
                               Estado:
                             </span>{" "}
-                            {estado}
+                            {etapa}
                           </div>
                           <div>
                             <span className="font-semibold text-[color:var(--text-ink)]">

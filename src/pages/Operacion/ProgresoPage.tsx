@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchTareasByBodega, type Tarea } from "../../features/encargos/api";
 import { fetchProtocoloById, type ProtocoloExpanded } from "../../features/protocolos/api";
+import { useFincasStore } from "../../features/fincas/store";
 import { useAuthStore } from "../../store/authStore";
 import { useOperacionStore } from "../../store/operacionStore";
 import {
@@ -27,6 +28,14 @@ function normalizeTaskEstado(estado: string | undefined) {
 
 function getActiveTasks(tareas: Tarea[]) {
   return tareas.filter((t) => normalizeTaskEstado(t.estado) !== "cancelado");
+}
+
+function getFincaNombre(input: {
+  nombre?: string | null;
+  nombre_finca?: string | null;
+  name?: string | null;
+}) {
+  return input.nombre ?? input.nombre_finca ?? input.name ?? "Finca sin nombre";
 }
 
 function estadoBadge(estado: string | undefined) {
@@ -69,6 +78,17 @@ function procesoEstado(tareas: Tarea[]): "sin_tareas" | "pendiente" | "en_progre
   ) return "en_progreso";
   return "pendiente";
 }
+
+function etapaEstado(procesos: ProcesoProgreso[]) {
+  if (procesos.length === 0) return "sin_tareas" as const;
+  const estados = procesos.map((proceso) => procesoEstado(proceso.tareas));
+  if (estados.every((estado) => estado === "completado")) return "completado" as const;
+  if (estados.some((estado) => estado === "en_progreso")) return "en_progreso" as const;
+  if (estados.some((estado) => estado === "pendiente")) return "pendiente" as const;
+  return "sin_tareas" as const;
+}
+
+type EstadoResumen = "sin_tareas" | "pendiente" | "en_progreso" | "completado";
 
 function ProcesoIndicator({ estado }: { estado: ReturnType<typeof procesoEstado> }) {
   if (estado === "completado") {
@@ -148,6 +168,8 @@ function ProcesoRow({ proceso }: { proceso: ProcesoProgreso }) {
 export default function ProgresoPage() {
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const { activeProtocoloId } = useOperacionStore();
+  const fincas = useFincasStore((state) => state.fincas);
+  const loadFincas = useFincasStore((state) => state.loadFincas);
   const [protocolo, setProtocolo] = useState<ProtocoloExpanded | null>(null);
   const [tareas, setTareas] = useState<Tarea[]>([]);
   const [loading, setLoading] = useState(true);
@@ -167,10 +189,11 @@ export default function ProgresoPage() {
 
   useEffect(() => {
     if (!activeBodegaId) return;
+    void loadFincas(activeBodegaId);
     fetchTareasByBodega(String(activeBodegaId))
       .then((data) => setTareas(data))
       .catch(() => setTareas([]));
-  }, [activeBodegaId]);
+  }, [activeBodegaId, loadFincas]);
 
   const procesos = useMemo((): ProcesoProgreso[] => {
     if (!protocolo) return [];
@@ -201,6 +224,25 @@ export default function ProgresoPage() {
     return Array.from(map.values()).sort((a, b) => a.orden - b.orden);
   }, [procesos]);
 
+  const resumenEtapas = useMemo(
+    () =>
+      grouped.map((etapa) => {
+        const procesosActivos = etapa.procesos.filter(
+          (proceso) => procesoEstado(proceso.tareas) !== "sin_tareas",
+        ).length;
+        const procesosCompletados = etapa.procesos.filter(
+          (proceso) => procesoEstado(proceso.tareas) === "completado",
+        ).length;
+        return {
+          ...etapa,
+          estado: etapaEstado(etapa.procesos),
+          procesosActivos,
+          procesosCompletados,
+        };
+      }),
+    [grouped],
+  );
+
   const totales = useMemo(() => {
     const total = procesos.length;
     const completados = procesos.filter((p) => procesoEstado(p.tareas) === "completado").length;
@@ -211,6 +253,58 @@ export default function ProgresoPage() {
     }).length;
     return { total, completados, enProgreso, sinTareas };
   }, [procesos]);
+
+  const focoOperativo = useMemo(() => {
+    const enCurso = resumenEtapas.find((etapa) => etapa.estado === "en_progreso");
+    if (enCurso) return enCurso;
+    const pendiente = resumenEtapas.find((etapa) => etapa.estado === "pendiente");
+    if (pendiente) return pendiente;
+    return resumenEtapas[0] ?? null;
+  }, [resumenEtapas]);
+
+  const resumenFincas = useMemo(() => {
+    return fincas
+      .map((finca) => {
+        const fincaId = String(finca.finca_id ?? finca.id ?? "");
+        if (!fincaId) return null;
+
+        const tareasFinca = tareas.filter((tarea) => String(tarea.finca_id ?? tarea.finca?.finca_id ?? "") === fincaId);
+        const activas = tareasFinca.filter((tarea) => {
+          const estado = normalizeTaskEstado(tarea.estado);
+          return estado !== "cancelado" && estado !== "completado";
+        }).length;
+        const completadas = tareasFinca.filter(
+          (tarea) => normalizeTaskEstado(tarea.estado) === "completado",
+        ).length;
+        const ultimaActividad = [...tareasFinca]
+          .sort((a, b) => {
+            const aTime = new Date(String(a.updated_at ?? a.created_at ?? 0)).getTime();
+            const bTime = new Date(String(b.updated_at ?? b.created_at ?? 0)).getTime();
+            return bTime - aTime;
+          })[0];
+
+        const estado: EstadoResumen =
+          activas > 0
+            ? "en_progreso"
+            : completadas > 0
+              ? "completado"
+              : tareasFinca.length > 0
+                ? "pendiente"
+                : "sin_tareas";
+
+        return {
+          fincaId,
+          nombre: getFincaNombre(finca),
+          tareasTotal: tareasFinca.length,
+          activas,
+          completadas,
+          estado,
+          ultimaActividad,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null)
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+  }, [fincas, tareas]);
 
   if (loading) {
     return (
@@ -254,8 +348,9 @@ export default function ProgresoPage() {
     <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-6xl space-y-6">
         <SectionIntro
-          title="Progreso"
-          description="Estado de ejecución del protocolo activo."
+          eyebrow="Vista ejecutiva"
+          title="Progreso general"
+          description="Panorama agregado de la operación según el protocolo activo. Esta pantalla resume la ejecución total de la bodega, no el historial detallado de una finca."
         />
 
         <AppCard
@@ -265,8 +360,9 @@ export default function ProgresoPage() {
           className="bg-[color:var(--surface-hero)] text-[color:var(--text-on-dark)]"
           header={(
             <SectionIntro
+              eyebrow="Tablero macro"
               title={protocolo.nombre ?? "Protocolo activo"}
-              description={protocolo.version ? `Versión ${protocolo.version}` : undefined}
+              description={protocolo.version ? `Versión ${protocolo.version} · lectura consolidada por etapas y procesos` : "Lectura consolidada por etapas y procesos"}
               className="text-[color:var(--text-on-dark)]"
               descriptionClassName="text-[color:var(--text-on-dark-muted)]"
               actions={(
@@ -302,6 +398,10 @@ export default function ProgresoPage() {
             />
           </div>
 
+          <NoticeBanner tone="info" className="mt-5">
+            Usá este tablero para entender el estado general de la bodega. El seguimiento fino por origen, campaña e historial de registros va a vivir mejor en una vista dedicada por finca.
+          </NoticeBanner>
+
           <div className="mt-5">
             <div className="h-2.5 w-full rounded-full bg-white/15">
               <div
@@ -321,6 +421,207 @@ export default function ProgresoPage() {
               </span>
             </div>
           </div>
+
+          <div className="mt-6 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+            <AppCard
+              as="section"
+              tone="soft"
+              padding="md"
+              className="border-[color:var(--border-shell)] bg-[color:var(--surface-muted)]"
+              header={(
+                <SectionIntro
+                  title="Estado por etapa"
+                  description="Resumen rápido para ubicar dónde hay avance, trabajo en curso o etapas todavía sin activar."
+                  className="text-[color:var(--text-on-dark)]"
+                  descriptionClassName="text-[color:var(--text-on-dark-muted)]"
+                />
+              )}
+            >
+              <div className="grid gap-3 md:grid-cols-2">
+                {resumenEtapas.map((etapa) => {
+                  const estado = etapa.estado;
+                  const estadoLabel =
+                    estado === "completado"
+                      ? "Completada"
+                      : estado === "en_progreso"
+                        ? "En progreso"
+                        : estado === "pendiente"
+                          ? "Pendiente"
+                          : "Sin actividad";
+
+                  return (
+                    <div
+                      key={etapa.nombre}
+                      className="rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-card)] px-4 py-3"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-[color:var(--text-on-dark)]">
+                            {etapa.nombre}
+                          </p>
+                          <p className="text-[11px] text-[color:var(--text-on-dark-muted)]">
+                            {etapa.procesosActivos}/{etapa.procesos.length} procesos con actividad
+                          </p>
+                        </div>
+                        <ProcesoIndicator estado={estado} />
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-[color:var(--text-on-dark-muted)]">
+                        <span>{estadoLabel}</span>
+                        <span>{etapa.procesosCompletados} completados</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </AppCard>
+
+            <AppCard
+              as="section"
+              tone="soft"
+              padding="md"
+              className="border-[color:var(--border-shell)] bg-[color:var(--surface-muted)]"
+              header={(
+                <SectionIntro
+                  title="Cómo leer este tablero"
+                  description="Ayuda rápida para interpretar la vista general sin confundirla con trazabilidad de origen."
+                  className="text-[color:var(--text-on-dark)]"
+                  descriptionClassName="text-[color:var(--text-on-dark-muted)]"
+                />
+              )}
+            >
+              <div className="space-y-3 text-sm text-[color:var(--text-on-dark-muted)]">
+                <div className="rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-card)] px-4 py-3">
+                  <p className="font-semibold text-[color:var(--text-on-dark)]">Qué representa</p>
+                  <p className="mt-1">
+                    Una foto consolidada del protocolo activo: cuánto está completo, qué etapas tienen movimiento y dónde conviene poner foco operativo.
+                  </p>
+                </div>
+                <div className="rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-card)] px-4 py-3">
+                  <p className="font-semibold text-[color:var(--text-on-dark)]">Qué no representa</p>
+                  <p className="mt-1">
+                    No es el historial completo de una finca ni la historia de un producto final. Esa lectura va a estar separada para que la trazabilidad se entienda mejor.
+                  </p>
+                </div>
+                <div className="rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-card)] px-4 py-3">
+                  <p className="font-semibold text-[color:var(--text-on-dark)]">Foco sugerido</p>
+                  <p className="mt-1">
+                    {focoOperativo
+                      ? `Hoy conviene revisar primero ${focoOperativo.nombre}, porque es la etapa que mejor representa el próximo punto de seguimiento operativo.`
+                      : "Todavía no hay suficiente actividad para sugerir un foco operativo."}
+                  </p>
+                </div>
+              </div>
+            </AppCard>
+          </div>
+        </AppCard>
+
+        <AppCard
+          as="section"
+          tone="default"
+          padding="lg"
+          header={(
+            <SectionIntro
+              title="Estado por finca"
+              description="Primer recorte operativo por origen. Desde acá ya podés empezar a leer qué fincas tienen actividad, cuáles están quietas y cuáles necesitan una vista de detalle propia."
+            />
+          )}
+        >
+          {resumenFincas.length === 0 ? (
+            <NoticeBanner tone="warning">
+              No hay fincas cargadas para la bodega activa. Cuando existan fincas vinculadas, este bloque va a mostrar su estado resumido y el acceso al detalle.
+            </NoticeBanner>
+          ) : (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {resumenFincas.map((finca) => {
+                const estadoLabel =
+                  finca.estado === "completado"
+                    ? "Con trabajo completado"
+                    : finca.estado === "en_progreso"
+                      ? "Con actividad en curso"
+                      : finca.estado === "pendiente"
+                        ? "Con tareas pendientes"
+                        : "Sin actividad registrada";
+
+                return (
+                  <AppCard
+                    key={finca.fincaId}
+                    as="article"
+                    tone="soft"
+                    padding="md"
+                    className="border-[color:var(--border-default)] bg-[color:var(--surface-card)]"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <ProcesoIndicator estado={finca.estado} />
+                          <h3 className="truncate text-base font-semibold text-[color:var(--text-ink)]">
+                            {finca.nombre}
+                          </h3>
+                        </div>
+                        <p className="mt-1 text-sm text-[color:var(--text-ink-muted)]">
+                          {estadoLabel}
+                        </p>
+                      </div>
+                      <Link to={`/fincas/${encodeURIComponent(finca.fincaId)}`}>
+                        <span className="inline-flex rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] px-3 py-2 text-xs font-semibold text-[color:var(--text-ink)] transition hover:bg-[color:var(--action-secondary-hover)]">
+                          Ver contexto
+                        </span>
+                      </Link>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-3 py-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--text-ink-muted)]">
+                          Tareas
+                        </p>
+                        <p className="mt-1 text-lg font-semibold text-[color:var(--text-ink)]">
+                          {finca.tareasTotal}
+                        </p>
+                      </div>
+                      <div className="rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-3 py-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--text-ink-muted)]">
+                          Activas
+                        </p>
+                        <p className="mt-1 text-lg font-semibold text-[color:var(--text-ink)]">
+                          {finca.activas}
+                        </p>
+                      </div>
+                      <div className="rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-3 py-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--text-ink-muted)]">
+                          Completadas
+                        </p>
+                        <p className="mt-1 text-lg font-semibold text-[color:var(--text-ink)]">
+                          {finca.completadas}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-4 py-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--text-ink-muted)]">
+                        Última actividad
+                      </p>
+                      <p className="mt-1 text-sm text-[color:var(--text-ink)]">
+                        {finca.ultimaActividad
+                          ? finca.ultimaActividad.titulo
+                          : "Todavía no hay tareas asociadas a esta finca."}
+                      </p>
+                      {finca.ultimaActividad?.updated_at || finca.ultimaActividad?.created_at ? (
+                        <p className="mt-1 text-xs text-[color:var(--text-ink-muted)]">
+                          {new Date(
+                            String(
+                              finca.ultimaActividad.updated_at ??
+                                finca.ultimaActividad.created_at ??
+                                "",
+                            ),
+                          ).toLocaleString("es-AR")}
+                        </p>
+                      ) : null}
+                    </div>
+                  </AppCard>
+                );
+              })}
+            </div>
+          )}
         </AppCard>
 
         {grouped.map((etapa) => (

@@ -258,10 +258,10 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
                 Perfil
               </MantineMenu.Item>
               <MantineMenu.Item leftSection={<Settings className="h-4 w-4" />} disabled>
-                User settings
+                Configuración
               </MantineMenu.Item>
               <MantineMenu.Item leftSection={<Shield className="h-4 w-4" />} disabled>
-                Security settings
+                Seguridad
               </MantineMenu.Item>
               <MantineMenu.Divider />
               <MantineMenu.Item

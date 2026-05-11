@@ -6,6 +6,14 @@ import {
   useLocation,
   useNavigate,
 } from "react-router-dom";
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
 import Login from "./pages/Login/Login";
 import Register from "./pages/Login/Register";
 import ChangePassword from "./pages/Login/ChangePassword";
@@ -37,7 +45,9 @@ import BodegaVasijasPage from "./pages/Bodega/BodegaVasijasPage";
 import BodegaVasijaFormPage from "./pages/Bodega/BodegaVasijaFormPage";
 import OperacionLayout from "./pages/Operacion/OperacionLayout";
 import ProgresoPage from "./pages/Operacion/ProgresoPage";
+import { fetchProtocolos } from "./features/protocolos/api";
 import { resolveModuleAccess } from "./lib/permissions";
+import { useOperacionStore } from "./store/operacionStore";
 
 function LegacyElaboracionRedirect() {
   const location = useLocation();
@@ -60,6 +70,8 @@ export default function App() {
   const bodegas = useAuthStore((state) => state.bodegas);
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const setActiveBodega = useAuthStore((state) => state.setActiveBodega);
+  const activeProtocoloId = useOperacionStore((state) => state.activeProtocoloId);
+  const setActiveProtocoloId = useOperacionStore((state) => state.setActiveProtocoloId);
   const navigate = useNavigate();
   const location = useLocation();
   const access = resolveModuleAccess(user, activeBodegaId);
@@ -94,6 +106,45 @@ export default function App() {
     setActiveBodega,
   ]);
 
+  useEffect(() => {
+    if (!isAuthenticated || isLoading) return;
+    let mounted = true;
+
+    fetchProtocolos()
+      .then((protocolos) => {
+        if (!mounted) return;
+        const normalized = protocolos ?? [];
+        if (normalized.length === 0) {
+          if (activeProtocoloId) {
+            setActiveProtocoloId(null);
+          }
+          return;
+        }
+
+        const existing = normalized.find(
+          (protocolo) => String(protocolo.protocolo_id ?? protocolo.id ?? "") === String(activeProtocoloId ?? ""),
+        );
+        if (existing) return;
+
+        if (normalized.length === 1) {
+          const onlyId = String(normalized[0].protocolo_id ?? normalized[0].id ?? "");
+          if (onlyId) {
+            setActiveProtocoloId(onlyId);
+          }
+          return;
+        }
+
+        if (activeProtocoloId) {
+          setActiveProtocoloId(null);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      mounted = false;
+    };
+  }, [activeProtocoloId, isAuthenticated, isLoading, setActiveProtocoloId]);
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center text-[color:var(--accent-primary)]">
@@ -103,7 +154,9 @@ export default function App() {
   }
 
   return (
-    <Routes>
+    <>
+      <ScrollToTop />
+      <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
       <Route path="/registro" element={<Register />} />
@@ -167,5 +220,6 @@ export default function App() {
       </Route>
       {/* <Route path="*" element={<NotFound />} /> */}
     </Routes>
+    </>
   );
 }

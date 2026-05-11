@@ -26,6 +26,7 @@ import {
   AppTextarea,
   NoticeBanner,
   SectionIntro,
+  useAppNotifications,
 } from "../../components/ui";
 import {
   fetchProtocoloById,
@@ -389,15 +390,13 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
   const [expandedTaskForm, setExpandedTaskForm] = useState<Record<string, string>>({});
   const [expandedTaskSaving, setExpandedTaskSaving] = useState(false);
   const [expandedTaskFinalizing, setExpandedTaskFinalizing] = useState(false);
-  const [expandedTaskError, setExpandedTaskError] = useState<string | null>(null);
-  const [expandedTaskNotice, setExpandedTaskNotice] = useState<string | null>(null);
   const [expandedTaskEntries, setExpandedTaskEntries] = useState<TareaEntradaDetail[]>([]);
   const [expandedTaskEntriesLoading, setExpandedTaskEntriesLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [completedLoading, setCompletedLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const { notifySuccess, notifyError } = useAppNotifications();
   const [form, setForm] = useState({
     tareaProtocolo: "",
     tareaCatalogoId: "",
@@ -823,8 +822,6 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
 
   const openExpandedTask = (taskId: string, task: Tarea) => {
     setExpandedTaskId(taskId);
-    setExpandedTaskError(null);
-    setExpandedTaskNotice(null);
     setExpandedTaskEntries([]);
     const tipo = getEventoTipoForTask(task) ?? "";
     const config = EVENTO_CONFIG[tipo];
@@ -892,19 +889,18 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
     const tipo = getEventoTipoForTask(task) ?? "";
     const config = EVENTO_CONFIG[tipo];
     if (!config) {
-      setExpandedTaskError("Tipo de actividad no soportado.");
+      notifyError({ title: "Actividad no soportada", message: "Este tipo de actividad no está soportado todavía." });
       return;
     }
     const missing = config.fields.filter((f) => f.required && !expandedTaskForm[f.name]);
     if (missing.length > 0) {
-      setExpandedTaskError("Completá los campos obligatorios.");
+      notifyError({ title: "Campos incompletos", message: "Completá los campos obligatorios antes de registrar." });
       return;
     }
 
     const asignacionId = await getAsignacionId(task);
-    console.log("[Tareas] asignacionId:", asignacionId, "task:", task);
     if (!asignacionId) {
-      setExpandedTaskError("No se encontró asignación para esta tarea. Asignala a un operario primero.");
+      notifyError({ title: "Sin asignación", message: "No se encontró asignación para esta tarea. Asignala a un operario primero." });
       return;
     }
 
@@ -916,19 +912,17 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
     });
     if (tipo === "cosecha") {
       if (!activeCampaniaId) {
-        setExpandedTaskError("Seleccioná una campaña activa antes de registrar la cosecha.");
+        notifyError({ title: "Sin campaña activa", message: "Seleccioná una campaña activa antes de registrar la cosecha." });
         return;
       }
       draft.campaniaId = activeCampaniaId;
     }
 
     setExpandedTaskSaving(true);
-    setExpandedTaskError(null);
     try {
       const savedEntry = await createTareaEntrada(asignacionId, { draft });
       const loteCosechaId =
         typeof savedEntry?.loteCosechaId === "string" ? savedEntry.loteCosechaId : null;
-      // Agregar al historial (optimistic, luego recarga del backend)
       const newEntry: TareaEntradaDetail = {
         entradaId: `local-${Date.now()}`,
         descripcion: Object.entries(draft).map(([k, v]) => `${k}: ${String(v)}`).join(", "),
@@ -937,18 +931,18 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
         creadoPor: user ? { user_id: String(user.id ?? ""), nombre: String(user.nombre ?? user.email ?? "") } : null,
       };
       setExpandedTaskEntries((prev) => [...prev, newEntry]);
-      setExpandedTaskNotice(
-        loteCosechaId
-          ? `Registro guardado y lote de cosecha generado: ${loteCosechaId}.`
-          : "Registro guardado. Podés agregar otro o finalizar la tarea.",
-      );
-      // Resetear form para nuevo registro
+      notifySuccess({
+        title: "Registro guardado",
+        message: loteCosechaId
+          ? `Lote de cosecha generado: ${loteCosechaId}.`
+          : "Podés agregar otro registro o finalizar la tarea.",
+      });
       const initialForm: Record<string, string> = {};
       config.fields.forEach((f) => { initialForm[f.name] = f.defaultValue ?? ""; });
       if ("fecha" in initialForm) initialForm.fecha = new Date().toISOString().slice(0, 10);
       setExpandedTaskForm(initialForm);
     } catch (e) {
-      setExpandedTaskError(`No se pudo guardar el registro. ${getApiErrorMessage(e)}`);
+      notifyError({ title: "No se pudo guardar", message: getApiErrorMessage(e) });
     } finally {
       setExpandedTaskSaving(false);
     }
@@ -957,18 +951,18 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
   const onFinalizeTask = async (task: Tarea) => {
     const asignacionId = await getAsignacionId(task);
     if (!asignacionId) {
-      setExpandedTaskError("No se encontró asignación para finalizar.");
+      notifyError({ title: "Sin asignación", message: "No se encontró asignación para finalizar." });
       return;
     }
     setExpandedTaskFinalizing(true);
-    setExpandedTaskError(null);
     try {
       await finalizarTareaAsignacion(asignacionId);
       setExpandedTaskId(null);
+      notifySuccess({ title: "Tarea finalizada", message: "La orden quedó cerrada correctamente." });
       await refreshTasks();
       await refreshCompletedTasks();
     } catch {
-      setExpandedTaskError("No se pudo finalizar la tarea.");
+      notifyError({ title: "No se pudo finalizar", message: "Hubo un error al cerrar la tarea. Intentá de nuevo." });
     } finally {
       setExpandedTaskFinalizing(false);
     }
@@ -1054,7 +1048,6 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
 
     setSaving(true);
     setError(null);
-    setNotice(null);
     try {
       const created = await createTarea({
         bodegaId: String(activeBodegaId),
@@ -1071,18 +1064,23 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
       if (tareaId && assigneeUserId) {
         try {
           await assignTareaToUser(tareaId, assigneeUserId);
-          setNotice(
-            assigneeHasAccount
-              ? "Registro creado y tarea asignada correctamente."
-              : `Registro creado y asignado a ${selectedAssignee?.label ?? "operario"}. Sin cuenta — no recibirá notificación en la app.`,
-          );
+          notifySuccess({
+            title: "Orden registrada",
+            message: assigneeHasAccount
+              ? "Orden creada y asignada correctamente."
+              : `Orden creada y asignada a ${selectedAssignee?.label ?? "operario"}. Sin cuenta — no recibirá notificación en la app.`,
+          });
         } catch (assignError) {
-          setNotice(
-            `Registro creado, pero no se pudo confirmar la asignación: ${getApiErrorMessage(assignError)}`,
-          );
+          notifyError({
+            title: "Asignación incompleta",
+            message: `Orden creada, pero no se pudo confirmar la asignación: ${getApiErrorMessage(assignError)}`,
+          });
         }
       } else {
-        setNotice("Registro creado correctamente. Se convertirá en tarea al asignar operario.");
+        notifySuccess({
+          title: "Orden registrada",
+          message: "Se convertirá en tarea al asignar un operario.",
+        });
       }
 
       setForm((prev) => ({
@@ -1118,10 +1116,9 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
 
     setDeletingTaskId(tareaId);
     setError(null);
-    setNotice(null);
     try {
       await deleteTarea(tareaId);
-      setNotice("Orden de trabajo eliminada/cancelada correctamente.");
+      notifySuccess({ title: "Orden eliminada", message: "La orden de trabajo fue eliminada correctamente." });
       await refreshTasks();
       await refreshCompletedTasks();
     } catch (e) {
@@ -1197,6 +1194,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                   {managerScope === "bodega" ? (
                     activeProtocolo ? (
                       <AppSelect
+                        label="Actividad del protocolo"
                         value={form.selectedProcesoId}
                         onChange={(e) => {
                           const procesoId = e.target.value;
@@ -1231,6 +1229,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                     )
                   ) : (
                   <AppSelect
+                    label="Tarea del protocolo"
                     value={form.tareaProtocolo}
                     onChange={(e) => {
                       const selected = e.target.value;
@@ -1258,6 +1257,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                   </AppSelect>
                   )}
                   <AppSelect
+                    label="Prioridad"
                     value={form.prioridad}
                     onChange={(e) =>
                       setForm((prev) => ({
@@ -1266,9 +1266,9 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                       }))
                     }
                   >
-                    <option value="baja">baja</option>
-                    <option value="media">media</option>
-                    <option value="alta">alta</option>
+                    <option value="baja">Baja</option>
+                    <option value="media">Media</option>
+                    <option value="alta">Alta</option>
                   </AppSelect>
                   {requiresFincaTarget ? (
                     <>
@@ -1281,6 +1281,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                         </p>
                       </div>
                       <AppSelect
+                        label="Finca"
                         value={form.fincaId}
                         onChange={(e) =>
                           setForm((prev) => ({ ...prev, fincaId: e.target.value, cuartelId: "" }))
@@ -1298,6 +1299,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                         })}
                       </AppSelect>
                       <AppSelect
+                        label="Cuartel"
                         value={form.cuartelId}
                         onChange={(e) => setForm((prev) => ({ ...prev, cuartelId: e.target.value }))}
                         disabled={!form.fincaId}
@@ -1315,6 +1317,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                     </>
                   ) : null}
                   <AppSelect
+                    label="Asignar a"
                     value={form.assigneeKey}
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, assigneeKey: e.target.value }))
@@ -1337,6 +1340,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                     ) : null}
                   </AppSelect>
                   <AppInput
+                    label="Fecha límite"
                     type="datetime-local"
                     value={form.fechaFin}
                     onChange={(e) =>
@@ -1344,11 +1348,12 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                     }
                   />
                   <AppTextarea
+                    label="Descripción"
                     value={form.descripcion}
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, descripcion: e.target.value }))
                     }
-                    placeholder="Descripción (opcional)"
+                    placeholder="Opcional"
                     className="md:col-span-2"
                     uiSize="lg"
                   />
@@ -1388,7 +1393,6 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
         )}
 
         {error ? <NoticeBanner tone="danger">{error}</NoticeBanner> : null}
-        {notice ? <NoticeBanner tone="success">{notice}</NoticeBanner> : null}
 
         <AppCard
           as="section"
@@ -1600,17 +1604,6 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                                 </div>
                               ))}
 
-                              {expandedTaskError ? (
-                                <NoticeBanner tone="danger" className="text-xs">
-                                  {expandedTaskError}
-                                </NoticeBanner>
-                              ) : null}
-                              {expandedTaskNotice ? (
-                                <NoticeBanner tone="success" className="text-xs">
-                                  {expandedTaskNotice}
-                                </NoticeBanner>
-                              ) : null}
-
                               <div className="flex flex-wrap items-center gap-2 pt-1">
                                 <AppButton
                                   type="button"
@@ -1627,8 +1620,9 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                                   variant="primary"
                                   size="sm"
                                   onClick={() => void onFinalizeTask(task)}
-                                  disabled={expandedTaskFinalizing || expandedTaskSaving}
+                                  disabled={expandedTaskFinalizing || expandedTaskSaving || expandedTaskEntries.length === 0}
                                   loading={expandedTaskFinalizing}
+                                  title={expandedTaskEntries.length === 0 ? "Registrá al menos una entrada antes de finalizar" : undefined}
                                 >
                                   {expandedTaskFinalizing ? "Finalizando..." : "Finalizar tarea"}
                                 </AppButton>

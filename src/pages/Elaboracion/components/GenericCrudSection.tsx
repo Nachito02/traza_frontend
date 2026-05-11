@@ -216,6 +216,11 @@ function formatRelatedFieldValue(
     }
   }
 
+  if (resource === "cius" && sourceKey === "finca_id") {
+    const finca = getNestedRecord(item, "finca");
+    return formatItemFieldValue(finca?.nombre_finca ?? finca?.nombre ?? item[sourceKey]);
+  }
+
   if (resource === "recepciones-bodega" && sourceKey === "remito_uva_id") {
     const remito = getNestedRecord(item, "remito_uva");
     const finca = remito?.finca && typeof remito.finca === "object" && !Array.isArray(remito.finca)
@@ -248,7 +253,11 @@ function formatRelatedFieldValue(
 
   if (resource === "ciu-recepciones" && sourceKey === "ciu_id") {
     const ciu = getNestedRecord(item, "ciu");
-    return formatItemFieldValue(ciu?.codigo_ciu ?? item[sourceKey]);
+    const finca = ciu?.finca && typeof ciu.finca === "object" && !Array.isArray(ciu.finca)
+      ? ciu.finca as Record<string, unknown>
+      : null;
+    const label = [ciu?.codigo_ciu, finca?.nombre_finca].filter(Boolean).join(" · ");
+    return label || formatItemFieldValue(item[sourceKey]);
   }
 
   return formatItemFieldValue(item[sourceKey]);

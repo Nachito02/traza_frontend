@@ -11,7 +11,6 @@ import {
 import { useFincasStore } from "../../features/fincas/store";
 import { resolveModuleAccess } from "../../lib/permissions";
 import { useAuthStore } from "../../store/authStore";
-import { useOperacionStore } from "../../store/operacionStore";
 import { useDashboardData } from "./useDashboardData";
 
 const Dashboard = () => {
@@ -21,8 +20,6 @@ const Dashboard = () => {
   const fincas = useFincasStore((state) => state.fincas);
   const fincasLoading = useFincasStore((state) => state.loading);
   const loadFincas = useFincasStore((state) => state.loadFincas);
-  const activeProtocoloId = useOperacionStore((state) => state.activeProtocoloId);
-
   const activeBodega = bodegas.find((bodega) => bodega.bodega_id === String(activeBodegaId));
   const access = resolveModuleAccess(user, activeBodegaId);
   const dailyOrdersPath = access.canAccessOperacion ? "/ordenes" : "/tareas";
@@ -56,7 +53,6 @@ const Dashboard = () => {
     const hasCampania = stats.campaniasAbiertas > 0;
     const hasFincas = fincas.length > 0;
     const hasCuarteles = cuartelesCount > 0;
-    const hasProtocol = Boolean(activeProtocoloId);
     const hasVasijas = vasijasCount > 0;
 
     return [
@@ -96,15 +92,6 @@ const Dashboard = () => {
         disabled: !hasFincas,
       },
       {
-        key: "protocolo",
-        title: "Protocolo operativo",
-        description: "Seleccioná el protocolo base que define las tareas y registros disponibles.",
-        actionLabel: "Seleccionar protocolo",
-        to: "/setup/protocolos",
-        done: hasProtocol,
-        disabled: !hasBodega,
-      },
-      {
         key: "vasijas",
         title: "Vasijas de bodega",
         description: "Cargá al menos una vasija para registrar recepción, elaboración y movimientos.",
@@ -114,7 +101,7 @@ const Dashboard = () => {
         disabled: !hasBodega,
       },
     ];
-  }, [activeBodegaId, activeProtocoloId, cuartelesCount, fincas.length, stats.campaniasAbiertas, vasijasCount]);
+  }, [activeBodegaId, cuartelesCount, fincas.length, stats.campaniasAbiertas, vasijasCount]);
 
   const showReadinessCard = activeBodegaId && readinessSteps.some((step) => !step.done);
 

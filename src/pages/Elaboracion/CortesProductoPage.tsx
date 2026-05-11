@@ -244,23 +244,39 @@ export default function CortesProductoPage({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {!hideSectionSelector ? (
-        <SectionSelector
-          value={activeSection}
-          onChange={(value) => {
-            setActiveSection(value);
-            setSearchParams((prev) => {
-              const next = new URLSearchParams(prev);
-              next.set("section", value);
-              return next;
-            });
-          }}
-          options={[
-            { key: "cortes", label: "Cortes" },
-            { key: "productos", label: "Productos" },
-          ]}
-        />
+        <AppCard
+          as="section"
+          tone="default"
+          padding="lg"
+          className="bg-[color:var(--surface-hero)] text-[color:var(--text-on-dark)]"
+          header={(
+            <SectionIntro
+              eyebrow="Bodega"
+              title="Cortes y Producto"
+              description="Registro de cortes de elaboración y productos resultantes."
+              descriptionClassName="text-[color:var(--text-on-dark-muted)]"
+            />
+          )}
+        >
+          <SectionSelector
+            bare
+            value={activeSection}
+            onChange={(value) => {
+              setActiveSection(value);
+              setSearchParams((prev) => {
+                const next = new URLSearchParams(prev);
+                next.set("section", value);
+                return next;
+              });
+            }}
+            options={[
+              { key: "cortes", label: "Cortes" },
+              { key: "productos", label: "Productos" },
+            ]}
+          />
+        </AppCard>
       ) : null}
 
       {activeSection === "cortes" ? (
