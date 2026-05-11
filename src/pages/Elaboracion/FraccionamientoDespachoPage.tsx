@@ -246,24 +246,40 @@ export default function FraccionamientoDespachoPage({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {!hideSectionSelector ? (
-        <SectionSelector
-          value={activeSection}
-          onChange={(value) => {
-            setActiveSection(value);
-            setSearchParams((prev) => {
-              const next = new URLSearchParams(prev);
-              next.set("section", value);
-              return next;
-            });
-          }}
-          options={[
-            { key: "lotes", label: "Lotes Fraccionamiento" },
-            { key: "codigos", label: "Códigos Envase" },
-            { key: "despachos", label: "Despachos" },
-          ]}
-        />
+        <AppCard
+          as="section"
+          tone="default"
+          padding="lg"
+          className="bg-[color:var(--surface-hero)] text-[color:var(--text-on-dark)]"
+          header={(
+            <SectionIntro
+              eyebrow="Bodega"
+              title="Fraccionamiento y Despacho"
+              description="Registro de lotes de fraccionamiento, códigos de envase y despachos."
+              descriptionClassName="text-[color:var(--text-on-dark-muted)]"
+            />
+          )}
+        >
+          <SectionSelector
+            bare
+            value={activeSection}
+            onChange={(value) => {
+              setActiveSection(value);
+              setSearchParams((prev) => {
+                const next = new URLSearchParams(prev);
+                next.set("section", value);
+                return next;
+              });
+            }}
+            options={[
+              { key: "lotes", label: "Lotes Fraccionamiento" },
+              { key: "codigos", label: "Códigos Envase" },
+              { key: "despachos", label: "Despachos" },
+            ]}
+          />
+        </AppCard>
       ) : null}
 
       {activeSection === "lotes" ? (

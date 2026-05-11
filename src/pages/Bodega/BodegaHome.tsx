@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchProtocolos, type Protocolo } from "../../features/protocolos/api";
 import { useOperacionStore } from "../../store/operacionStore";
@@ -68,6 +68,10 @@ export default function BodegaHome() {
   const activeProtocolo = protocolos.find(
     (p) => String(p.protocolo_id ?? p.id ?? "") === (activeProtocoloId ?? ""),
   );
+  const showProtocolConfig = useMemo(
+    () => protocolos.length !== 1 || !activeProtocolo,
+    [activeProtocolo, protocolos.length],
+  );
 
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
@@ -75,65 +79,74 @@ export default function BodegaHome() {
         <SectionIntro
           title="Administración de bodega"
           description="Gestioná los recursos maestros y el contexto operativo de la bodega activa."
+          actions={activeProtocolo ? (
+            <span className="rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-[color:var(--surface-soft)] px-3 py-2 text-xs font-semibold text-[color:var(--accent-primary)]">
+              Protocolo base activo: {[activeProtocolo.nombre, activeProtocolo.version ? `v${activeProtocolo.version}` : null]
+                .filter(Boolean)
+                .join(" ")}
+            </span>
+          ) : undefined}
         />
 
-        <AppCard
-          as="section"
-          tone="default"
-          padding="lg"
-          header={(
-            <SectionIntro
-              title="Configuración operativa"
-              description="El protocolo activo determina las actividades disponibles en Operación."
-            />
-          )}
-        >
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="min-w-[280px]">
-              <AppSelect
-                label="Protocolo activo"
-                value={activeProtocoloId ?? ""}
-                onChange={(e) => setActiveProtocoloId(e.target.value || null)}
-              >
-                <option value="">Sin protocolo seleccionado</option>
-                {protocolos.map((p) => {
-                  const id = String(p.protocolo_id ?? p.id ?? "");
-                  const label = [p.nombre, p.version ? `v${p.version}` : null]
-                    .filter(Boolean)
-                    .join(" ");
-                  return (
-                    <option key={id} value={id}>
-                      {label || id}
-                    </option>
-                  );
-                })}
-              </AppSelect>
-            </div>
-            {activeProtocolo ? (
-              <span className="rounded-full border border-[color:var(--border-default)] bg-[color:var(--surface-soft)] px-3 py-1 text-xs font-semibold text-[color:var(--accent-primary)]">
-                {[activeProtocolo.nombre, activeProtocolo.version ? `v${activeProtocolo.version}` : null]
-                  .filter(Boolean)
-                  .join(" ")}
-              </span>
-            ) : (
-              <GuidedState
-                className="w-full"
-                title="La bodega no tiene protocolo activo"
-                description="Sin protocolo activo, Operación no puede mostrar las etapas y actividades necesarias para registrar órdenes y eventos."
-                action={(
-                  <Link to="/setup/protocolos">
-                    <AppButton variant="primary" size="sm">Completar setup de protocolo</AppButton>
-                  </Link>
-                )}
-                steps={[
-                  { label: "Bodega activa", done: true },
-                  { label: "Protocolo activo", done: false },
-                  { label: "Operación lista", done: false },
-                ]}
+        {showProtocolConfig ? (
+          <AppCard
+            as="section"
+            tone="default"
+            padding="lg"
+            header={(
+              <SectionIntro
+                title="Configuración operativa"
+                description="El protocolo activo determina las actividades disponibles en Operación."
               />
             )}
-          </div>
-        </AppCard>
+          >
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="min-w-[280px]">
+                <AppSelect
+                  label="Protocolo activo"
+                  value={activeProtocoloId ?? ""}
+                  onChange={(e) => setActiveProtocoloId(e.target.value || null)}
+                >
+                  <option value="">Sin protocolo seleccionado</option>
+                  {protocolos.map((p) => {
+                    const id = String(p.protocolo_id ?? p.id ?? "");
+                    const label = [p.nombre, p.version ? `v${p.version}` : null]
+                      .filter(Boolean)
+                      .join(" ");
+                    return (
+                      <option key={id} value={id}>
+                        {label || id}
+                      </option>
+                    );
+                  })}
+                </AppSelect>
+              </div>
+              {activeProtocolo ? (
+                <span className="rounded-full border border-[color:var(--border-default)] bg-[color:var(--surface-soft)] px-3 py-1 text-xs font-semibold text-[color:var(--accent-primary)]">
+                  {[activeProtocolo.nombre, activeProtocolo.version ? `v${activeProtocolo.version}` : null]
+                    .filter(Boolean)
+                    .join(" ")}
+                </span>
+              ) : (
+                <GuidedState
+                  className="w-full"
+                  title="La bodega no tiene protocolo activo"
+                  description="Sin protocolo activo, Operación no puede mostrar las etapas y actividades necesarias para registrar órdenes y eventos."
+                  action={(
+                    <Link to="/setup/protocolos">
+                      <AppButton variant="primary" size="sm">Completar setup de protocolo</AppButton>
+                    </Link>
+                  )}
+                  steps={[
+                    { label: "Bodega activa", done: true },
+                    { label: "Protocolo activo", done: false },
+                    { label: "Operación lista", done: false },
+                  ]}
+                />
+              )}
+            </div>
+          </AppCard>
+        ) : null}
 
         <AppCard
           as="section"

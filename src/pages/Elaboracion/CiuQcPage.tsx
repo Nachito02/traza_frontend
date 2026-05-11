@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   deleteCiuRecepcion,
   listElaboracionResource,
@@ -6,27 +6,10 @@ import {
   type ElaboracionEntity,
 } from "../../features/elaboracion/api";
 import { useAuthStore } from "../../store/authStore";
+import { useFincasStore } from "../../features/fincas/store";
 import GenericCrudSection, { type SelectOption } from "./components/GenericCrudSection";
 import SectionSelector from "./components/SectionSelector";
 import { useSearchParams } from "react-router-dom";
-
-function toOptions(items: ElaboracionEntity[], idKeys: string[], labelKeys: string[]): SelectOption[] {
-  return items
-    .map((item) => {
-      const id = idKeys
-        .map((key) => item[key])
-        .find((value) => typeof value === "string" || typeof value === "number");
-      const label = labelKeys
-        .map((key) => item[key])
-        .find((value) => typeof value === "string" || typeof value === "number");
-      if (id === undefined || id === null) return null;
-      return {
-        value: String(id),
-        label: String(label ?? id),
-      };
-    })
-    .filter((option): option is SelectOption => option !== null);
-}
 
 function getCiuRecepcionKey(item: ElaboracionEntity) {
   const ciuId = String(item.ciu_id ?? item.ciuId ?? "");
@@ -82,11 +65,28 @@ function formatRecepcionOption(item: ElaboracionEntity): SelectOption | null {
   };
 }
 
+function formatCiuOption(item: ElaboracionEntity): SelectOption | null {
+  const id = item.ciu_id ?? item.id_ciu ?? item.id;
+  if (typeof id !== "string" && typeof id !== "number") return null;
+
+  const finca = item.finca && typeof item.finca === "object"
+    ? item.finca as Record<string, unknown>
+    : {};
+  const codigo = typeof item.codigo_ciu === "string" ? item.codigo_ciu : String(id);
+  const fincaLabel = typeof finca.nombre_finca === "string" ? finca.nombre_finca : null;
+
+  return {
+    value: String(id),
+    label: [codigo, fincaLabel].filter(Boolean).join(" · "),
+  };
+}
+
 type CiuQcPageProps = {
   initialSection?: "ciu" | "vinculo";
   hideSectionSelector?: boolean;
   hidePrimaryAction?: boolean;
   vinculoDefaults?: Record<string, string | boolean>;
+  referenceOptionsVersion?: number;
   onCiuCreated?: (item: ElaboracionEntity) => void | Promise<void>;
   onVinculoCreated?: (item: ElaboracionEntity) => void | Promise<void>;
 };
@@ -96,14 +96,42 @@ export default function CiuQcPage({
   hideSectionSelector = false,
   hidePrimaryAction = false,
   vinculoDefaults,
+  referenceOptionsVersion = 0,
   onCiuCreated,
   onVinculoCreated,
 }: CiuQcPageProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
+  const fincas = useFincasStore((state) => state.fincas);
+  const loadFincas = useFincasStore((state) => state.loadFincas);
   const [activeSection, setActiveSection] = useState<"ciu" | "vinculo">(initialSection);
   const [ciuOptions, setCiuOptions] = useState<SelectOption[]>([]);
   const [recepcionOptions, setRecepcionOptions] = useState<SelectOption[]>([]);
+
+  const loadReferenceOptions = useCallback(async () => {
+    if (!activeBodegaId) {
+      setCiuOptions([]);
+      setRecepcionOptions([]);
+      return;
+    }
+
+    await loadFincas(activeBodegaId);
+    const [cius, recepciones] = await Promise.all([
+      listElaboracionResource("cius", { bodegaId: String(activeBodegaId) }),
+      listElaboracionResource("recepciones-bodega", { bodegaId: String(activeBodegaId) }),
+    ]);
+
+    setCiuOptions(
+      cius
+        .map(formatCiuOption)
+        .filter((option): option is SelectOption => option !== null),
+    );
+    setRecepcionOptions(
+      recepciones
+        .map(formatRecepcionOption)
+        .filter((option): option is SelectOption => option !== null),
+    );
+  }, [activeBodegaId, loadFincas]);
 
   useEffect(() => {
     if (hideSectionSelector) {
@@ -119,19 +147,23 @@ export default function CiuQcPage({
   }, [hideSectionSelector, initialSection, searchParams]);
 
   useEffect(() => {
-    if (!activeBodegaId) return;
-    Promise.all([
-      listElaboracionResource("cius", { bodegaId: String(activeBodegaId) }),
-      listElaboracionResource("recepciones-bodega", { bodegaId: String(activeBodegaId) }),
-    ]).then(([cius, recepciones]) => {
-      setCiuOptions(toOptions(cius, ["id_ciu", "ciu_id", "id"], ["codigo_ciu", "id_ciu"]));
-      setRecepcionOptions(
-        recepciones
-          .map(formatRecepcionOption)
-          .filter((option): option is SelectOption => option !== null),
-      );
-    });
-  }, [activeBodegaId]);
+    void loadReferenceOptions();
+  }, [loadReferenceOptions, referenceOptionsVersion]);
+
+  const fincaOptions = useMemo(
+    () =>
+      fincas
+        .map((finca) => {
+          const id = finca.finca_id ?? finca.id;
+          if (!id) return null;
+          return {
+            value: String(id),
+            label: finca.nombre_finca ?? finca.nombre ?? finca.name ?? String(id),
+          };
+        })
+        .filter((option): option is SelectOption => option !== null),
+    [fincas],
+  );
 
   const listParamsVinculo = useMemo(
     () =>
@@ -170,12 +202,23 @@ export default function CiuQcPage({
           hidePrimaryAction={hidePrimaryAction}
           separatedLayout={!hidePrimaryAction}
           fields={[
+            {
+              name: "fincaId",
+              label: "Finca",
+              type: "select",
+              required: true,
+              options: fincaOptions,
+              sourceKey: "finca_id",
+            },
             { name: "codigo_ciu", label: "Código CIU", type: "text", required: true },
             { name: "emitido_at", label: "Emitido", type: "datetime-local", required: true },
             { name: "estado", label: "Estado", type: "text" },
             { name: "observaciones", label: "Observaciones", type: "textarea" },
           ]}
-          onCreated={onCiuCreated}
+          onCreated={async (item) => {
+            await loadReferenceOptions();
+            await onCiuCreated?.(item);
+          }}
         />
       ) : null}
 

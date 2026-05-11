@@ -72,6 +72,7 @@ export default function IngresoUvaFlowPage() {
   const [recepcionDefaults, setRecepcionDefaults] = useState<Record<string, string | boolean>>({});
   const [analisisDefaults, setAnalisisDefaults] = useState<Record<string, string | boolean>>({});
   const [vinculoDefaults, setVinculoDefaults] = useState<Record<string, string | boolean>>({});
+  const [referenceOptionsVersion, setReferenceOptionsVersion] = useState(0);
   const [pendingCiuNextStep, setPendingCiuNextStep] = useState<PendingCiuNextStep | null>(null);
   const activeStep = getStepFromParams(searchParams.get("paso") ?? searchParams.get("section"));
   const activeStepIndex = STEPS.findIndex((step) => step.key === activeStep);
@@ -88,6 +89,7 @@ export default function IngresoUvaFlowPage() {
   const handleCiuCreated = (item: ElaboracionEntity) => {
     const ciuId = resolveStringId(item, ["ciu_id", "id_ciu", "id"]);
     if (!ciuId) return;
+    setReferenceOptionsVersion((current) => current + 1);
     setVinculoDefaults({ ciuId });
     setPendingCiuNextStep({
       from: "ciu",
@@ -208,12 +210,14 @@ export default function IngresoUvaFlowPage() {
           <CiuQcPage
             initialSection="ciu"
             hideSectionSelector
+            referenceOptionsVersion={referenceOptionsVersion}
             onCiuCreated={handleCiuCreated}
           />
           <CiuQcPage
             initialSection="vinculo"
             hideSectionSelector
             vinculoDefaults={vinculoDefaults}
+            referenceOptionsVersion={referenceOptionsVersion}
             onVinculoCreated={handleVinculoCreated}
           />
         </div>

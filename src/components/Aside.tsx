@@ -197,19 +197,7 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
         ))}
       </nav>
 
-      <div className="mt-auto pt-5">
-        <div className="rounded-[var(--radius-xl)] border border-[color:var(--border-shell)] bg-[color:var(--surface-shell-raised)] px-3 py-3 shadow-[var(--shadow-soft)]">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[color:var(--text-on-dark-muted)]">
-            Modo de trabajo
-          </p>
-          <p className="mt-2 text-sm font-medium text-[color:var(--text-on-dark)]">
-            Control operativo
-          </p>
-          <p className="mt-1 text-xs leading-5 text-[color:var(--text-on-dark-muted)]">
-            Navegación estable, módulos claros y tareas visibles para operar sin fricción.
-          </p>
-        </div>
-      </div>
+      
     </aside>
   );
 };

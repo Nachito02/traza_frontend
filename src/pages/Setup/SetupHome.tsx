@@ -8,7 +8,6 @@ import {
 } from "../../components/ui";
 import { useFincasStore } from "../../features/fincas/store";
 import { useAuthStore } from "../../store/authStore";
-import { useOperacionStore } from "../../store/operacionStore";
 import { useDashboardData } from "../Dashboard/useDashboardData";
 
 const steps = [
@@ -28,11 +27,6 @@ const steps = [
     to: "/setup/cuarteles",
   },
   {
-    title: "Seleccionar protocolo",
-    description: "Define protocolo activo.",
-    to: "/setup/protocolos",
-  },
-  {
     title: "Ir a operación",
     description: "Entrar al trabajo diario de tareas, recepción y seguimiento.",
     to: "/ordenes",
@@ -43,7 +37,6 @@ const SetupHome = () => {
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const fincas = useFincasStore((state) => state.fincas);
   const loadFincas = useFincasStore((state) => state.loadFincas);
-  const activeProtocoloId = useOperacionStore((state) => state.activeProtocoloId);
   const { cuartelesCount, vasijasCount, campanias } = useDashboardData(activeBodegaId, fincas);
 
   useEffect(() => {
@@ -56,7 +49,6 @@ const SetupHome = () => {
     const hasCampania = campanias.some((campania) => campania.estado === "abierta");
     const hasFincas = fincas.length > 0;
     const hasCuarteles = cuartelesCount > 0;
-    const hasProtocol = Boolean(activeProtocoloId);
     const hasVasijas = vasijasCount > 0;
 
     return [
@@ -96,15 +88,6 @@ const SetupHome = () => {
         disabled: !hasFincas,
       },
       {
-        key: "protocolo",
-        title: "Seleccionar protocolo",
-        description: "Activá el protocolo con el que va a trabajar el equipo.",
-        actionLabel: "Seleccionar protocolo",
-        to: "/setup/protocolos",
-        done: hasProtocol,
-        disabled: !hasBodega,
-      },
-      {
         key: "vasijas",
         title: "Crear vasijas",
         description: "Prepará la estructura de bodega para recepción, existencias y elaboración.",
@@ -114,7 +97,7 @@ const SetupHome = () => {
         disabled: !hasBodega,
       },
     ];
-  }, [activeBodegaId, activeProtocoloId, campanias, cuartelesCount, fincas.length, vasijasCount]);
+  }, [activeBodegaId, campanias, cuartelesCount, fincas.length, vasijasCount]);
 
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
