@@ -744,7 +744,7 @@ export default function CampoPage() {
     <div className="space-y-6">
       <AppCard as="section" tone="default" padding="lg">
         <SectionIntro
-          eyebrow="Operaciones de campo"
+          eyebrow="Operaciones de finca"
           title="Actividad por finca"
           description="Tareas registradas en las fincas vinculadas a esta bodega. Expandí cada tarea para ver los datos registrados por el operario."
         />
