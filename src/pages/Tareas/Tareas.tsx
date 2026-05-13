@@ -1130,7 +1130,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                               <p className="text-[11px] text-[color:var(--text-ink-muted)]">Sin registros guardados aún.</p>
                               {pending && (
                                 <Link
-                                  to={Boolean(task.finca_id ?? task.finca?.finca_id) ? "/operacion/campo" : "/operacion/recepcion"}
+                                  to={Boolean(task.finca_id ?? task.finca?.finca_id) ? `/operacion/campo?tareaId=${taskId}` : "/operacion/recepcion"}
                                   className="text-[11px] font-semibold text-[color:var(--accent-primary)] hover:underline"
                                 >
                                   Ir a Registro Operativo →
@@ -1179,7 +1179,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                               })}
                               {pending && (
                                 <Link
-                                  to={Boolean(task.finca_id ?? task.finca?.finca_id) ? "/operacion/campo" : "/operacion/recepcion"}
+                                  to={Boolean(task.finca_id ?? task.finca?.finca_id) ? `/operacion/campo?tareaId=${taskId}` : "/operacion/recepcion"}
                                   className="mt-1 block text-[11px] font-semibold text-[color:var(--accent-primary)] hover:underline"
                                 >
                                   Ir a Registro Operativo →
@@ -1554,7 +1554,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                       const eventoTipo = getEventoTipoForTask(task);
                       const catalogId = catalogTaskId ?? (eventoTipo ? getMatchedCatalogTaskId(task.titulo, eventoTipo) : null);
                       const registroRoute = isFincaTask
-                        ? "/operacion/campo"
+                        ? `/operacion/campo?tareaId=${getTaskId(task)}`
                         : catalogId && OPERACION_TASK_ROUTES[catalogId]
                           ? OPERACION_TASK_ROUTES[catalogId]
                           : "/operacion/recepcion";

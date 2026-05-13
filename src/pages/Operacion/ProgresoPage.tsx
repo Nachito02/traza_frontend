@@ -691,7 +691,7 @@ function TareaModal({ tarea, onClose }: { tarea: Tarea; onClose: () => void }) {
               Administrar en Órdenes →
             </Link>
             <Link
-              to={Boolean(tarea.finca_id ?? tarea.finca?.finca_id) ? "/operacion/campo" : "/operacion/recepcion"}
+              to={Boolean(tarea.finca_id ?? tarea.finca?.finca_id) ? `/operacion/campo?tareaId=${String(tarea.tarea_id ?? tarea.id ?? "")}` : "/operacion/recepcion"}
               onClick={onClose}
               className="inline-flex items-center rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] px-3 py-1.5 text-xs font-semibold text-[color:var(--accent-primary)] transition hover:border-[color:var(--border-default)] hover:bg-[color:var(--action-secondary-hover)]"
             >
