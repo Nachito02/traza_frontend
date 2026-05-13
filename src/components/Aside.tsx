@@ -137,8 +137,12 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
     <aside
       className={`flex h-full flex-col border-r border-[color:var(--border-shell)] bg-[color:var(--surface-shell)] px-4 py-5 text-[color:var(--text-on-dark)] ${className}`}
     >
-      <div className="mb-6 flex items-center gap-2 justify-center  px-3 py-3 ">
-        <img src={trazaLogo} alt="Traza" className="h-6 w-auto object-contain" />
+      <div className="mb-6 flex items-center justify-center px-3 py-4 border-b border-white/10">
+        <img
+          src={trazaLogo}
+          alt="Traza"
+          className="h-14 w-auto object-contain drop-shadow-[0_0_12px_rgba(78,147,183,0.5)]"
+        />
       </div>
 
       <nav className="space-y-5">

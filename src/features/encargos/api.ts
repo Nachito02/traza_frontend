@@ -232,6 +232,7 @@ export async function finalizarTareaAsignacion(tareaAsignacionId: string) {
 export type TareaEntradaDetail = {
   entradaId: string;
   descripcion?: string | null;
+  notas?: string | null;
   adjuntos?: unknown;
   fecha: string;
   creadoPor?: { user_id: string; nombre: string } | null;
@@ -250,12 +251,18 @@ export async function fetchTareasByBodega(bodegaId: string): Promise<Tarea[]> {
 }
 
 export async function fetchTareaAsignacionDetail(tareaAsignacionId: string): Promise<TareaEntradaDetail[]> {
-  try {
-    const response = await apiClient.get<TareaEntradaDetail[]>(
-      `/tareas/me/asignaciones/${encodeURIComponent(tareaAsignacionId)}/entradas`,
-    );
-    return Array.isArray(response.data) ? response.data : [];
-  } catch {
-    return [];
+  const candidates = [
+    `/tareas/me/asignaciones/${encodeURIComponent(tareaAsignacionId)}/entradas`,
+    `/tareas/asignaciones/${encodeURIComponent(tareaAsignacionId)}/entradas`,
+  ];
+  for (const url of candidates) {
+    try {
+      const response = await apiClient.get<TareaEntradaDetail[]>(url);
+      const data = Array.isArray(response.data) ? response.data : [];
+      if (data.length > 0) return data;
+    } catch {
+      // try next
+    }
   }
+  return [];
 }

@@ -36,6 +36,7 @@ import VasijasProcesoPage from "./pages/Elaboracion/VasijasProcesoPage";
 import CortesProductoPage from "./pages/Elaboracion/CortesProductoPage";
 import FraccionamientoDespachoPage from "./pages/Elaboracion/FraccionamientoDespachoPage";
 import QrInversaPage from "./pages/Elaboracion/QrInversaPage";
+import CampoPage from "./pages/Elaboracion/CampoPage";
 import FincasAdmin from "./pages/Admin/FincasAdmin";
 import CuartelesAdmin from "./pages/Admin/CuartelesAdmin";
 import CampaniasAdmin from "./pages/Admin/CampaniasAdmin";
@@ -198,6 +199,7 @@ export default function App() {
           <Route path="cortes" element={<CortesProductoPage />} />
           <Route path="fraccionamiento" element={<FraccionamientoDespachoPage />} />
           <Route path="qr" element={<QrInversaPage />} />
+          <Route path="campo" element={<CampoPage />} />
           <Route path="trazabilidades" element={<Navigate to="/ordenes" replace />} />
           <Route path="trazabilidades/:id/plan" element={<Navigate to="/ordenes" replace />} />
         </Route>

@@ -15,7 +15,6 @@ import { fetchAuthUsers, type AuthUser } from "../../features/users/api";
 import { fetchOperariosByBodega, type Operario } from "../../features/operarios/api";
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
-import { useCampaniaStore } from "../../store/campaniaStore";
 import { useOperacionStore } from "../../store/operacionStore";
 import {
   AppButton,
@@ -36,9 +35,7 @@ import {
 import { resolveModuleAccess } from "../../lib/permissions";
 import { EVENTO_CONFIG } from "../Trazabilidad/eventoConfig";
 import {
-  createTareaEntrada,
   fetchTareaAsignacionDetail,
-  finalizarTareaAsignacion,
   type TareaEntradaDetail,
 } from "../../features/encargos/api";
 
@@ -362,6 +359,16 @@ function formatTaskDate(date: Date | null) {
   });
 }
 
+function getActivityDate(task: Tarea): number {
+  const candidates: number[] = [];
+  for (const a of task.tarea_asignacion ?? []) {
+    if (a.completed_at) candidates.push(new Date(a.completed_at).getTime());
+  }
+  if (task.updated_at) candidates.push(new Date(task.updated_at).getTime());
+  if (task.created_at) candidates.push(new Date(task.created_at).getTime());
+  return candidates.length > 0 ? Math.max(...candidates) : 0;
+}
+
 type TareasProps = {
   mode?: "manager" | "operator";
 };
@@ -370,7 +377,6 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
   const user = useAuthStore((state) => state.user);
   const bodegas = useAuthStore((state) => state.bodegas);
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
-  const activeCampaniaId = useCampaniaStore((state) => state.activeCampaniaId);
   const loadFincas = useFincasStore((state) => state.loadFincas);
   const fincas = useFincasStore((state) => state.fincas);
   const [cuartelesByFinca, setCuartelesByFinca] = useState<Record<string, Cuartel[]>>({});
@@ -387,11 +393,10 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
   const [activeProtocolo, setActiveProtocolo] = useState<ProtocoloExpanded | null>(null);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
-  const [expandedTaskForm, setExpandedTaskForm] = useState<Record<string, string>>({});
-  const [expandedTaskSaving, setExpandedTaskSaving] = useState(false);
-  const [expandedTaskFinalizing, setExpandedTaskFinalizing] = useState(false);
-  const [expandedTaskEntries, setExpandedTaskEntries] = useState<TareaEntradaDetail[]>([]);
-  const [expandedTaskEntriesLoading, setExpandedTaskEntriesLoading] = useState(false);
+  const [timelineExpandedId, setTimelineExpandedId] = useState<string | null>(null);
+  const [timelineEntriesMap, setTimelineEntriesMap] = useState<Record<string, TareaEntradaDetail[]>>({});
+  const [timelineLoadingMap, setTimelineLoadingMap] = useState<Record<string, boolean>>({});
+  const [timelineOpen, setTimelineOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [completedLoading, setCompletedLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -490,20 +495,6 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
     () => OPERACION_TASK_TEMPLATES.find((task) => task.id === form.tareaCatalogoId) ?? null,
     [form.tareaCatalogoId],
   );
-  const bodegaDestinoOptions = useMemo(
-    () =>
-      bodegas.map((bodega) => ({
-        value: bodega.nombre ?? String(bodega.bodega_id),
-        label: bodega.nombre ?? `Bodega ${String(bodega.bodega_id).slice(0, 8)}`,
-      })),
-    [bodegas],
-  );
-
-  const getEventoFieldOptions = (field: { options?: { value: string; label: string }[]; optionsSource?: "bodegas" }) => {
-    if (field.optionsSource === "bodegas") return bodegaDestinoOptions;
-    return field.options ?? [];
-  };
-
   const refreshTasks = async () => {
     if (!activeBodegaId) return;
     setLoading(true);
@@ -807,165 +798,47 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
   }, [protocolProcesses]);
 
   const getEventoTipoForTask = (task: Tarea): string | null => {
-    if (!task.proceso_id) return null;
-    // Look up in active protocol processes first
-    const inProtocol = protocolProcesses.find(
-      (p) => p.proceso_id === String(task.proceso_id),
+    const normalize = (s: string | null | undefined) =>
+      String(s ?? "").toLowerCase().trim();
+
+    if (task.proceso_id) {
+      const inProtocol = protocolProcesses.find(
+        (p) => p.proceso_id === String(task.proceso_id),
+      );
+      if (inProtocol?.evento_tipo) return normalize(inProtocol.evento_tipo);
+
+      const inOptions = protocoloTaskOptions.find((opt) =>
+        opt.value.endsWith(`:${task.proceso_id}`),
+      );
+      if (inOptions?.eventoTipo) return normalize(inOptions.eventoTipo);
+    }
+
+    // Last-resort: infer from task title so tasks created without a matching
+    // active protocol still show their form (e.g. protocol was switched).
+    const titleNorm = normalize(task.titulo).replace(/[\s_-]+/g, "_");
+    const exactMatch = Object.keys(EVENTO_CONFIG).find(
+      (k) => titleNorm === k || titleNorm.startsWith(k) || k.startsWith(titleNorm),
     );
-    if (inProtocol?.evento_tipo) return inProtocol.evento_tipo;
-    // Fall back to all loaded protocol options
-    const inOptions = protocoloTaskOptions.find((opt) =>
-      opt.value.endsWith(`:${task.proceso_id}`),
-    );
-    return inOptions?.eventoTipo ?? null;
+    return exactMatch ?? null;
   };
 
-  const openExpandedTask = (taskId: string, task: Tarea) => {
-    setExpandedTaskId(taskId);
-    setExpandedTaskEntries([]);
-    const tipo = getEventoTipoForTask(task) ?? "";
-    const config = EVENTO_CONFIG[tipo];
-    const initialForm: Record<string, string> = {};
-    if (config) {
-      config.fields.forEach((f) => { initialForm[f.name] = f.defaultValue ?? ""; });
-      if ("fecha" in initialForm && !initialForm.fecha) {
-        initialForm.fecha = new Date().toISOString().slice(0, 10);
-      }
+  const openTimelineTask = (taskId: string, task: Tarea) => {
+    if (timelineExpandedId === taskId) {
+      setTimelineExpandedId(null);
+      return;
     }
-    setExpandedTaskForm(initialForm);
-
-    // Cargar historial de entradas desde el backend
+    setTimelineExpandedId(taskId);
+    if (timelineEntriesMap[taskId] !== undefined) return;
     const asignacionId = task.tarea_asignacion?.[0]?.tarea_asignacion_id;
-    if (asignacionId) {
-      setExpandedTaskEntriesLoading(true);
-      fetchTareaAsignacionDetail(asignacionId)
-        .then((entries) => setExpandedTaskEntries(entries))
-        .catch(() => setExpandedTaskEntries([]))
-        .finally(() => setExpandedTaskEntriesLoading(false));
-    }
-  };
-
-  const getAsignacionId = async (task: Tarea): Promise<string | null> => {
-    const existing = task.tarea_asignacion?.[0]?.tarea_asignacion_id;
-    if (existing) return existing;
-
-    // Auto-asignar al usuario actual (encargado registrando directamente)
-    const tareaId = String(task.tarea_id ?? task.id ?? "");
-    const userId = String(user?.id ?? "");
-    if (!tareaId || !userId) return null;
-
-    try {
-      const resp = await assignTareaToUser(tareaId, userId);
-      const r = resp as Record<string, unknown>;
-      // Extract from any response shape
-      const newId = String(
-        r?.tarea_asignacion_id ??
-        r?.id ??
-        (r?.asignacion as Record<string, unknown> | undefined)?.tarea_asignacion_id ??
-        (Array.isArray(r) ? (r[0] as Record<string, unknown>)?.tarea_asignacion_id : undefined) ??
-        ""
-      );
-      if (newId) return newId;
-    } catch {
-      // Asignación puede existir ya — intentar obtenerla desde el listado
-    }
-
-    // Fallback: recargar tareas y extraer el id de la asignacion creada
-    try {
-      const data = await fetchPendientesByScope({
-        bodegaId: String(activeBodegaId),
-        mode: forceMineMode ? "mine" : "scope",
-      });
-      const reloaded = data?.find(
-        (t) => String(t.tarea_id ?? t.id ?? "") === tareaId,
-      );
-      return reloaded?.tarea_asignacion?.[0]?.tarea_asignacion_id ?? null;
-    } catch {
-      return null;
-    }
-  };
-
-  const onSubmitTaskEvent = async (task: Tarea) => {
-    const tipo = getEventoTipoForTask(task) ?? "";
-    const config = EVENTO_CONFIG[tipo];
-    if (!config) {
-      notifyError({ title: "Actividad no soportada", message: "Este tipo de actividad no está soportado todavía." });
-      return;
-    }
-    const missing = config.fields.filter((f) => f.required && !expandedTaskForm[f.name]);
-    if (missing.length > 0) {
-      notifyError({ title: "Campos incompletos", message: "Completá los campos obligatorios antes de registrar." });
-      return;
-    }
-
-    const asignacionId = await getAsignacionId(task);
     if (!asignacionId) {
-      notifyError({ title: "Sin asignación", message: "No se encontró asignación para esta tarea. Asignala a un operario primero." });
+      setTimelineEntriesMap((prev) => ({ ...prev, [taskId]: [] }));
       return;
     }
-
-    const draft: Record<string, unknown> = {};
-    config.fields.forEach((field) => {
-      const v = expandedTaskForm[field.name];
-      if (!v) return;
-      draft[field.name] = field.type === "number" ? Number(v) : v;
-    });
-    if (tipo === "cosecha") {
-      if (!activeCampaniaId) {
-        notifyError({ title: "Sin campaña activa", message: "Seleccioná una campaña activa antes de registrar la cosecha." });
-        return;
-      }
-      draft.campaniaId = activeCampaniaId;
-    }
-
-    setExpandedTaskSaving(true);
-    try {
-      const savedEntry = await createTareaEntrada(asignacionId, { draft });
-      const loteCosechaId =
-        typeof savedEntry?.loteCosechaId === "string" ? savedEntry.loteCosechaId : null;
-      const newEntry: TareaEntradaDetail = {
-        entradaId: `local-${Date.now()}`,
-        descripcion: Object.entries(draft).map(([k, v]) => `${k}: ${String(v)}`).join(", "),
-        fecha: new Date().toISOString(),
-        adjuntos: [],
-        creadoPor: user ? { user_id: String(user.id ?? ""), nombre: String(user.nombre ?? user.email ?? "") } : null,
-      };
-      setExpandedTaskEntries((prev) => [...prev, newEntry]);
-      notifySuccess({
-        title: "Registro guardado",
-        message: loteCosechaId
-          ? `Lote de cosecha generado: ${loteCosechaId}.`
-          : "Podés agregar otro registro o finalizar la tarea.",
-      });
-      const initialForm: Record<string, string> = {};
-      config.fields.forEach((f) => { initialForm[f.name] = f.defaultValue ?? ""; });
-      if ("fecha" in initialForm) initialForm.fecha = new Date().toISOString().slice(0, 10);
-      setExpandedTaskForm(initialForm);
-    } catch (e) {
-      notifyError({ title: "No se pudo guardar", message: getApiErrorMessage(e) });
-    } finally {
-      setExpandedTaskSaving(false);
-    }
-  };
-
-  const onFinalizeTask = async (task: Tarea) => {
-    const asignacionId = await getAsignacionId(task);
-    if (!asignacionId) {
-      notifyError({ title: "Sin asignación", message: "No se encontró asignación para finalizar." });
-      return;
-    }
-    setExpandedTaskFinalizing(true);
-    try {
-      await finalizarTareaAsignacion(asignacionId);
-      setExpandedTaskId(null);
-      notifySuccess({ title: "Tarea finalizada", message: "La orden quedó cerrada correctamente." });
-      await refreshTasks();
-      await refreshCompletedTasks();
-    } catch {
-      notifyError({ title: "No se pudo finalizar", message: "Hubo un error al cerrar la tarea. Intentá de nuevo." });
-    } finally {
-      setExpandedTaskFinalizing(false);
-    }
+    setTimelineLoadingMap((prev) => ({ ...prev, [taskId]: true }));
+    void fetchTareaAsignacionDetail(asignacionId)
+      .then((entries) => setTimelineEntriesMap((prev) => ({ ...prev, [taskId]: entries })))
+      .catch(() => setTimelineEntriesMap((prev) => ({ ...prev, [taskId]: [] })))
+      .finally(() => setTimelineLoadingMap((prev) => ({ ...prev, [taskId]: false })));
   };
 
   const scopedProtocoloTaskOptions = useMemo(
@@ -976,6 +849,14 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
           : !isFincaProductionOption(option),
       ),
     [managerScope, protocoloTaskOptions],
+  );
+
+  const timelineTasks = useMemo(
+    () =>
+      dedupeTasksById([...tasks, ...completedTasks]).sort(
+        (a, b) => getActivityDate(b) - getActivityDate(a),
+      ),
+    [tasks, completedTasks],
   );
 
   const groupedProtocoloTaskOptions = useMemo(() => {
@@ -1149,6 +1030,172 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
             </AppButton>
           )}
         />
+
+        {activeBodegaId && timelineTasks.length > 0 ? (
+          <AppCard
+            as="section"
+            tone="default"
+            padding="lg"
+            header={(
+              <div className="flex items-center justify-between gap-3">
+                <SectionIntro
+                  title="Historial de actividad"
+                  description="Todas las tareas ordenadas de más reciente a más antigua."
+                />
+                <button
+                  type="button"
+                  onClick={() => setTimelineOpen((v) => !v)}
+                  className="shrink-0 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] px-3 py-1.5 text-xs font-semibold text-[color:var(--text-on-dark-muted)] transition-all duration-[var(--motion-fast)] hover:border-[color:var(--border-default)] hover:text-[color:var(--text-on-dark)]"
+                >
+                  {timelineOpen ? "Ocultar" : "Mostrar"}
+                </button>
+              </div>
+            )}
+          >
+            {timelineOpen && (
+              <div className="relative mt-2 space-y-1 pl-6">
+                <div className="pointer-events-none absolute bottom-2 left-[7px] top-2 w-px bg-[color:var(--border-shell)]" aria-hidden />
+                {timelineTasks.map((task) => {
+                  const taskId = String(task.tarea_id ?? task.id ?? "");
+                  const isExpanded = timelineExpandedId === taskId;
+                  const completed = isCompletedTask(task);
+                  const pending = !completed;
+                  const date = getActivityDate(task);
+                  const dateStr = date > 0
+                    ? new Date(date).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })
+                    : "Sin fecha";
+                  const targetLabel = getTaskTargetLabel(task);
+                  const entries = timelineEntriesMap[taskId];
+                  const isLoading = timelineLoadingMap[taskId] ?? false;
+                  const noAsignacion = (task.tarea_asignacion?.length ?? 0) === 0;
+                  const estado = normalizeTaskStatus(task.estado ?? "pendiente");
+
+                  return (
+                    <div key={taskId} className="relative">
+                      <div
+                        className={[
+                          "absolute -left-6 top-[14px] h-3.5 w-3.5 rounded-full border-2",
+                          completed
+                            ? "border-[color:var(--feedback-success)] bg-[color:var(--feedback-success)]"
+                            : estado === "en_progreso"
+                              ? "border-[color:var(--accent-primary)] bg-[color:var(--accent-primary)]"
+                              : "border-[color:var(--feedback-warning)] bg-[color:var(--feedback-warning-bg)]",
+                        ].join(" ")}
+                        aria-hidden
+                      />
+                      <button
+                        type="button"
+                        onClick={() => openTimelineTask(taskId, task)}
+                        className={[
+                          "w-full rounded-[var(--radius-md)] border px-3 py-2.5 text-left transition-all duration-[var(--motion-fast)]",
+                          isExpanded
+                            ? "rounded-b-none border-b-0 border-[color:var(--border-default)] bg-[color:var(--surface-muted)]"
+                            : "border-[color:var(--border-shell)] bg-transparent hover:border-[color:var(--border-default)] hover:bg-[color:var(--surface-muted)]",
+                        ].join(" ")}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-[color:var(--text-ink)]">{task.titulo}</p>
+                            {targetLabel ? (
+                              <p className="mt-0.5 text-[11px] text-[color:var(--text-ink-muted)]">{targetLabel}</p>
+                            ) : null}
+                          </div>
+                          <div className="flex shrink-0 flex-col items-end gap-1">
+                            <span
+                              className={[
+                                "rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+                                completed
+                                  ? "border-[color:var(--feedback-success-border)] bg-[color:var(--feedback-success-bg)] text-[color:var(--feedback-success-text)]"
+                                  : estado === "en_progreso"
+                                    ? "border-[color:var(--border-default)] bg-[color:var(--surface-muted)] text-[color:var(--text-on-dark)]"
+                                    : "border-[color:var(--feedback-warning-border)] bg-[color:var(--feedback-warning-bg)] text-[color:var(--feedback-warning-text)]",
+                              ].join(" ")}
+                            >
+                              {completed ? "Completada" : estado === "en_progreso" ? "En progreso" : "Pendiente"}
+                            </span>
+                            <span className="text-[11px] text-[color:var(--text-ink-muted)]">{dateStr}</span>
+                          </div>
+                        </div>
+                      </button>
+                      {isExpanded && (
+                        <div className="rounded-b-[var(--radius-md)] border border-t-0 border-[color:var(--border-default)] bg-[color:var(--surface-muted)] px-3 pb-3 pt-2">
+                          {isLoading ? (
+                            <p className="text-[11px] text-[color:var(--text-ink-muted)]">Cargando registros…</p>
+                          ) : noAsignacion ? (
+                            <p className="text-[11px] text-[color:var(--text-ink-muted)]">Sin asignaciones — la tarea todavía no fue tomada.</p>
+                          ) : entries === undefined ? (
+                            <p className="text-[11px] text-[color:var(--text-ink-muted)]">Sin información disponible.</p>
+                          ) : entries.length === 0 ? (
+                            <div className="space-y-2">
+                              <p className="text-[11px] text-[color:var(--text-ink-muted)]">Sin registros guardados aún.</p>
+                              {pending && (
+                                <Link
+                                  to={Boolean(task.finca_id ?? task.finca?.finca_id) ? "/operacion/campo" : "/operacion/recepcion"}
+                                  className="text-[11px] font-semibold text-[color:var(--accent-primary)] hover:underline"
+                                >
+                                  Ir a Registro Operativo →
+                                </Link>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              <p className="text-[11px] font-semibold text-[color:var(--text-on-dark)]">
+                                {entries.length} registro{entries.length !== 1 ? "s" : ""}
+                              </p>
+                              {entries.map((entry, i) => {
+                                const entryContent = (() => {
+                                  if (!entry.descripcion) return null;
+                                  try {
+                                    const json = JSON.parse(entry.descripcion) as unknown;
+                                    if (json && typeof json === "object" && !Array.isArray(json)) {
+                                      const kvPairs = Object.entries(json as Record<string, unknown>).filter(([, v]) => v !== null && v !== "");
+                                      if (kvPairs.length === 0) return null;
+                                      return (
+                                        <div className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+                                          {kvPairs.map(([k, v]) => (
+                                            <div key={k} className="contents">
+                                              <span className="capitalize text-[color:var(--text-ink-muted)]">{k.replace(/_/g, " ")}</span>
+                                              <span className="text-[color:var(--text-ink)]">{String(v)}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      );
+                                    }
+                                  } catch { /* not JSON */ }
+                                  return <p className="mt-1 text-[color:var(--text-ink)]">{entry.descripcion}</p>;
+                                })();
+                                return (
+                                  <div
+                                    key={entry.entradaId ?? i}
+                                    className="rounded-[var(--radius-sm)] border border-[color:var(--border-shell)] bg-[color:var(--surface-card)] px-2.5 py-2 text-[11px]"
+                                  >
+                                    <div className="flex items-center justify-between gap-2 text-[color:var(--text-ink-muted)]">
+                                      <span>#{i + 1} · {new Date(entry.fecha).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
+                                      {entry.creadoPor?.nombre && <span>{entry.creadoPor.nombre}</span>}
+                                    </div>
+                                    {entryContent}
+                                  </div>
+                                );
+                              })}
+                              {pending && (
+                                <Link
+                                  to={Boolean(task.finca_id ?? task.finca?.finca_id) ? "/operacion/campo" : "/operacion/recepcion"}
+                                  className="mt-1 block text-[11px] font-semibold text-[color:var(--accent-primary)] hover:underline"
+                                >
+                                  Ir a Registro Operativo →
+                                </Link>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </AppCard>
+        ) : null}
 
         {!activeBodegaId ? (
           <GuidedState
@@ -1495,13 +1542,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                           type="button"
                           variant="secondary"
                           size="sm"
-                          onClick={() => {
-                            if (isExpanded) {
-                              setExpandedTaskId(null);
-                            } else {
-                              openExpandedTask(taskId, task);
-                            }
-                          }}
+                          onClick={() => setExpandedTaskId(isExpanded ? null : taskId)}
                         >
                           {isExpanded ? "Cerrar" : "Abrir orden de trabajo"}
                         </AppButton>
@@ -1509,130 +1550,46 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                     )}
                   >
                     {isExpanded && (() => {
+                      const isFincaTask = Boolean(task.finca_id ?? task.finca?.finca_id);
                       const eventoTipo = getEventoTipoForTask(task);
                       const catalogId = catalogTaskId ?? (eventoTipo ? getMatchedCatalogTaskId(task.titulo, eventoTipo) : null);
-                      const eventoConfig = eventoTipo ? EVENTO_CONFIG[eventoTipo] : null;
+                      const registroRoute = isFincaTask
+                        ? "/operacion/campo"
+                        : catalogId && OPERACION_TASK_ROUTES[catalogId]
+                          ? OPERACION_TASK_ROUTES[catalogId]
+                          : "/operacion/recepcion";
+                      const asignaciones = task.tarea_asignacion ?? [];
                       return (
-                        <div className="rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] p-4 shadow-[var(--shadow-inset-soft)]">
-                          {catalogId ? (
-                            <div className="space-y-3">
-                              <div>
-                                <h4 className="text-sm font-semibold text-[color:var(--text-on-dark)]">
-                                  Registro operativo separado
-                                </h4>
-                                <p className="mt-1 text-xs leading-relaxed text-[color:var(--text-on-dark-muted)]">
-                                  Esta orden corresponde a{" "}
-                                  {OPERACION_TASK_TEMPLATES.find((template) => template.id === catalogId)?.label ??
-                                    "una actividad operativa"}
-                                  . La carga técnica se completa desde Registro operativo para mantener un solo lugar de verdad.
-                                </p>
-                              </div>
-                              <Link to={OPERACION_TASK_ROUTES[catalogId] ?? "/operacion/recepcion"}>
-                                <AppButton type="button" variant="secondary" size="sm">
-                                  Ir a registro operativo
-                                </AppButton>
-                              </Link>
-                            </div>
-                          ) : eventoConfig ? (
-                            <div className="space-y-3">
-                              <h4 className="text-sm font-semibold text-[color:var(--text-ink)]">
-                                {eventoConfig.label}
-                              </h4>
-
-                              {expandedTaskEntriesLoading ? (
-                                <p className="text-[11px] text-[color:var(--text-ink-muted)]">Cargando registros…</p>
-                              ) : expandedTaskEntries.length > 0 ? (
-                                <div className="rounded-[var(--radius-md)] border border-[color:var(--feedback-success-border)] bg-[color:var(--feedback-success-bg)] p-2">
-                                  <p className="mb-1 text-[11px] font-semibold text-[color:var(--feedback-success-text)]">
-                                    Registros guardados ({expandedTaskEntries.length})
-                                  </p>
-                                  {expandedTaskEntries.map((entry, i) => (
-                                    <div
-                                      key={entry.entradaId ?? i}
-                                      className="mt-1 rounded-[var(--radius-sm)] border border-[color:var(--feedback-success-border)] bg-[color:var(--feedback-success-bg)] px-2 py-1 text-[11px] text-[color:var(--feedback-success-text)]"
-                                    >
-                                      #{i + 1} · {new Date(entry.fecha).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                                      {entry.creadoPor?.nombre ? ` · ${entry.creadoPor.nombre}` : ""}
-                                      {entry.descripcion ? <span className="ml-1 text-[color:var(--feedback-success)]">— {entry.descripcion}</span> : null}
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : null}
-
-                              {eventoConfig.fields.map((field) => (
-                                <div key={field.name}>
-                                  {field.type === "textarea" ? (
-                                    <AppTextarea
-                                      label={`${field.label}${field.required ? " *" : ""}`}
-                                      uiSize="lg"
-                                      value={expandedTaskForm[field.name] ?? ""}
-                                      onChange={(e) => setExpandedTaskForm((prev) => ({ ...prev, [field.name]: e.target.value }))}
-                                      placeholder={field.placeholder}
-                                    />
-                                  ) : field.type === "select" ? (
-                                    <AppSelect
-                                      label={`${field.label}${field.required ? " *" : ""}`}
-                                      value={expandedTaskForm[field.name] ?? ""}
-                                      onChange={(e) => setExpandedTaskForm((prev) => ({ ...prev, [field.name]: e.target.value }))}
-                                    >
-                                      <option value="">{field.required ? "Seleccionar..." : "Sin especificar"}</option>
-                                      {getEventoFieldOptions(field).map((opt) => (
-                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                      ))}
-                                    </AppSelect>
-                                  ) : field.type === "user_select" ? (
-                                    <AppSelect
-                                      label={`${field.label}${field.required ? " *" : ""}`}
-                                      value={expandedTaskForm[field.name] ?? ""}
-                                      onChange={(e) => setExpandedTaskForm((prev) => ({ ...prev, [field.name]: e.target.value }))}
-                                    >
-                                      <option value="">Sin especificar</option>
-                                      {operariosCampo.map((op) => (
-                                        <option key={op.user_id} value={op.user_id}>{op.nombre}</option>
-                                      ))}
-                                    </AppSelect>
-                                  ) : (
-                                    <AppInput
-                                      label={`${field.label}${field.required ? " *" : ""}`}
-                                      type={field.type}
-                                      step={field.step}
-                                      value={expandedTaskForm[field.name] ?? ""}
-                                      onChange={(e) => setExpandedTaskForm((prev) => ({ ...prev, [field.name]: e.target.value }))}
-                                      placeholder={field.placeholder}
-                                    />
+                        <div className="rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] p-4 shadow-[var(--shadow-inset-soft)] space-y-3">
+                          {asignaciones.length > 0 ? (
+                            <div className="space-y-1.5">
+                              {asignaciones.map((a) => (
+                                <div key={a.tarea_asignacion_id} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px]">
+                                  <span className={[
+                                    "rounded-full border px-2 py-0.5 font-semibold",
+                                    a.estado === "completado"
+                                      ? "border-[color:var(--feedback-success-border)] bg-[color:var(--feedback-success-bg)] text-[color:var(--feedback-success-text)]"
+                                      : "border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] text-[color:var(--text-on-dark-muted)]",
+                                  ].join(" ")}>
+                                    {a.estado ?? "pendiente"}
+                                  </span>
+                                  <span className="text-[color:var(--text-ink-muted)]">Asignada el {new Date(a.assigned_at).toLocaleDateString("es-AR")}</span>
+                                  {a.completed_at && (
+                                    <span className="text-[color:var(--feedback-success-text)]">
+                                      Completada el {new Date(a.completed_at).toLocaleDateString("es-AR")}
+                                    </span>
                                   )}
                                 </div>
                               ))}
-
-                              <div className="flex flex-wrap items-center gap-2 pt-1">
-                                <AppButton
-                                  type="button"
-                                  variant="secondary"
-                                  size="sm"
-                                  onClick={() => void onSubmitTaskEvent(task)}
-                                  disabled={expandedTaskSaving}
-                                  loading={expandedTaskSaving}
-                                >
-                                  {expandedTaskSaving ? "Guardando..." : expandedTaskEntries.length > 0 ? "Registrar otro" : "Registrar"}
-                                </AppButton>
-                                <AppButton
-                                  type="button"
-                                  variant="primary"
-                                  size="sm"
-                                  onClick={() => void onFinalizeTask(task)}
-                                  disabled={expandedTaskFinalizing || expandedTaskSaving || expandedTaskEntries.length === 0}
-                                  loading={expandedTaskFinalizing}
-                                  title={expandedTaskEntries.length === 0 ? "Registrá al menos una entrada antes de finalizar" : undefined}
-                                >
-                                  {expandedTaskFinalizing ? "Finalizando..." : "Finalizar tarea"}
-                                </AppButton>
-                              </div>
                             </div>
                           ) : (
-                            <p className="text-xs text-[color:var(--text-ink-muted)]">
-                              Tipo de actividad no soportado todavía.
-                            </p>
+                            <p className="text-[11px] text-[color:var(--text-ink-muted)]">Sin asignaciones todavía.</p>
                           )}
+                          <Link to={registroRoute}>
+                            <AppButton type="button" variant="secondary" size="sm">
+                              Ir a Registro Operativo →
+                            </AppButton>
+                          </Link>
                         </div>
                       );
                     })()}
@@ -1709,6 +1666,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
           )}
           </div>
         </AppCard>
+
       </div>
     </div>
   );
