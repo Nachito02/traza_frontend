@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { AppButton, AppCard, GuidedState, NoticeBanner, SectionIntro } from "../../components/ui";
+import { AppButton, AppCard, GuidedState, NoticeBanner, SectionIntro, useConfirmDialog } from "../../components/ui";
 import type { Cuartel } from "../../features/cuarteles/api";
 import {
   fetchCuartelById,
@@ -21,6 +21,7 @@ import {
 } from "../../domain/viticultura/catalogos";
 
 const FincaDetail = () => {
+  const { confirm, ConfirmDialog } = useConfirmDialog();
   const { id } = useParams();
   const navigate = useNavigate();
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
@@ -49,7 +50,7 @@ const FincaDetail = () => {
   const [cius, setCius] = useState<ElaboracionEntity[]>([]);
   const [loadingOperativos, setLoadingOperativos] = useState(false);
 
-  const fincaNombre = finca?.nombre ?? finca?.nombre_finca ?? finca?.name ?? "Finca";
+  const fincaNombre = finca?.nombre_finca ?? "Finca";
   const fincaUbicacion = useMemo(() => {
     const detail = finca as Record<string, unknown> | undefined;
     const keys = ["ubicacion_texto", "ubicacion", "ubicacion_finca", "ubicacionFinca"];
@@ -327,7 +328,7 @@ const FincaDetail = () => {
 
   const onDeleteFinca = async () => {
     if (!id) return;
-    const ok = window.confirm(`¿Eliminar la finca "${fincaNombre}"?`);
+    const ok = await confirm(`¿Eliminar la finca "${fincaNombre}"?`);
     if (!ok) return;
 
     setDeletingFinca(true);
@@ -840,6 +841,7 @@ const FincaDetail = () => {
           )}
         </AppCard>
       </div>
+      {ConfirmDialog}
     </div>
   );
 };

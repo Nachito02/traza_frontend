@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AppButton, AppCard, GuidedState, NoticeBanner, SectionIntro } from "../../components/ui";
+import { AppButton, AppCard, GuidedState, NoticeBanner, SectionIntro, useConfirmDialog } from "../../components/ui";
 import {
   deleteFinca,
   type Finca as FincaDetail,
@@ -10,6 +10,7 @@ import { useFincasStore } from "../../features/fincas/store";
 import { getApiErrorMessage } from "../../lib/api";
 
 const Fincas = () => {
+  const { confirm, ConfirmDialog } = useConfirmDialog();
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const fincas = useFincasStore((state) => state.fincas);
   const fincasLoading = useFincasStore((state) => state.loading);
@@ -40,7 +41,7 @@ const Fincas = () => {
 
   const onDeleteFinca = async (fincaId: string, fincaNombre: string) => {
     if (!fincaId) return;
-    const ok = window.confirm(`¿Eliminar la finca "${fincaNombre}"?`);
+    const ok = await confirm(`¿Eliminar la finca "${fincaNombre}"?`);
     if (!ok) return;
     setDeletingFincaId(fincaId);
     setFincaActionError(null);
@@ -109,7 +110,7 @@ const Fincas = () => {
               <div className="grid gap-3 md:grid-cols-2">
                 {fincas.map((finca) => (
                   <AppCard
-                    key={finca.finca_id ?? finca.id ?? finca.nombre}
+                    key={finca.finca_id ?? finca.id ?? finca.nombre_finca}
                     as="article"
                     tone="interactive"
                     padding="sm"
@@ -124,10 +125,7 @@ const Fincas = () => {
                       return (
                         <>
                           <div className="text-sm font-semibold text-[color:var(--text-ink)]">
-                            {finca.nombre ??
-                              finca.nombre_finca ??
-                              finca.name ??
-                              "Finca sin nombre"}
+                            {finca.nombre_finca ?? "Finca sin nombre"}
                           </div>
                           <div className="mt-1 text-xs text-[color:var(--text-ink-muted)]">
                             {pickDetailValue(
@@ -184,9 +182,7 @@ const Fincas = () => {
                                 void onDeleteFinca(
                                   fincaId,
                                   String(
-                                    finca.nombre ??
-                                      finca.nombre_finca ??
-                                      finca.name ??
+                                    finca.nombre_finca ??
                                       fincaId,
                                   ),
                                 )
@@ -217,6 +213,7 @@ const Fincas = () => {
           </div>
         </AppCard>
       </div>
+      {ConfirmDialog}
     </div>
   );
 };

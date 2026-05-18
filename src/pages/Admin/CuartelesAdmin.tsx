@@ -19,6 +19,7 @@ import {
   NoticeBanner,
   SectionIntro,
   useAppNotifications,
+  useConfirmDialog,
 } from "../../components/ui";
 import {
   getTipoVariedadForVariedad,
@@ -74,6 +75,7 @@ function optionalNumber(value: string) {
 }
 
 export default function CuartelesAdmin() {
+  const { confirm, ConfirmDialog } = useConfirmDialog();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const fincas = useFincasStore((state) => state.fincas);
@@ -119,7 +121,7 @@ export default function CuartelesAdmin() {
       Object.fromEntries(
         fincas.map((finca) => [
           String(finca.finca_id ?? finca.id ?? ""),
-          finca.nombre ?? finca.nombre_finca ?? finca.name ?? "Finca",
+          finca.nombre_finca ?? "Finca",
         ]),
       ),
     [fincas],
@@ -372,7 +374,7 @@ export default function CuartelesAdmin() {
   const onDelete = async (item: CuartelRow) => {
     const id = String(item.cuartel_id ?? item.id ?? "");
     if (!id) return;
-    if (!window.confirm(`¿Eliminar cuartel ${id}?`)) return;
+    if (!(await confirm(`¿Eliminar cuartel ${id}?`))) return;
     try {
       await deleteCuartel(id);
       setSuccess("Cuartel eliminado.");
@@ -697,7 +699,7 @@ export default function CuartelesAdmin() {
                       const id = String(finca.finca_id ?? finca.id ?? "");
                       return (
                         <option key={id} value={id}>
-                          {finca.nombre ?? finca.nombre_finca ?? finca.name ?? id}
+                          {finca.nombre_finca ?? id}
                         </option>
                       );
                     })}
@@ -862,6 +864,7 @@ export default function CuartelesAdmin() {
           </AppCard>
         ) : null}
       </div>
+      {ConfirmDialog}
     </div>
   );
 }

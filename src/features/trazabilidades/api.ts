@@ -62,8 +62,6 @@ export async function createTrazabilidadOrigen(
     {
       fincaId: payload.fincaId,
       cuartelId: payload.cuartelId,
-      finca_id: payload.fincaId,
-      cuartel_id: payload.cuartelId,
       estado: payload.estado ?? "habilitada",
     },
   );

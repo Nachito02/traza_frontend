@@ -27,6 +27,7 @@ import {
   AppTextarea,
   NoticeBanner,
   SectionIntro,
+  useConfirmDialog,
 } from "../../components/ui";
 import { getApiErrorMessage } from "../../lib/api";
 import { resolveModuleAccess } from "../../lib/permissions";
@@ -182,6 +183,7 @@ function normalizeCamposObligatorios(
 }
 
 export default function ProtocolosAdmin() {
+  const { confirm, ConfirmDialog } = useConfirmDialog();
   const user = useAuthStore((state) => state.user);
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const access = resolveModuleAccess(user, activeBodegaId);
@@ -396,7 +398,7 @@ export default function ProtocolosAdmin() {
   };
 
   const onDeleteEtapa = async (etapaId: string) => {
-    if (!window.confirm("¿Eliminar esta etapa?")) return;
+    if (!(await confirm("¿Eliminar esta etapa?"))) return;
 
     setSaving(true);
     setError(null);
@@ -498,7 +500,7 @@ export default function ProtocolosAdmin() {
   };
 
   const onDeleteProceso = async (procesoId: string) => {
-    if (!window.confirm("¿Eliminar este proceso?")) return;
+    if (!(await confirm("¿Eliminar este proceso?"))) return;
 
     setSaving(true);
     setError(null);
@@ -1197,6 +1199,8 @@ export default function ProtocolosAdmin() {
           </AppCard>
         ) : null}
       </div>
+
+      {ConfirmDialog}
 
       {confirmDeleteItem ? (
         <AppModal

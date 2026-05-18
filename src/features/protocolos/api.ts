@@ -85,18 +85,6 @@ export async function fetchProtocoloById(id: string) {
   return response.data;
 }
 
-export type ProtocoloPlantillaResponse = {
-  protocolo?: Protocolo;
-  iteraciones?: ProtocoloPlantillaIteracion[];
-};
-
-export async function fetchProtocoloPlantilla(protocoloId: string) {
-  const response = await apiClient.get<ProtocoloPlantillaResponse>(
-    `/protocolos/${encodeURIComponent(protocoloId)}/plantilla`,
-  );
-  return response.data;
-}
-
 export type CreateProtocoloPayload = {
   nombre: string;
   version: string;
@@ -122,8 +110,6 @@ export async function updateProtocolo(id: string, payload: UpdateProtocoloPayloa
   const response = await apiClient.put<Protocolo>(`/protocolos/${encodeURIComponent(id)}`, payload);
   return response.data;
 }
-
-export const patchProtocolo = updateProtocolo;
 
 export async function deleteProtocolo(id: string) {
   const response = await apiClient.delete<DeleteResponse>(`/protocolos/${encodeURIComponent(id)}`);
@@ -223,12 +209,7 @@ export async function deleteEtapa(etapaId: string) {
 export async function createProceso(etapaId: string, payload: CreateProcesoPayload) {
   const response = await apiClient.post<ProtocoloProceso>(
     `/protocolos/etapas/${encodeURIComponent(etapaId)}/procesos`,
-    {
-      ...payload,
-      required_fields: payload.campos_obligatorios,
-      camposObligatorios: payload.campos_obligatorios,
-      requiredFields: payload.campos_obligatorios,
-    },
+    payload,
   );
   return response.data;
 }
@@ -236,12 +217,7 @@ export async function createProceso(etapaId: string, payload: CreateProcesoPaylo
 export async function updateProceso(procesoId: string, payload: UpdateProcesoPayload) {
   const response = await apiClient.put<ProtocoloProceso>(
     `/protocolos/procesos/${encodeURIComponent(procesoId)}`,
-    {
-      ...payload,
-      required_fields: payload.campos_obligatorios,
-      camposObligatorios: payload.campos_obligatorios,
-      requiredFields: payload.campos_obligatorios,
-    },
+    payload,
   );
   return response.data;
 }

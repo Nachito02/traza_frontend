@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AppButton, AppCard, AppInput, AppSelect, NoticeBanner, SectionIntro } from "../../components/ui";
+import { AppButton, AppCard, AppInput, AppSelect, NoticeBanner, SectionIntro, useConfirmDialog } from "../../components/ui";
 import { fetchFincaById, fetchFincas, type Finca } from "../../features/fincas/api";
 import {
   createAuthUser,
@@ -19,19 +19,10 @@ import {
   type Operario,
 } from "../../features/operarios/api";
 import { getApiErrorMessage } from "../../lib/api";
+import { BODEGA_ROLES as ROLES_BODEGA, FINCA_ROLES as ROLES_FINCA } from "../../lib/permissions";
 import { useAuthStore } from "../../store/authStore";
 
-const ROLES_BODEGA = [
-  "admin_bodega",
-  "encargado_bodega",
-  "productor",
-  "responsable_calidad_inocuidad",
-  "responsable_ssyo",
-  "enologo",
-] as const;
-
-const ROLES_FINCA = ["encargado_finca", "operador_campo"] as const;
-
+/** Roles that can be *assigned* through the UI (global access check uses GLOBAL_ADMIN_ROLES). */
 const ROLES_GLOBALES = ["admin_sistema"] as const;
 
 type BodegaRoleForm = {
@@ -76,23 +67,16 @@ function extractFincaRoles(finca: NonNullable<AuthUser["fincas"]>[number]) {
 }
 
 function getFincaLabel(finca: Finca) {
-  return String(finca.nombre ?? finca.nombre_finca ?? finca.name ?? finca.finca_id ?? finca.id ?? "Finca");
+  return String(finca.nombre_finca ?? finca.finca_id ?? finca.id ?? "Finca");
 }
 
 function resolveFincaDisplayName(input: unknown, fallbackId = "") {
   if (!input || typeof input !== "object") return fallbackId;
   const source = input as Record<string, unknown>;
-  const candidates = [
-    source.nombre,
-    source.nombre_finca,
-    source.name,
-    source.finca_nombre,
-    (source.finca as Record<string, unknown> | undefined)?.nombre,
-    (source.finca as Record<string, unknown> | undefined)?.nombre_finca,
-    (source.finca as Record<string, unknown> | undefined)?.name,
-  ];
-  const value = candidates.find((item) => typeof item === "string" && item.trim());
-  return typeof value === "string" && value.trim() ? value : fallbackId;
+  const nombre =
+    source.nombre_finca ??
+    (source.finca as Record<string, unknown> | undefined)?.nombre_finca;
+  return typeof nombre === "string" && nombre.trim() ? nombre : fallbackId;
 }
 
 function normalizeRoles(roles: unknown): string[] {
@@ -133,6 +117,7 @@ function areRoleSetsEqual(expected: Set<string>, actual: Set<string>) {
 }
 
 const Usuarios = () => {
+  const { confirm, ConfirmDialog } = useConfirmDialog();
   const actorUser = useAuthStore((state) => state.user);
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const bodegas = useAuthStore((state) => state.bodegas);
@@ -472,7 +457,7 @@ const Usuarios = () => {
   };
 
   const onDeleteOperario = async (op: Operario) => {
-    const ok = window.confirm(`¿Desactivar a "${op.nombre}"?`);
+    const ok = await confirm(`¿Desactivar a "${op.nombre}"?`);
     if (!ok) return;
     setOperariosError(null);
     setOperariosNotice(null);
@@ -593,7 +578,7 @@ const Usuarios = () => {
       setError("No podés eliminar un usuario con rol global admin_sistema.");
       return;
     }
-    const ok = window.confirm(`¿Dar de baja al usuario "${target.nombre}"?`);
+    const ok = await confirm(`¿Dar de baja al usuario "${target.nombre}"?`);
     if (!ok) return;
     setDeletingUserId(target.id);
     setError(null);
@@ -1355,6 +1340,7 @@ const Usuarios = () => {
         </AppCard>
         ) : null}
       </div>
+      {ConfirmDialog}
     </div>
   );
 };

@@ -11,6 +11,7 @@ import {
   GuidedState,
   NoticeBanner,
   SectionIntro,
+  useConfirmDialog,
 } from "../../components/ui";
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
@@ -27,6 +28,7 @@ function resolveVasijaId(item: ElaboracionEntity) {
 }
 
 export default function BodegaVasijasPage() {
+  const { confirm, ConfirmDialog } = useConfirmDialog();
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const navigate = useNavigate();
   const [items, setItems] = useState<ElaboracionEntity[]>([]);
@@ -90,7 +92,7 @@ export default function BodegaVasijasPage() {
     }
     const codigo =
       typeof item.codigo === "string" && item.codigo.trim() ? item.codigo : id;
-    const confirmed = window.confirm(`¿Eliminar la vasija "${codigo}"?`);
+    const confirmed = await confirm(`¿Eliminar la vasija "${codigo}"?`);
     if (!confirmed) return;
 
     setDeletingId(id);
@@ -275,6 +277,7 @@ export default function BodegaVasijasPage() {
           </div>
         </AppCard>
       </div>
+    {ConfirmDialog}
     </div>
   );
 }

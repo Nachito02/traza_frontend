@@ -28,7 +28,6 @@ export type Tarea = {
   finca?: {
     finca_id?: string;
     nombre_finca?: string;
-    nombre?: string;
   } | null;
   cuartel?: {
     cuartel_id?: string;
@@ -54,63 +53,28 @@ export async function fetchPendientesByScope(params: {
   bodegaId: string;
   fincaId?: string;
   mode?: "mine" | "scope";
-}) {
-  const mineCandidates = [
-    "/tareas/me/asignaciones",
-    "/tareas/mis-pendientes",
-    "/tareas?mine=1&pendientes=1",
-  ];
-  const scopeCandidates: string[] = [];
-  if (params.fincaId) {
-    scopeCandidates.push(
-      `/tareas?bodegaId=${encodeURIComponent(params.bodegaId)}&fincaId=${encodeURIComponent(params.fincaId)}&pendientes=true`,
-    );
+}): Promise<Tarea[]> {
+  if (params.mode === "mine") {
+    // GET /tareas/mis-pendientes → TareaAsignacion[] con { tarea: Tarea } anidado
+    const response = await apiClient.get<{ tarea?: Tarea }[]>("/tareas/mis-pendientes");
+    return (response.data ?? [])
+      .map((row) => row.tarea)
+      .filter((t): t is Tarea => Boolean(t));
   }
-  scopeCandidates.push(`/tareas/bodega/${encodeURIComponent(params.bodegaId)}/pendientes`);
-  scopeCandidates.push(`/tareas?bodegaId=${encodeURIComponent(params.bodegaId)}&pendientes=1`);
-  scopeCandidates.push("/tareas/mis-pendientes");
-  const candidates = params.mode === "mine" ? [...mineCandidates] : [...scopeCandidates];
 
-  let lastError: unknown;
-  for (const url of candidates) {
-    try {
-      const response = await apiClient.get<
-        Tarea[] | { items?: Tarea[] } | { tarea?: Tarea }[] | { items?: { tarea?: Tarea }[] }
-      >(url);
-      if (Array.isArray(response.data)) {
-        if (response.data.length === 0) return [];
-        const first = response.data[0] as { tarea?: Tarea };
-        if (first?.tarea) {
-          return (response.data as { tarea?: Tarea }[])
-            .map((row) => row.tarea)
-            .filter((item): item is Tarea => Boolean(item));
-        }
-        return response.data as Tarea[];
-      }
+  // scope: si hay fincaId usamos el query param, sino el endpoint de bodega
+  const url = params.fincaId
+    ? `/tareas?bodegaId=${encodeURIComponent(params.bodegaId)}&fincaId=${encodeURIComponent(params.fincaId)}&pendientes=true`
+    : `/tareas/bodega/${encodeURIComponent(params.bodegaId)}/pendientes`;
 
-      const items = response.data?.items ?? [];
-      if (items.length === 0) return [];
-      const first = items[0] as { tarea?: Tarea };
-      if (first?.tarea) {
-        return (items as { tarea?: Tarea }[])
-          .map((row) => row.tarea)
-          .filter((item): item is Tarea => Boolean(item));
-      }
-      return items as Tarea[];
-    } catch (error) {
-      lastError = error;
-    }
-  }
-  throw lastError ?? new Error("No se pudieron cargar las tareas pendientes");
+  const response = await apiClient.get<Tarea[]>(url);
+  return response.data ?? [];
 }
 
 export async function fetchCanManageTareas() {
   try {
-    const response = await apiClient.get<{ canManage?: boolean; can_manage?: boolean } | boolean>(
-      "/tareas/me/can-manage",
-    );
-    if (typeof response.data === "boolean") return response.data;
-    return Boolean(response.data?.canManage ?? response.data?.can_manage);
+    const response = await apiClient.get<{ canManage: boolean }>("/tareas/me/can-manage");
+    return Boolean(response.data?.canManage);
   } catch {
     return false;
   }
@@ -151,8 +115,6 @@ export async function createTarea(payload: CreateTareaPayload) {
 
 export async function assignTareaToUser(tareaId: string, userId: string) {
   const response = await apiClient.post(`/tareas/${encodeURIComponent(tareaId)}/asignaciones`, {
-    userId,
-    assigneeUserId: userId,
     userIds: [userId],
   });
   return response.data;
@@ -180,15 +142,6 @@ export type SaveTareaProgresoPayload = {
   adjuntos?: TareaDocumentoPayload[];
 };
 
-export type SaveTareaProgresoResponse = {
-  validation?: {
-    canClose?: boolean;
-    missingRequired?: string[];
-    invalidFields?: string[];
-  };
-  [key: string]: unknown;
-};
-
 function buildLegacyCompatiblePayload(payload: SaveTareaProgresoPayload) {
   return {
     ...payload,
@@ -197,17 +150,6 @@ function buildLegacyCompatiblePayload(payload: SaveTareaProgresoPayload) {
     documentos: payload.documentos ?? payload.adjuntos ?? [],
     adjuntos: payload.adjuntos ?? payload.documentos ?? [],
   };
-}
-
-export async function saveTareaProgreso(
-  tareaAsignacionId: string,
-  payload: SaveTareaProgresoPayload,
-) {
-  const response = await apiClient.post<SaveTareaProgresoResponse>(
-    `/ia/tareas/${encodeURIComponent(tareaAsignacionId)}/guardar-progreso`,
-    buildLegacyCompatiblePayload(payload),
-  );
-  return response.data;
 }
 
 export async function createTareaEntrada(
@@ -251,18 +193,8 @@ export async function fetchTareasByBodega(bodegaId: string): Promise<Tarea[]> {
 }
 
 export async function fetchTareaAsignacionDetail(tareaAsignacionId: string): Promise<TareaEntradaDetail[]> {
-  const candidates = [
+  const response = await apiClient.get<TareaEntradaDetail[]>(
     `/tareas/me/asignaciones/${encodeURIComponent(tareaAsignacionId)}/entradas`,
-    `/tareas/asignaciones/${encodeURIComponent(tareaAsignacionId)}/entradas`,
-  ];
-  for (const url of candidates) {
-    try {
-      const response = await apiClient.get<TareaEntradaDetail[]>(url);
-      const data = Array.isArray(response.data) ? response.data : [];
-      if (data.length > 0) return data;
-    } catch {
-      // try next
-    }
-  }
-  return [];
+  );
+  return Array.isArray(response.data) ? response.data : [];
 }

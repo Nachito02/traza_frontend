@@ -236,7 +236,7 @@ export default function RecepcionPage({
           if (!id) return null;
           return {
             value: String(id),
-            label: finca.nombre_finca ?? finca.nombre ?? finca.name ?? String(id),
+            label: finca.nombre_finca ?? String(id),
           };
         })
         .filter((option): option is SelectOption => option !== null),
@@ -250,7 +250,7 @@ export default function RecepcionPage({
           const id = cuartel.cuartel_id ?? cuartel.id;
           if (!id) return null;
           const finca = fincas.find((item) => String(item.finca_id ?? item.id ?? "") === String(cuartel.finca_id ?? ""));
-          const fincaLabel = finca?.nombre_finca ?? finca?.nombre ?? finca?.name;
+          const fincaLabel = finca?.nombre_finca;
           return {
             value: String(id),
             label: fincaLabel ? `${fincaLabel} / ${cuartel.codigo_cuartel}` : cuartel.codigo_cuartel,

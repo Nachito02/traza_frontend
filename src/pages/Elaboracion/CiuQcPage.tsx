@@ -158,7 +158,7 @@ export default function CiuQcPage({
           if (!id) return null;
           return {
             value: String(id),
-            label: finca.nombre_finca ?? finca.nombre ?? finca.name ?? String(id),
+            label: finca.nombre_finca ?? String(id),
           };
         })
         .filter((option): option is SelectOption => option !== null),

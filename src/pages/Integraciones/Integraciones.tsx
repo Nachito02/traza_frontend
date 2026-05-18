@@ -6,6 +6,7 @@ import {
   AppSelect,
   NoticeBanner,
   SectionIntro,
+  useConfirmDialog,
 } from "../../components/ui";
 import {
   BOT_SCOPES,
@@ -52,6 +53,7 @@ const EMPTY_DELEGATION_FORM: DelegationForm = {
 };
 
 const Integraciones = () => {
+  const { confirm, ConfirmDialog } = useConfirmDialog();
   const actorUser = useAuthStore((state) => state.user);
   const bodegas = useAuthStore((state) => state.bodegas);
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
@@ -137,7 +139,7 @@ const Integraciones = () => {
   }, []);
 
   const onRevoke = async (id: string) => {
-    if (!window.confirm("¿Revocar esta delegación?")) return;
+    if (!(await confirm("¿Revocar esta delegación?"))) return;
     setRevokingId(id);
     setDelError(null);
     setDelNotice(null);
@@ -476,6 +478,7 @@ const Integraciones = () => {
           )}
         </AppCard>
       </div>
+      {ConfirmDialog}
     </div>
   );
 };

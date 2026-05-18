@@ -100,7 +100,7 @@ const SetupCuarteles = () => {
     () =>
       fincas.map((finca) => ({
         id: finca.finca_id ?? finca.id ?? "",
-        label: finca.nombre ?? finca.nombre_finca ?? finca.name ?? "(Sin nombre)",
+        label: finca.nombre_finca ?? "(Sin nombre)",
       })),
     [fincas]
   );

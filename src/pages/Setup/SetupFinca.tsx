@@ -76,8 +76,6 @@ const SetupFinca = () => {
       const fincaId = String(created.finca_id ?? created.id ?? "");
       const fincaNombre = (
         created.nombre_finca ??
-        created.nombre ??
-        created.name ??
         form.nombre_finca
       ).trim();
 
