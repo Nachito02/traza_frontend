@@ -14,6 +14,7 @@ import {
   AppSelect,
   NoticeBanner,
   SectionIntro,
+  useConfirmDialog,
 } from "../../components/ui";
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
@@ -65,6 +66,7 @@ export default function FraccionamientoDespachoPage({
   hideSectionSelector = false,
   hidePrimaryAction = false,
 }: FraccionamientoDespachoPageProps) {
+  const { confirm, ConfirmDialog } = useConfirmDialog();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const [activeSection, setActiveSection] = useState<"lotes" | "codigos" | "despachos">(initialSection);
@@ -234,7 +236,7 @@ export default function FraccionamientoDespachoPage({
   const deleteLote = async (item: ElaboracionEntity) => {
     const id = resolveLoteId(item);
     if (!id) return;
-    if (!window.confirm(`¿Eliminar lote ${id}?`)) return;
+    if (!(await confirm(`¿Eliminar lote ${id}?`))) return;
 
     try {
       await deleteElaboracionResource("lotes-fraccionamiento", id);
@@ -525,6 +527,7 @@ export default function FraccionamientoDespachoPage({
           ]}
         />
       ) : null}
+      {ConfirmDialog}
     </div>
   );
 }

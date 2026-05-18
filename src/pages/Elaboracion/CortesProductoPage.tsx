@@ -15,6 +15,7 @@ import {
   AppTextarea,
   NoticeBanner,
   SectionIntro,
+  useConfirmDialog,
 } from "../../components/ui";
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
@@ -79,6 +80,7 @@ export default function CortesProductoPage({
   hideSectionSelector = false,
   hidePrimaryAction = false,
 }: CortesProductoPageProps) {
+  const { confirm, ConfirmDialog } = useConfirmDialog();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const [activeSection, setActiveSection] = useState<"cortes" | "productos">(initialSection);
@@ -232,7 +234,7 @@ export default function CortesProductoPage({
   const deleteCorte = async (item: ElaboracionEntity) => {
     const id = resolveCorteId(item);
     if (!id) return;
-    if (!window.confirm(`¿Eliminar corte ${id}?`)) return;
+    if (!(await confirm(`¿Eliminar corte ${id}?`))) return;
 
     try {
       await deleteElaboracionResource("cortes", id);
@@ -543,6 +545,7 @@ export default function CortesProductoPage({
           ]}
         />
       ) : null}
+      {ConfirmDialog}
     </div>
   );
 }

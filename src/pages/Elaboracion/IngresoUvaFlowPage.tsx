@@ -4,13 +4,13 @@ import { AppButton, AppCard, AppModal, NoticeBanner, SectionIntro } from "../../
 import type { ElaboracionEntity } from "../../features/elaboracion/api";
 import CiuQcPage from "./CiuQcPage";
 import RecepcionPage from "./RecepcionPage";
+import SectionSelector from "./components/SectionSelector";
 
 type IngresoUvaStep = "remito" | "recepcion" | "analisis" | "ciu" | "vasija";
 
 type StepConfig = {
   key: IngresoUvaStep;
-  eyebrow: string;
-  title: string;
+  label: string;
 };
 
 type PendingCiuNextStep =
@@ -29,31 +29,11 @@ type PendingCiuNextStep =
     };
 
 const STEPS: StepConfig[] = [
-  {
-    key: "remito",
-    eyebrow: "01",
-    title: "Remito de uva",
-  },
-  {
-    key: "recepcion",
-    eyebrow: "02",
-    title: "Recepción y pesaje",
-  },
-  {
-    key: "analisis",
-    eyebrow: "03",
-    title: "Análisis de recepción",
-  },
-  {
-    key: "ciu",
-    eyebrow: "04",
-    title: "Emitir CIU",
-  },
-  {
-    key: "vasija",
-    eyebrow: "05",
-    title: "Enviar a vasija",
-  },
+  { key: "remito",   label: "Remito de uva" },
+  { key: "recepcion", label: "Recepción y pesaje" },
+  { key: "analisis", label: "Análisis de recepción" },
+  { key: "ciu",     label: "Emitir CIU" },
+  { key: "vasija",  label: "Enviar a vasija" },
 ];
 
 function getStepFromParams(value: string | null): IngresoUvaStep {
@@ -75,7 +55,6 @@ export default function IngresoUvaFlowPage() {
   const [referenceOptionsVersion, setReferenceOptionsVersion] = useState(0);
   const [pendingCiuNextStep, setPendingCiuNextStep] = useState<PendingCiuNextStep | null>(null);
   const activeStep = getStepFromParams(searchParams.get("paso") ?? searchParams.get("section"));
-  const activeStepIndex = STEPS.findIndex((step) => step.key === activeStep);
 
   const goToStep = (step: IngresoUvaStep) => {
     setSearchParams((prev) => {
@@ -137,36 +116,13 @@ export default function IngresoUvaFlowPage() {
           />
         )}
       >
-        <div className="mt-5 grid gap-3 lg:grid-cols-5">
-          {STEPS.map((step, index) => {
-            const isActive = step.key === activeStep;
-            const isDone = index < activeStepIndex;
-            return (
-              <button
-                key={step.key}
-                type="button"
-                onClick={() => goToStep(step.key)}
-                className={[
-                  "group rounded-[var(--radius-md)] border p-4 text-left shadow-[var(--shadow-inset-soft)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)]",
-                  isActive
-                    ? "border-[color:var(--accent-primary)] bg-[color:var(--surface-elevated)] text-[color:var(--text-on-dark)]"
-                    : "border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] text-[color:var(--text-on-dark-muted)] hover:border-[color:var(--border-default)] hover:bg-[color:var(--action-secondary-hover)] hover:text-[color:var(--text-on-dark)]",
-                ].join(" ")}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[0.68rem] font-black uppercase tracking-[0.28em] text-[color:var(--accent-primary)]">
-                    {step.eyebrow}
-                  </span>
-                  {isDone ? (
-                    <span className="rounded-full border border-[color:var(--accent-primary)] px-2 py-0.5 text-[0.65rem] font-bold text-[color:var(--accent-primary)]">
-                      listo
-                    </span>
-                  ) : null}
-                </div>
-                <h3 className="mt-3 text-sm font-bold">{step.title}</h3>
-              </button>
-            );
-          })}
+        <div className="mt-5">
+          <SectionSelector
+            bare
+            value={activeStep}
+            onChange={(key) => goToStep(key)}
+            options={STEPS}
+          />
         </div>
       </AppCard>
 

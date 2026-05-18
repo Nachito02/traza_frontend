@@ -181,7 +181,7 @@ export default function FincasAdmin() {
       setEditingId(id);
       setFormMode("edit");
       setForm({
-        nombre_finca: item.nombre_finca ?? item.nombre ?? item.name ?? "",
+        nombre_finca: item.nombre_finca ?? "",
         ubicacion_texto: item.ubicacion_texto ?? item.ubicacion ?? "",
         rut: item.rut ?? "",
         renspa: item.renspa ?? "",
@@ -266,7 +266,7 @@ export default function FincasAdmin() {
               const vinculo = vinculosByFincaId[id];
               return (
                 <AppCard key={id} as="article" tone="soft" padding="sm">
-                  <div className="text-sm font-semibold text-[color:var(--text-ink)]">{item.nombre ?? item.nombre_finca ?? item.name ?? "Finca"}</div>
+                  <div className="text-sm font-semibold text-[color:var(--text-ink)]">{item.nombre_finca ?? "Finca"}</div>
                   <div className="mt-1 text-xs text-[color:var(--text-ink-muted)]">
                     Vínculo:{" "}
                     {vinculo?.tipo_vinculo === "proveedor_tercero"
@@ -438,7 +438,7 @@ export default function FincasAdmin() {
           )}
         >
             <p className="text-xs text-[color:var(--text-ink-muted)]">
-              {confirmDeleteItem.nombre ?? confirmDeleteItem.nombre_finca ?? "Esta finca"} — esta acción no se puede deshacer.
+              {confirmDeleteItem.nombre_finca ?? "Esta finca"} — esta acción no se puede deshacer.
             </p>
         </AppModal>
       ) : null}

@@ -1,12 +1,9 @@
-import axios from "axios";
 import { apiClient } from "../../lib/api";
 
 export type Finca = {
   finca_id?: string;
   id?: string;
-  nombre?: string;
   nombre_finca?: string;
-  name?: string;
   ubicacion?: string | null;
   ubicacion_texto?: string | null;
   rut?: string | null;
@@ -28,30 +25,10 @@ export type Finca = {
 };
 
 export async function fetchFincas(bodegaId: string | number) {
-  const normalizedBodegaId = encodeURIComponent(String(bodegaId));
-  try {
-    const response = await apiClient.get<Finca[]>(
-      `/fincas?bodegaId=${normalizedBodegaId}`,
-    );
-    return response.data ?? [];
-  } catch {
-    // Compatibilidad con backends que exponen fincas por ruta bodega.
-    try {
-      const response = await apiClient.get<Finca[]>(
-        `/bodegas/${normalizedBodegaId}/fincas`,
-      );
-      return response.data ?? [];
-    } catch {
-      // Compatibilidad adicional si la respuesta usa wrapper.
-    }
-    const response = await apiClient.get<Finca[] | { items?: Finca[] }>(
-      `/fincas?bodegaId=${normalizedBodegaId}`,
-    );
-    if (Array.isArray(response.data)) {
-      return response.data;
-    }
-    return response.data?.items ?? [];
-  }
+  const response = await apiClient.get<Finca[]>(
+    `/fincas?bodegaId=${encodeURIComponent(String(bodegaId))}`,
+  );
+  return response.data ?? [];
 }
 
 export type CreateFincaPayload = {
@@ -86,28 +63,8 @@ export async function patchFinca(
   fincaId: string | number,
   payload: UpdateFincaPayload,
 ) {
-  const encodedId = encodeURIComponent(String(fincaId));
-
-  try {
-    const response = await apiClient.patch<Finca>(`/fincas/${encodedId}`, payload);
-    return response.data;
-  } catch (error) {
-    if (!axios.isAxiosError(error)) throw error;
-    const status = error.response?.status;
-    if (status !== 404 && status !== 405) throw error;
-  }
-
-  try {
-    const response = await apiClient.put<Finca>(`/fincas/${encodedId}`, payload);
-    return response.data;
-  } catch (error) {
-    if (!axios.isAxiosError(error)) throw error;
-    const status = error.response?.status;
-    if (status !== 404 && status !== 405) throw error;
-  }
-
-  const response = await apiClient.put<Finca>(
-    `/fincas/${encodedId}`,
+  const response = await apiClient.patch<Finca>(
+    `/fincas/${encodeURIComponent(String(fincaId))}`,
     payload,
   );
   return response.data;

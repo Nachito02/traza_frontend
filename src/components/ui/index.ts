@@ -11,3 +11,4 @@ export { default as NoticeBanner } from "./NoticeBanner";
 export { default as OperationalReadinessCard } from "./OperationalReadinessCard";
 export type { OperationalReadinessStep } from "./OperationalReadinessCard";
 export { default as SectionIntro } from "./SectionIntro";
+export { useConfirmDialog } from "./useConfirmDialog";

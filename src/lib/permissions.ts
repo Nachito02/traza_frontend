@@ -6,8 +6,8 @@ type UserLike = {
   role?: unknown;
 } | null;
 
-const GLOBAL_ADMIN_ROLES = ["admin_sistema", "super_user", "superuser"];
-const BODEGA_ROLES = [
+export const GLOBAL_ADMIN_ROLES = ["admin_sistema", "super_user", "superuser"];
+export const BODEGA_ROLES = [
   "admin_bodega",
   "encargado_bodega",
   "productor",
@@ -15,7 +15,14 @@ const BODEGA_ROLES = [
   "responsable_ssyo",
   "enologo",
 ];
-const FINCA_ROLES = ["encargado_finca", "operador_campo"];
+export const FINCA_ROLES = ["encargado_finca", "operador_campo"];
+export const OPERATOR_ROLES = [
+  "operador_campo",
+  "operario_campo",
+  "operario_finca",
+  "operador_bodega",
+  "operario_bodega",
+];
 
 function normalizeRoles(input: unknown): string[] {
   if (typeof input === "string") {
@@ -57,32 +64,6 @@ function normalizeRoles(input: unknown): string[] {
 function includesAnyRole(currentRoles: string[], expectedRoles: string[]) {
   const expected = new Set(expectedRoles.map((role) => role.toLowerCase()));
   return currentRoles.some((role) => expected.has(role));
-}
-
-function collectRoleStringsDeep(input: unknown, depth = 0): string[] {
-  if (depth > 4 || input === null || input === undefined) return [];
-  if (typeof input === "string") {
-    const normalized = input.trim().toLowerCase();
-    return normalized ? [normalized] : [];
-  }
-  if (Array.isArray(input)) {
-    return input.flatMap((item) => collectRoleStringsDeep(item, depth + 1));
-  }
-  if (typeof input === "object") {
-    const source = input as Record<string, unknown>;
-    const direct: string[] = [];
-    const nested: string[] = [];
-    for (const [key, value] of Object.entries(source)) {
-      const keyLower = key.toLowerCase();
-      if (keyLower.includes("rol") || keyLower.includes("role")) {
-        direct.push(...normalizeRoles(value));
-      } else {
-        nested.push(...collectRoleStringsDeep(value, depth + 1));
-      }
-    }
-    return [...direct, ...nested];
-  }
-  return [];
 }
 
 function getUserBodegaRoles(user: UserLike, activeBodegaId: string | number | null) {
@@ -151,20 +132,15 @@ export function resolveModuleAccess(user: UserLike, activeBodegaId: string | num
   const globalRoles = normalizeRoles([user?.roles_globales, user?.rol, user?.role]);
   const bodegaRoles = getUserBodegaRoles(user, activeBodegaId);
   const fincaRoles = getUserFincaRoles(user);
-  const deepRoles = collectRoleStringsDeep(user);
 
-  const isAdminSistema =
-    includesAnyRole(globalRoles, GLOBAL_ADMIN_ROLES) ||
-    includesAnyRole(deepRoles, GLOBAL_ADMIN_ROLES);
+  const isAdminSistema = includesAnyRole(globalRoles, GLOBAL_ADMIN_ROLES);
   const hasBodegaRole =
     includesAnyRole(globalRoles, BODEGA_ROLES) ||
-    includesAnyRole(bodegaRoles, BODEGA_ROLES) ||
-    includesAnyRole(deepRoles, BODEGA_ROLES);
+    includesAnyRole(bodegaRoles, BODEGA_ROLES);
   const hasFincaRole =
     includesAnyRole(globalRoles, FINCA_ROLES) ||
     includesAnyRole(fincaRoles, FINCA_ROLES) ||
-    includesAnyRole(bodegaRoles, FINCA_ROLES) ||
-    includesAnyRole(deepRoles, FINCA_ROLES);
+    includesAnyRole(bodegaRoles, FINCA_ROLES);
   const hasLinkedFincas = Boolean(
     (user as { fincas?: unknown } | null)?.fincas &&
       Array.isArray((user as { fincas?: unknown } | null)?.fincas) &&

@@ -195,7 +195,7 @@ function formatRelatedFieldValue(
   if (resource === "remitos-uva") {
     if (sourceKey === "finca_id") {
       const finca = getNestedRecord(item, "finca");
-      const nombre = finca?.nombre_finca ?? finca?.nombre ?? item[sourceKey];
+      const nombre = finca?.nombre_finca ?? item[sourceKey];
       return formatItemFieldValue(nombre);
     }
 
@@ -218,7 +218,7 @@ function formatRelatedFieldValue(
 
   if (resource === "cius" && sourceKey === "finca_id") {
     const finca = getNestedRecord(item, "finca");
-    return formatItemFieldValue(finca?.nombre_finca ?? finca?.nombre ?? item[sourceKey]);
+    return formatItemFieldValue(finca?.nombre_finca ?? item[sourceKey]);
   }
 
   if (resource === "recepciones-bodega" && sourceKey === "remito_uva_id") {

@@ -558,7 +558,7 @@ export default function CampoPage() {
           (f) => String(f.finca_id ?? f.id ?? "") === fincaId,
         );
         const nombre =
-          finca?.nombre_finca ?? finca?.nombre ?? finca?.name ?? `Finca ${fincaId.slice(0, 6)}`;
+          finca?.nombre_finca ?? `Finca ${fincaId.slice(0, 6)}`;
         map.set(fincaId, { fincaId, nombre, tareas: [tarea] });
       }
     }

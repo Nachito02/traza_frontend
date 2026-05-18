@@ -36,11 +36,9 @@ function getActiveTasks(tareas: Tarea[]) {
 }
 
 function getFincaNombre(input: {
-  nombre?: string | null;
   nombre_finca?: string | null;
-  name?: string | null;
 }) {
-  return input.nombre ?? input.nombre_finca ?? input.name ?? "Finca sin nombre";
+  return input.nombre_finca ?? "Finca sin nombre";
 }
 
 function fechaLabel(tarea: Tarea): { text: string; overdue: boolean } | null {
@@ -393,9 +391,9 @@ function TareaRow({ tarea }: { tarea: Tarea }) {
                 Prioridad: {tarea.prioridad}
               </span>
             )}
-            {(tarea.finca?.nombre_finca ?? tarea.finca?.nombre) && (
+            {(tarea.finca?.nombre_finca) && (
               <span className="rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-2 py-0.5 text-[10px] text-[color:var(--text-ink-muted)]">
-                Finca: {tarea.finca?.nombre_finca ?? tarea.finca?.nombre}
+                Finca: {tarea.finca?.nombre_finca}
               </span>
             )}
             {tarea.cuartel?.codigo_cuartel && (
@@ -610,9 +608,9 @@ function TareaModal({ tarea, onClose }: { tarea: Tarea; onClose: () => void }) {
           {/* Finca / Cuartel */}
           {(tarea.finca || tarea.cuartel) && (
             <div className="flex flex-wrap gap-2">
-              {(tarea.finca?.nombre_finca ?? tarea.finca?.nombre) && (
+              {(tarea.finca?.nombre_finca) && (
                 <span className="rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-2 py-0.5 text-[10px] text-[color:var(--text-ink-muted)]">
-                  Finca: {tarea.finca?.nombre_finca ?? tarea.finca?.nombre}
+                  Finca: {tarea.finca?.nombre_finca}
                 </span>
               )}
               {tarea.cuartel?.codigo_cuartel && (
@@ -1119,7 +1117,7 @@ export default function ProgresoPage() {
                   const dateStr = dateTs > 0
                     ? new Date(dateTs).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })
                     : "Sin fecha";
-                  const fincaNombre = task.finca?.nombre_finca ?? task.finca?.nombre ?? null;
+                  const fincaNombre = task.finca?.nombre_finca ?? null;
                   const cuartelCode = task.cuartel?.codigo_cuartel ?? null;
                   const targetLabel = fincaNombre
                     ? cuartelCode ? `${fincaNombre} / ${cuartelCode}` : fincaNombre
@@ -1131,9 +1129,7 @@ export default function ProgresoPage() {
                           "absolute -left-6 top-[14px] h-3.5 w-3.5 rounded-full border-2",
                           completed
                             ? "border-[color:var(--feedback-success)] bg-[color:var(--feedback-success)]"
-                            : effectiveEstado === "en_progreso"
-                              ? "border-[color:var(--feedback-warning)] bg-[color:var(--feedback-warning)]"
-                              : "border-[color:var(--border-default)] bg-[color:var(--surface-muted)]",
+                            : "border-[color:var(--feedback-warning)] bg-[color:var(--feedback-warning)]",
                         ].join(" ")}
                         aria-hidden
                       />
