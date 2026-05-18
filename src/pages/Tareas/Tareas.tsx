@@ -8,8 +8,10 @@ import {
   deleteTarea,
   fetchCanManageTareas,
   fetchPendientesByScope,
+  fetchTareaAsignacionDetail,
   fetchTareasByBodega,
   type Tarea,
+  type TareaEntradaDetail,
 } from "../../features/encargos/api";
 import { fetchAuthUsers, type AuthUser } from "../../features/users/api";
 import { fetchOperariosByBodega, type Operario } from "../../features/operarios/api";
@@ -34,10 +36,6 @@ import {
 } from "../../features/protocolos/api";
 import { resolveModuleAccess } from "../../lib/permissions";
 import { EVENTO_CONFIG } from "../Trazabilidad/eventoConfig";
-import {
-  fetchTareaAsignacionDetail,
-  type TareaEntradaDetail,
-} from "../../features/encargos/api";
 
 const FINCA_MANAGER_ROLES = [
   "encargado_finca",
@@ -393,10 +391,8 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
   const [activeProtocolo, setActiveProtocolo] = useState<ProtocoloExpanded | null>(null);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
-  const [timelineExpandedId, setTimelineExpandedId] = useState<string | null>(null);
-  const [timelineEntriesMap, setTimelineEntriesMap] = useState<Record<string, TareaEntradaDetail[]>>({});
-  const [timelineLoadingMap, setTimelineLoadingMap] = useState<Record<string, boolean>>({});
-  const [timelineOpen, setTimelineOpen] = useState(false);
+  const [expandedTaskEntries, setExpandedTaskEntries] = useState<Record<string, TareaEntradaDetail[]>>({});
+  const [expandedTaskEntriesLoading, setExpandedTaskEntriesLoading] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [completedLoading, setCompletedLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -822,24 +818,6 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
     return exactMatch ?? null;
   };
 
-  const openTimelineTask = (taskId: string, task: Tarea) => {
-    if (timelineExpandedId === taskId) {
-      setTimelineExpandedId(null);
-      return;
-    }
-    setTimelineExpandedId(taskId);
-    if (timelineEntriesMap[taskId] !== undefined) return;
-    const asignacionId = task.tarea_asignacion?.[0]?.tarea_asignacion_id;
-    if (!asignacionId) {
-      setTimelineEntriesMap((prev) => ({ ...prev, [taskId]: [] }));
-      return;
-    }
-    setTimelineLoadingMap((prev) => ({ ...prev, [taskId]: true }));
-    void fetchTareaAsignacionDetail(asignacionId)
-      .then((entries) => setTimelineEntriesMap((prev) => ({ ...prev, [taskId]: entries })))
-      .catch(() => setTimelineEntriesMap((prev) => ({ ...prev, [taskId]: [] })))
-      .finally(() => setTimelineLoadingMap((prev) => ({ ...prev, [taskId]: false })));
-  };
 
   const scopedProtocoloTaskOptions = useMemo(
     () =>
@@ -851,13 +829,6 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
     [managerScope, protocoloTaskOptions],
   );
 
-  const timelineTasks = useMemo(
-    () =>
-      dedupeTasksById([...tasks, ...completedTasks]).sort(
-        (a, b) => getActivityDate(b) - getActivityDate(a),
-      ),
-    [tasks, completedTasks],
-  );
 
   const groupedProtocoloTaskOptions = useMemo(() => {
     const groups = new Map<
@@ -986,6 +957,33 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
     }
   };
 
+  // ── Carga de entradas al expandir una tarea ────────────────────────────────
+  useEffect(() => {
+    if (!expandedTaskId) return;
+    if (expandedTaskEntries[expandedTaskId] !== undefined) return;
+    const task =
+      tasks.find((t) => getTaskId(t) === expandedTaskId) ??
+      completedTasks.find((t) => getTaskId(t) === expandedTaskId);
+    if (!task) return;
+    const asignacionId = task.tarea_asignacion?.[0]?.tarea_asignacion_id;
+    if (!asignacionId) {
+      setExpandedTaskEntries((prev) => ({ ...prev, [expandedTaskId]: [] }));
+      return;
+    }
+    setExpandedTaskEntriesLoading((prev) => ({ ...prev, [expandedTaskId]: true }));
+    void fetchTareaAsignacionDetail(asignacionId)
+      .then((entries) =>
+        setExpandedTaskEntries((prev) => ({ ...prev, [expandedTaskId]: entries })),
+      )
+      .catch(() =>
+        setExpandedTaskEntries((prev) => ({ ...prev, [expandedTaskId]: [] })),
+      )
+      .finally(() =>
+        setExpandedTaskEntriesLoading((prev) => ({ ...prev, [expandedTaskId]: false })),
+      );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expandedTaskId]);
+
   const onDeleteTask = async (task: Tarea) => {
     const tareaId = String(task.tarea_id ?? task.id ?? "");
     if (!tareaId) {
@@ -1031,171 +1029,6 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
           )}
         />
 
-        {activeBodegaId && timelineTasks.length > 0 ? (
-          <AppCard
-            as="section"
-            tone="default"
-            padding="lg"
-            header={(
-              <div className="flex items-center justify-between gap-3">
-                <SectionIntro
-                  title="Historial de actividad"
-                  description="Todas las tareas ordenadas de más reciente a más antigua."
-                />
-                <button
-                  type="button"
-                  onClick={() => setTimelineOpen((v) => !v)}
-                  className="shrink-0 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] px-3 py-1.5 text-xs font-semibold text-[color:var(--text-on-dark-muted)] transition-all duration-[var(--motion-fast)] hover:border-[color:var(--border-default)] hover:text-[color:var(--text-on-dark)]"
-                >
-                  {timelineOpen ? "Ocultar" : "Mostrar"}
-                </button>
-              </div>
-            )}
-          >
-            {timelineOpen && (
-              <div className="relative mt-2 space-y-1 pl-6">
-                <div className="pointer-events-none absolute bottom-2 left-[7px] top-2 w-px bg-[color:var(--border-shell)]" aria-hidden />
-                {timelineTasks.map((task) => {
-                  const taskId = String(task.tarea_id ?? task.id ?? "");
-                  const isExpanded = timelineExpandedId === taskId;
-                  const completed = isCompletedTask(task);
-                  const pending = !completed;
-                  const date = getActivityDate(task);
-                  const dateStr = date > 0
-                    ? new Date(date).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })
-                    : "Sin fecha";
-                  const targetLabel = getTaskTargetLabel(task);
-                  const entries = timelineEntriesMap[taskId];
-                  const isLoading = timelineLoadingMap[taskId] ?? false;
-                  const noAsignacion = (task.tarea_asignacion?.length ?? 0) === 0;
-                  const estado = normalizeTaskStatus(task.estado ?? "pendiente");
-
-                  return (
-                    <div key={taskId} className="relative">
-                      <div
-                        className={[
-                          "absolute -left-6 top-[14px] h-3.5 w-3.5 rounded-full border-2",
-                          completed
-                            ? "border-[color:var(--feedback-success)] bg-[color:var(--feedback-success)]"
-                            : estado === "en_progreso"
-                              ? "border-[color:var(--accent-primary)] bg-[color:var(--accent-primary)]"
-                              : "border-[color:var(--feedback-warning)] bg-[color:var(--feedback-warning-bg)]",
-                        ].join(" ")}
-                        aria-hidden
-                      />
-                      <button
-                        type="button"
-                        onClick={() => openTimelineTask(taskId, task)}
-                        className={[
-                          "w-full rounded-[var(--radius-md)] border px-3 py-2.5 text-left transition-all duration-[var(--motion-fast)]",
-                          isExpanded
-                            ? "rounded-b-none border-b-0 border-[color:var(--border-default)] bg-[color:var(--surface-muted)]"
-                            : "border-[color:var(--border-shell)] bg-transparent hover:border-[color:var(--border-default)] hover:bg-[color:var(--surface-muted)]",
-                        ].join(" ")}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold text-[color:var(--text-ink)]">{task.titulo}</p>
-                            {targetLabel ? (
-                              <p className="mt-0.5 text-[11px] text-[color:var(--text-ink-muted)]">{targetLabel}</p>
-                            ) : null}
-                          </div>
-                          <div className="flex shrink-0 flex-col items-end gap-1">
-                            <span
-                              className={[
-                                "rounded-full border px-2 py-0.5 text-[10px] font-semibold",
-                                completed
-                                  ? "border-[color:var(--feedback-success-border)] bg-[color:var(--feedback-success-bg)] text-[color:var(--feedback-success-text)]"
-                                  : estado === "en_progreso"
-                                    ? "border-[color:var(--border-default)] bg-[color:var(--surface-muted)] text-[color:var(--text-on-dark)]"
-                                    : "border-[color:var(--feedback-warning-border)] bg-[color:var(--feedback-warning-bg)] text-[color:var(--feedback-warning-text)]",
-                              ].join(" ")}
-                            >
-                              {completed ? "Completada" : estado === "en_progreso" ? "En progreso" : "Pendiente"}
-                            </span>
-                            <span className="text-[11px] text-[color:var(--text-ink-muted)]">{dateStr}</span>
-                          </div>
-                        </div>
-                      </button>
-                      {isExpanded && (
-                        <div className="rounded-b-[var(--radius-md)] border border-t-0 border-[color:var(--border-default)] bg-[color:var(--surface-muted)] px-3 pb-3 pt-2">
-                          {isLoading ? (
-                            <p className="text-[11px] text-[color:var(--text-ink-muted)]">Cargando registros…</p>
-                          ) : noAsignacion ? (
-                            <p className="text-[11px] text-[color:var(--text-ink-muted)]">Sin asignaciones — la tarea todavía no fue tomada.</p>
-                          ) : entries === undefined ? (
-                            <p className="text-[11px] text-[color:var(--text-ink-muted)]">Sin información disponible.</p>
-                          ) : entries.length === 0 ? (
-                            <div className="space-y-2">
-                              <p className="text-[11px] text-[color:var(--text-ink-muted)]">Sin registros guardados aún.</p>
-                              {pending && (
-                                <Link
-                                  to={Boolean(task.finca_id ?? task.finca?.finca_id) ? "/operacion/campo" : "/operacion/recepcion"}
-                                  className="text-[11px] font-semibold text-[color:var(--accent-primary)] hover:underline"
-                                >
-                                  Ir a Registro Operativo →
-                                </Link>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="space-y-2">
-                              <p className="text-[11px] font-semibold text-[color:var(--text-on-dark)]">
-                                {entries.length} registro{entries.length !== 1 ? "s" : ""}
-                              </p>
-                              {entries.map((entry, i) => {
-                                const entryContent = (() => {
-                                  if (!entry.descripcion) return null;
-                                  try {
-                                    const json = JSON.parse(entry.descripcion) as unknown;
-                                    if (json && typeof json === "object" && !Array.isArray(json)) {
-                                      const kvPairs = Object.entries(json as Record<string, unknown>).filter(([, v]) => v !== null && v !== "");
-                                      if (kvPairs.length === 0) return null;
-                                      return (
-                                        <div className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
-                                          {kvPairs.map(([k, v]) => (
-                                            <div key={k} className="contents">
-                                              <span className="capitalize text-[color:var(--text-ink-muted)]">{k.replace(/_/g, " ")}</span>
-                                              <span className="text-[color:var(--text-ink)]">{String(v)}</span>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      );
-                                    }
-                                  } catch { /* not JSON */ }
-                                  return <p className="mt-1 text-[color:var(--text-ink)]">{entry.descripcion}</p>;
-                                })();
-                                return (
-                                  <div
-                                    key={entry.entradaId ?? i}
-                                    className="rounded-[var(--radius-sm)] border border-[color:var(--border-shell)] bg-[color:var(--surface-card)] px-2.5 py-2 text-[11px]"
-                                  >
-                                    <div className="flex items-center justify-between gap-2 text-[color:var(--text-ink-muted)]">
-                                      <span>#{i + 1} · {new Date(entry.fecha).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
-                                      {entry.creadoPor?.nombre && <span>{entry.creadoPor.nombre}</span>}
-                                    </div>
-                                    {entryContent}
-                                  </div>
-                                );
-                              })}
-                              {pending && (
-                                <Link
-                                  to={Boolean(task.finca_id ?? task.finca?.finca_id) ? "/operacion/campo" : "/operacion/recepcion"}
-                                  className="mt-1 block text-[11px] font-semibold text-[color:var(--accent-primary)] hover:underline"
-                                >
-                                  Ir a Registro Operativo →
-                                </Link>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </AppCard>
-        ) : null}
 
         {!activeBodegaId ? (
           <GuidedState
@@ -1441,27 +1274,27 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
 
         {error ? <NoticeBanner tone="danger">{error}</NoticeBanner> : null}
 
-        <AppCard
-          as="section"
-          tone="default"
-          padding="lg"
-          header={(
-            <div className="space-y-4">
-              <SectionIntro
-                title={ordersView === "pending" ? "Pendientes" : "Completadas"}
-                description={
-                  ordersView === "pending"
-                    ? isManagerMode
-                      ? "Seguimiento de órdenes creadas y registros pendientes por completar."
-                      : "Tus órdenes activas, listas para registrar avances y finalizarlas."
-                    : "Historial reciente de trabajos cerrados para revisar qué ya quedó resuelto."
-                }
-              />
-              {isManagerMode && activeBodegaId ? (
+        {activeBodegaId ? (
+          <AppCard
+            as="section"
+            tone="default"
+            padding="lg"
+            header={(
+              <div className="space-y-4">
+                <SectionIntro
+                  title={ordersView === "pending" ? "Pendientes" : "Completadas"}
+                  description={
+                    ordersView === "pending"
+                      ? isManagerMode
+                        ? "Seguimiento de órdenes creadas y registros pendientes por completar."
+                        : "Tus órdenes activas, listas para registrar avances y finalizarlas."
+                      : "Historial de trabajos cerrados para revisar qué ya quedó resuelto."
+                  }
+                />
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => setOrdersView("pending")}
+                    onClick={() => { setOrdersView("pending"); setExpandedTaskId(null); }}
                     className={[
                       "inline-flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] border px-3 py-2 text-xs font-semibold shadow-[var(--shadow-inset-soft)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)]",
                       ordersView === "pending"
@@ -1476,7 +1309,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setOrdersView("completed")}
+                    onClick={() => { setOrdersView("completed"); setExpandedTaskId(null); }}
                     className={[
                       "inline-flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] border px-3 py-2 text-xs font-semibold shadow-[var(--shadow-inset-soft)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)]",
                       ordersView === "completed"
@@ -1490,182 +1323,342 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                     </span>
                   </button>
                 </div>
-              ) : null}
-            </div>
-          )}
-        >
-          <div>
-          {ordersView === "pending" ? loading ? (
-            <NoticeBanner tone="info">Cargando tareas…</NoticeBanner>
-          ) : tasks.length === 0 ? (
-            <GuidedState
-              title="No hay órdenes pendientes"
-              description={
-                isManagerMode
-                  ? "Cuando crees una orden de trabajo, aparecerá acá para seguir su estado y completar el registro operativo."
-                  : "Cuando te asignen una orden, aparecerá en este espacio con la acción correspondiente."
-              }
-            />
-          ) : (
-            <div className="space-y-3">
-              {tasks.map((task) => {
-                const taskId = String(task.tarea_id ?? task.id ?? "");
-                const isExpanded = expandedTaskId === taskId;
-                const catalogTaskId = getMatchedCatalogTaskId(task.titulo, getEventoTipoForTask(task));
-                const targetLabel = getTaskTargetLabel(task);
-                return (
-                  <AppCard
-                    key={taskId}
-                    as="article"
-                    tone="soft"
-                    padding="md"
-                    header={(
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="text-sm font-semibold text-[color:var(--text-ink)]">{task.titulo}</div>
-                          <div className="mt-1 text-xs text-[color:var(--text-ink-muted)]">
-                            Prioridad: {task.prioridad ?? "media"} · Estado: {task.estado ?? "pendiente"}
-                          </div>
-                          {task.descripcion && (
-                            <div className="mt-1 text-xs text-[color:var(--text-ink)]/80">{task.descripcion}</div>
-                          )}
-                          {targetLabel ? (
-                            <div className="mt-2 inline-flex rounded-full border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-1 text-[11px] font-semibold text-[color:var(--text-on-dark)]">
-                              Destino: {targetLabel}
-                            </div>
-                          ) : null}
-                          {task.fecha_fin && (
-                            <div className="mt-1 text-xs text-[color:var(--text-ink-muted)]">Vence: {task.fecha_fin}</div>
-                          )}
-                        </div>
-                        <AppButton
+              </div>
+            )}
+          >
+            {/* ── Pendientes ─────────────────────────────────────── */}
+            {ordersView === "pending" ? (
+              loading ? (
+                <NoticeBanner tone="info">Cargando tareas…</NoticeBanner>
+              ) : tasks.length === 0 ? (
+                <GuidedState
+                  title="No hay órdenes pendientes"
+                  description={
+                    isManagerMode
+                      ? "Cuando crees una orden de trabajo, aparecerá acá para seguir su estado y completar el registro operativo."
+                      : "Cuando te asignen una orden, aparecerá en este espacio con la acción correspondiente."
+                  }
+                />
+              ) : (
+                <div className="relative mt-2 space-y-1 pl-6">
+                  <div className="pointer-events-none absolute bottom-2 left-[7px] top-2 w-px bg-[color:var(--border-shell)]" aria-hidden />
+                  {tasks.map((task) => {
+                    const taskId = String(task.tarea_id ?? task.id ?? "");
+                    const isExpanded = expandedTaskId === taskId;
+                    const estado = normalizeTaskStatus(task.estado ?? "pendiente");
+                    const targetLabel = getTaskTargetLabel(task);
+                    const catalogTaskId = getMatchedCatalogTaskId(task.titulo, getEventoTipoForTask(task));
+                    const isFincaTask = Boolean(task.finca_id ?? task.finca?.finca_id);
+                    const asignaciones = task.tarea_asignacion ?? [];
+                    const taskEntries = expandedTaskEntries[taskId];
+                    const loadingEntries = expandedTaskEntriesLoading[taskId] ?? false;
+                    const dateStr = (() => {
+                      const d = getActivityDate(task);
+                      return d > 0
+                        ? new Date(d).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })
+                        : "Sin fecha";
+                    })();
+                    return (
+                      <div key={taskId} className="relative">
+                        {/* Dot */}
+                        <div
+                          className={[
+                            "absolute -left-6 top-[14px] h-3.5 w-3.5 rounded-full border-2",
+                            estado === "en_progreso"
+                              ? "border-[color:var(--accent-primary)] bg-[color:var(--accent-primary)]"
+                              : "border-[color:var(--feedback-warning)] bg-[color:var(--feedback-warning-bg)]",
+                          ].join(" ")}
+                          aria-hidden
+                        />
+                        {/* Row button */}
+                        <button
                           type="button"
-                          variant="secondary"
-                          size="sm"
                           onClick={() => setExpandedTaskId(isExpanded ? null : taskId)}
+                          className={[
+                            "w-full rounded-[var(--radius-md)] border px-3 py-2.5 text-left transition-all duration-[var(--motion-fast)]",
+                            isExpanded
+                              ? "rounded-b-none border-b-0 border-[color:var(--border-default)] bg-[color:var(--surface-muted)]"
+                              : "border-[color:var(--border-shell)] bg-transparent hover:border-[color:var(--border-default)] hover:bg-[color:var(--surface-muted)]",
+                          ].join(" ")}
                         >
-                          {isExpanded ? "Cerrar" : "Abrir orden de trabajo"}
-                        </AppButton>
-                      </div>
-                    )}
-                  >
-                    {isExpanded && (() => {
-                      const isFincaTask = Boolean(task.finca_id ?? task.finca?.finca_id);
-                      const eventoTipo = getEventoTipoForTask(task);
-                      const catalogId = catalogTaskId ?? (eventoTipo ? getMatchedCatalogTaskId(task.titulo, eventoTipo) : null);
-                      const registroRoute = isFincaTask
-                        ? "/operacion/campo"
-                        : catalogId && OPERACION_TASK_ROUTES[catalogId]
-                          ? OPERACION_TASK_ROUTES[catalogId]
-                          : "/operacion/recepcion";
-                      const asignaciones = task.tarea_asignacion ?? [];
-                      return (
-                        <div className="rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] p-4 shadow-[var(--shadow-inset-soft)] space-y-3">
-                          {asignaciones.length > 0 ? (
-                            <div className="space-y-1.5">
-                              {asignaciones.map((a) => (
-                                <div key={a.tarea_asignacion_id} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px]">
-                                  <span className={[
-                                    "rounded-full border px-2 py-0.5 font-semibold",
-                                    a.estado === "completado"
-                                      ? "border-[color:var(--feedback-success-border)] bg-[color:var(--feedback-success-bg)] text-[color:var(--feedback-success-text)]"
-                                      : "border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] text-[color:var(--text-on-dark-muted)]",
-                                  ].join(" ")}>
-                                    {a.estado ?? "pendiente"}
-                                  </span>
-                                  <span className="text-[color:var(--text-ink-muted)]">Asignada el {new Date(a.assigned_at).toLocaleDateString("es-AR")}</span>
-                                  {a.completed_at && (
-                                    <span className="text-[color:var(--feedback-success-text)]">
-                                      Completada el {new Date(a.completed_at).toLocaleDateString("es-AR")}
-                                    </span>
-                                  )}
-                                </div>
-                              ))}
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-semibold text-[color:var(--text-ink)]">{task.titulo}</p>
+                              {targetLabel ? (
+                                <p className="mt-0.5 text-[11px] text-[color:var(--text-ink-muted)]">{targetLabel}</p>
+                              ) : null}
+                              {task.descripcion ? (
+                                <p className="mt-0.5 truncate text-[11px] text-[color:var(--text-ink)]/70">{task.descripcion}</p>
+                              ) : null}
                             </div>
-                          ) : (
-                            <p className="text-[11px] text-[color:var(--text-ink-muted)]">Sin asignaciones todavía.</p>
-                          )}
-                          <Link to={registroRoute}>
-                            <AppButton type="button" variant="secondary" size="sm">
-                              Ir a Registro Operativo →
-                            </AppButton>
-                          </Link>
-                        </div>
-                      );
-                    })()}
-
-                    {canRenderManagerFlow && (
-                      <div className="mt-3">
-                        <AppButton
+                            <div className="flex shrink-0 flex-col items-end gap-1">
+                              <span className={[
+                                "rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+                                estado === "en_progreso"
+                                  ? "border-[color:var(--border-default)] bg-[color:var(--surface-muted)] text-[color:var(--text-on-dark)]"
+                                  : "border-[color:var(--feedback-warning-border)] bg-[color:var(--feedback-warning-bg)] text-[color:var(--feedback-warning-text)]",
+                              ].join(" ")}>
+                                {estado === "en_progreso" ? "En progreso" : "Pendiente"}
+                              </span>
+                              <span className="text-[11px] text-[color:var(--text-ink-muted)]">{dateStr}</span>
+                              {task.prioridad && task.prioridad !== "media" ? (
+                                <span className="text-[10px] uppercase tracking-wide text-[color:var(--text-ink-muted)]">
+                                  {task.prioridad}
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                        </button>
+                        {/* Expanded detail */}
+                        {isExpanded && (
+                          <div className="space-y-3 rounded-b-[var(--radius-md)] border border-t-0 border-[color:var(--border-default)] bg-[color:var(--surface-muted)] px-3 pb-3 pt-2">
+                            {/* Asignaciones */}
+                            {asignaciones.length > 0 ? (
+                              <div className="space-y-1.5">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[color:var(--text-on-dark-muted)]">Asignaciones</p>
+                                {asignaciones.map((a) => (
+                                  <div key={a.tarea_asignacion_id} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px]">
+                                    <span className={[
+                                      "rounded-full border px-2 py-0.5 font-semibold",
+                                      a.estado === "completado"
+                                        ? "border-[color:var(--feedback-success-border)] bg-[color:var(--feedback-success-bg)] text-[color:var(--feedback-success-text)]"
+                                        : a.estado === "cancelado"
+                                          ? "border-[color:var(--feedback-danger-border)] bg-[color:var(--feedback-danger-bg)] text-[color:var(--feedback-danger-text)]"
+                                          : a.estado === "en_progreso"
+                                            ? "border-[color:var(--border-default)] bg-[color:var(--surface-muted)] text-[color:var(--text-on-dark)]"
+                                            : "border-[color:var(--feedback-warning-border)] bg-[color:var(--feedback-warning-bg)] text-[color:var(--feedback-warning-text)]",
+                                    ].join(" ")}>
+                                      {a.estado ?? "pendiente"}
+                                    </span>
+                                    <span className="text-[color:var(--text-ink-muted)]">
+                                      Asignada el {new Date(a.assigned_at).toLocaleDateString("es-AR")}
+                                    </span>
+                                    {a.completed_at && (
+                                      <span className="text-[color:var(--feedback-success-text)]">
+                                        Completada el {new Date(a.completed_at).toLocaleDateString("es-AR")}
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-[11px] text-[color:var(--text-ink-muted)]">Sin asignaciones todavía.</p>
+                            )}
+                            {/* Registros */}
+                            {loadingEntries || taskEntries === undefined ? (
+                              <p className="text-[11px] text-[color:var(--text-ink-muted)]">Cargando registros…</p>
+                            ) : taskEntries.length === 0 ? (
+                              <p className="text-[11px] text-[color:var(--text-ink-muted)]">Sin registros guardados aún.</p>
+                            ) : (
+                              <div className="space-y-1.5">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[color:var(--text-on-dark-muted)]">
+                                  Registros ({taskEntries.length})
+                                </p>
+                                {taskEntries.map((entry, i) => {
+                                  const entryContent = (() => {
+                                    if (!entry.descripcion) return null;
+                                    try {
+                                      const json = JSON.parse(entry.descripcion) as unknown;
+                                      if (json && typeof json === "object" && !Array.isArray(json)) {
+                                        const kvPairs = Object.entries(json as Record<string, unknown>).filter(([, v]) => v !== null && v !== "");
+                                        if (kvPairs.length === 0) return null;
+                                        return (
+                                          <div className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+                                            {kvPairs.map(([k, v]) => (
+                                              <div key={k} className="contents">
+                                                <span className="capitalize text-[color:var(--text-ink-muted)]">{k.replace(/_/g, " ")}</span>
+                                                <span className="text-[color:var(--text-ink)]">{String(v)}</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        );
+                                      }
+                                    } catch { /* not JSON */ }
+                                    return <p className="mt-1 text-[color:var(--text-ink)]">{entry.notas ?? entry.descripcion}</p>;
+                                  })();
+                                  return (
+                                    <div
+                                      key={entry.entradaId ?? i}
+                                      className="rounded-[var(--radius-sm)] border border-[color:var(--border-shell)] bg-[color:var(--surface-card)] px-2.5 py-2 text-[11px]"
+                                    >
+                                      <div className="flex items-center justify-between gap-2 text-[color:var(--text-ink-muted)]">
+                                        <span>#{i + 1} · {new Date(entry.fecha).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
+                                        {entry.creadoPor?.nombre && <span>{entry.creadoPor.nombre}</span>}
+                                      </div>
+                                      {entryContent}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                            {/* Acciones */}
+                            <div className="flex flex-wrap items-center gap-3 border-t border-[color:var(--border-shell)] pt-3">
+                              <Link to={isFincaTask ? "/operacion/campo" : OPERACION_TASK_ROUTES[catalogTaskId ?? ""] ?? "/operacion/recepcion"}>
+                                <AppButton type="button" variant="secondary" size="sm">
+                                  {isFincaTask ? "Registrar en Operación Campo →" : "Ir a Registro Operativo →"}
+                                </AppButton>
+                              </Link>
+                              {canRenderManagerFlow && (
+                                <AppButton
+                                  type="button"
+                                  variant="danger"
+                                  size="sm"
+                                  onClick={() => void onDeleteTask(task)}
+                                  disabled={deletingTaskId === taskId}
+                                  loading={deletingTaskId === taskId}
+                                >
+                                  {deletingTaskId === taskId ? "Eliminando..." : "Eliminar"}
+                                </AppButton>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            ) : (
+              /* ── Completadas ─────────────────────────────────────── */
+              completedLoading ? (
+                <NoticeBanner tone="info">Cargando órdenes completadas…</NoticeBanner>
+              ) : completedTasks.length === 0 ? (
+                <GuidedState
+                  title="Todavía no hay órdenes completadas"
+                  description="Cuando una orden se finalice, aparecerá en este historial para que el equipo pueda auditar el trabajo cerrado."
+                  steps={[
+                    { label: "Pendientes bajo control", done: tasks.length === 0 },
+                    { label: "Historial operativo", done: false },
+                  ]}
+                />
+              ) : (
+                <div className="relative mt-2 space-y-1 pl-6">
+                  <div className="pointer-events-none absolute bottom-2 left-[7px] top-2 w-px bg-[color:var(--border-shell)]" aria-hidden />
+                  {completedTasks.map((task) => {
+                    const taskId = String(task.tarea_id ?? task.id ?? "");
+                    const isExpanded = expandedTaskId === taskId;
+                    const targetLabel = getTaskTargetLabel(task);
+                    const asignaciones = task.tarea_asignacion ?? [];
+                    const taskEntries = expandedTaskEntries[taskId];
+                    const loadingEntries = expandedTaskEntriesLoading[taskId] ?? false;
+                    const completedAt = getTaskCompletedDate(task);
+                    const dateStr = completedAt
+                      ? completedAt.toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })
+                      : "Sin fecha";
+                    return (
+                      <div key={taskId} className="relative">
+                        {/* Dot */}
+                        <div
+                          className="absolute -left-6 top-[14px] h-3.5 w-3.5 rounded-full border-2 border-[color:var(--feedback-success)] bg-[color:var(--feedback-success)]"
+                          aria-hidden
+                        />
+                        {/* Row button */}
+                        <button
                           type="button"
-                          variant="danger"
-                          size="sm"
-                          onClick={() => void onDeleteTask(task)}
-                          disabled={deletingTaskId === taskId}
-                          loading={deletingTaskId === taskId}
+                          onClick={() => setExpandedTaskId(isExpanded ? null : taskId)}
+                          className={[
+                            "w-full rounded-[var(--radius-md)] border px-3 py-2.5 text-left transition-all duration-[var(--motion-fast)]",
+                            isExpanded
+                              ? "rounded-b-none border-b-0 border-[color:var(--border-default)] bg-[color:var(--surface-muted)]"
+                              : "border-[color:var(--border-shell)] bg-transparent hover:border-[color:var(--border-default)] hover:bg-[color:var(--surface-muted)]",
+                          ].join(" ")}
                         >
-                          {deletingTaskId === taskId ? "Eliminando..." : "Eliminar tarea"}
-                        </AppButton>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-semibold text-[color:var(--text-ink)]">{task.titulo}</p>
+                              {targetLabel ? (
+                                <p className="mt-0.5 text-[11px] text-[color:var(--text-ink-muted)]">{targetLabel}</p>
+                              ) : null}
+                            </div>
+                            <div className="flex shrink-0 flex-col items-end gap-1">
+                              <span className="rounded-full border border-[color:var(--feedback-success-border)] bg-[color:var(--feedback-success-bg)] px-2 py-0.5 text-[10px] font-semibold text-[color:var(--feedback-success-text)]">
+                                Completada
+                              </span>
+                              <span className="text-[11px] text-[color:var(--text-ink-muted)]">{dateStr}</span>
+                            </div>
+                          </div>
+                        </button>
+                        {/* Expanded detail */}
+                        {isExpanded && (
+                          <div className="space-y-3 rounded-b-[var(--radius-md)] border border-t-0 border-[color:var(--border-default)] bg-[color:var(--surface-muted)] px-3 pb-3 pt-2">
+                            {/* Asignaciones */}
+                            {asignaciones.length > 0 && (
+                              <div className="space-y-1.5">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[color:var(--text-on-dark-muted)]">Asignaciones</p>
+                                {asignaciones.map((a) => (
+                                  <div key={a.tarea_asignacion_id} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px]">
+                                    <span className="rounded-full border border-[color:var(--feedback-success-border)] bg-[color:var(--feedback-success-bg)] px-2 py-0.5 font-semibold text-[color:var(--feedback-success-text)]">
+                                      {a.estado ?? "completado"}
+                                    </span>
+                                    <span className="text-[color:var(--text-ink-muted)]">
+                                      Asignada el {new Date(a.assigned_at).toLocaleDateString("es-AR")}
+                                    </span>
+                                    {a.completed_at && (
+                                      <span className="text-[color:var(--feedback-success-text)]">
+                                        Completada el {new Date(a.completed_at).toLocaleDateString("es-AR")}
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {/* Registros */}
+                            {loadingEntries || taskEntries === undefined ? (
+                              <p className="text-[11px] text-[color:var(--text-ink-muted)]">Cargando registros…</p>
+                            ) : taskEntries.length === 0 ? (
+                              <p className="text-[11px] text-[color:var(--text-ink-muted)]">Sin registros guardados.</p>
+                            ) : (
+                              <div className="space-y-1.5">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[color:var(--text-on-dark-muted)]">
+                                  {taskEntries.length} registro{taskEntries.length !== 1 ? "s" : ""}
+                                </p>
+                                {taskEntries.map((entry, i) => {
+                                  const entryContent = (() => {
+                                    if (!entry.descripcion) return null;
+                                    try {
+                                      const json = JSON.parse(entry.descripcion) as unknown;
+                                      if (json && typeof json === "object" && !Array.isArray(json)) {
+                                        const kvPairs = Object.entries(json as Record<string, unknown>).filter(([, v]) => v !== null && v !== "");
+                                        if (kvPairs.length === 0) return null;
+                                        return (
+                                          <div className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+                                            {kvPairs.map(([k, v]) => (
+                                              <div key={k} className="contents">
+                                                <span className="capitalize text-[color:var(--text-ink-muted)]">{k.replace(/_/g, " ")}</span>
+                                                <span className="text-[color:var(--text-ink)]">{String(v)}</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        );
+                                      }
+                                    } catch { /* not JSON */ }
+                                    return <p className="mt-1 text-[color:var(--text-ink)]">{entry.notas ?? entry.descripcion}</p>;
+                                  })();
+                                  return (
+                                    <div
+                                      key={entry.entradaId ?? i}
+                                      className="rounded-[var(--radius-sm)] border border-[color:var(--border-shell)] bg-[color:var(--surface-card)] px-2.5 py-2 text-[11px]"
+                                    >
+                                      <div className="flex items-center justify-between gap-2 text-[color:var(--text-ink-muted)]">
+                                        <span>#{i + 1} · {new Date(entry.fecha).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
+                                        {entry.creadoPor?.nombre && <span>{entry.creadoPor.nombre}</span>}
+                                      </div>
+                                      {entryContent}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </AppCard>
-                );
-              })}
-            </div>
-          ) : completedLoading ? (
-            <NoticeBanner tone="info">Cargando órdenes completadas…</NoticeBanner>
-          ) : completedTasks.length === 0 ? (
-            <GuidedState
-              title="Todavía no hay órdenes completadas"
-              description="Cuando una orden se finalice, aparecerá en este historial para que el equipo pueda auditar el trabajo cerrado."
-              steps={[
-                { label: "Pendientes bajo control", done: tasks.length === 0 },
-                { label: "Historial operativo", done: false },
-              ]}
-            />
-          ) : (
-            <div className="max-h-[32rem] space-y-3 overflow-y-auto pr-1">
-              {completedTasks.map((task) => {
-                const taskId = String(task.tarea_id ?? task.id ?? "");
-                const completedAt = getTaskCompletedDate(task);
-                const assigneeCount = task.tarea_asignacion?.length ?? 0;
-                return (
-                  <AppCard
-                    key={taskId}
-                    as="article"
-                    tone="soft"
-                    padding="md"
-                    className="border-[color:var(--feedback-success-border)]"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-[color:var(--text-ink)]">
-                          {task.titulo}
-                        </p>
-                        <p className="mt-1 text-xs text-[color:var(--text-ink-muted)]">
-                          Cerrada: {formatTaskDate(completedAt)}
-                        </p>
-                        {task.descripcion ? (
-                          <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-[color:var(--text-ink)]/75">
-                            {task.descripcion}
-                          </p>
-                        ) : null}
-                      </div>
-                      <span className="shrink-0 rounded-full border border-[color:var(--feedback-success-border)] bg-[color:var(--feedback-success-bg)] px-3 py-1 text-[11px] font-semibold text-[color:var(--feedback-success-text)]">
-                        Completada
-                      </span>
-                    </div>
-                    <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-[color:var(--text-ink-muted)]">
-                      <span>Prioridad: {task.prioridad ?? "media"}</span>
-                      <span>Asignaciones: {assigneeCount}</span>
-                    </div>
-                  </AppCard>
-                );
-              })}
-            </div>
-          )}
-          </div>
-        </AppCard>
+                    );
+                  })}
+                </div>
+              )
+            )}
+          </AppCard>
+        ) : null}
 
       </div>
     </div>

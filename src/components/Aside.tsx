@@ -11,7 +11,7 @@ import {
   Settings2,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
 import { resolveModuleAccess } from "../lib/permissions";
 import trazaLogo from "../assets/traza_logo_02.png";
@@ -26,6 +26,8 @@ type NavigationLink = {
   label: string;
   description?: string;
   icon: ReactNode;
+  /** Si se define, el link también queda activo cuando la ruta actual empieza con este prefijo */
+  matchPrefix?: string;
 };
 
 type NavigationGroup = {
@@ -38,6 +40,7 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const access = resolveModuleAccess(user, activeBodegaId);
 
+  const location = useLocation();
   const dailyOrderRoute = access.canAccessOperacion ? "/ordenes" : "/tareas";
   const groups: NavigationGroup[] = [
     {
@@ -58,10 +61,11 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
         ...(access.canAccessOperacionBodega
           ? [
               {
-                to: "/operacion/recepcion",
+                to: "/operacion/campo",
                 label: "Registro operativo",
-                description: "Recepción y elaboración",
+                description: "Campo y elaboración",
                 icon: <ClipboardPenLine />,
+                matchPrefix: "/operacion/",
               },
             ]
           : []),
@@ -158,43 +162,47 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
                 key={link.to}
                 to={link.to}
                 onClick={onNavigate}
-                className={({ isActive }) =>
-                  [
+                className={({ isActive }) => {
+                  const active = isActive || (link.matchPrefix ? location.pathname.startsWith(link.matchPrefix) : false);
+                  return [
                     "group block rounded-[var(--radius-lg)] border px-3 py-3 text-sm transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)]",
-                    isActive
+                    active
                       ? "border-[color:var(--border-default)] bg-[linear-gradient(135deg,rgba(78,147,183,0.22),rgba(18,43,58,0.92))] text-[color:var(--text-on-dark)] shadow-[var(--shadow-soft)]"
                       : "border-transparent text-[color:var(--text-on-dark-muted)] hover:border-[color:var(--border-shell)] hover:bg-white/5 hover:text-[color:var(--text-on-dark)]",
-                  ].join(" ")
-                }
+                  ].join(" ");
+                }}
               >
-                {({ isActive }) => (
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={[
-                        "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] border transition-all",
-                        isActive
-                          ? "border-[color:var(--border-default)] bg-white/10 text-[color:var(--accent-secondary)]"
-                          : "border-[color:transparent] bg-white/5 text-[color:var(--text-on-dark-muted)] group-hover:border-[color:var(--border-shell)] group-hover:text-[color:var(--text-on-dark)]",
-                      ].join(" ")}
-                    >
-                      {link.icon}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate font-medium">{link.label}</div>
-                      {link.description ? (
-                        <div className="mt-0.5 truncate text-[11px] text-[color:var(--text-on-dark-muted)]/70">
-                          {link.description}
-                        </div>
-                      ) : null}
+                {({ isActive }) => {
+                  const active = isActive || (link.matchPrefix ? location.pathname.startsWith(link.matchPrefix) : false);
+                  return (
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={[
+                          "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] border transition-all",
+                          active
+                            ? "border-[color:var(--border-default)] bg-white/10 text-[color:var(--accent-secondary)]"
+                            : "border-[color:transparent] bg-white/5 text-[color:var(--text-on-dark-muted)] group-hover:border-[color:var(--border-shell)] group-hover:text-[color:var(--text-on-dark)]",
+                        ].join(" ")}
+                      >
+                        {link.icon}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-medium">{link.label}</div>
+                        {link.description ? (
+                          <div className="mt-0.5 truncate text-[11px] text-[color:var(--text-on-dark-muted)]/70">
+                            {link.description}
+                          </div>
+                        ) : null}
+                      </div>
+                      <span
+                        className={[
+                          "h-2 w-2 rounded-full transition-all",
+                          active ? "bg-[color:var(--accent-secondary)]" : "bg-transparent",
+                        ].join(" ")}
+                      />
                     </div>
-                    <span
-                      className={[
-                        "h-2 w-2 rounded-full transition-all",
-                        isActive ? "bg-[color:var(--accent-secondary)]" : "bg-transparent",
-                      ].join(" ")}
-                    />
-                  </div>
-                )}
+                  );
+                }}
               </NavLink>
             ))}
           </section>
