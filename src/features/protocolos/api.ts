@@ -176,6 +176,13 @@ export type UpdateProcesoPayload = {
   };
 };
 
+export async function fetchProceso(procesoId: string): Promise<ProtocoloProceso> {
+  const response = await apiClient.get<ProtocoloProceso>(
+    `/protocolos/procesos/${encodeURIComponent(procesoId)}`,
+  );
+  return response.data;
+}
+
 export async function createEtapa(protocoloId: string, payload: CreateEtapaPayload) {
   const response = await apiClient.post<ProtocoloEtapa>(
     `/protocolos/${encodeURIComponent(protocoloId)}/etapas`,
