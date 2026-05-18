@@ -689,7 +689,7 @@ function TareaModal({ tarea, onClose }: { tarea: Tarea; onClose: () => void }) {
               Administrar en Órdenes →
             </Link>
             <Link
-              to={Boolean(tarea.finca_id ?? tarea.finca?.finca_id) ? `/operacion/campo?tareaId=${String(tarea.tarea_id ?? tarea.id ?? "")}` : "/operacion/recepcion"}
+              to={Boolean(tarea.finca_id ?? tarea.finca?.finca_id) ? "/operacion/campo" : "/operacion/recepcion"}
               onClick={onClose}
               className="inline-flex items-center rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] px-3 py-1.5 text-xs font-semibold text-[color:var(--accent-primary)] transition hover:border-[color:var(--border-default)] hover:bg-[color:var(--action-secondary-hover)]"
             >
@@ -789,34 +789,27 @@ function FincaCard({ finca, onTareaClick }: { finca: FincaResumen; onTareaClick:
   );
 }
 
-function EtapaSection({
-  etapa,
-  open,
-  onToggle,
-}: {
-  etapa: { nombre: string; procesos: ProcesoProgreso[] };
-  open: boolean;
-  onToggle: () => void;
-}) {
+function EtapaSection({ etapa }: { etapa: { nombre: string; procesos: ProcesoProgreso[] } }) {
+  const [open, setOpen] = useState(false);
   return (
     <AppCard
       as="section"
       tone="default"
       padding="lg"
       header={(
-        <button
-          type="button"
-          onClick={onToggle}
-          className="flex w-full items-center justify-between gap-3 text-left"
-        >
+        <div className="flex items-center justify-between gap-3">
           <SectionIntro
             title={etapa.nombre}
             description={`${etapa.procesos.length} procesos en esta etapa`}
           />
-          <span className={`shrink-0 text-sm text-[color:var(--text-ink-muted)] transition-transform duration-[var(--motion-fast)] ${open ? "rotate-90" : ""}`}>
-            ▶
-          </span>
-        </button>
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="shrink-0 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] px-3 py-1.5 text-xs font-semibold text-[color:var(--text-ink-muted)] transition-all duration-[var(--motion-fast)] hover:border-[color:var(--border-default)] hover:text-[color:var(--text-ink)]"
+          >
+            {open ? "Ocultar" : "Mostrar"}
+          </button>
+        </div>
       )}
     >
       {open && (
@@ -888,7 +881,6 @@ export default function ProgresoPage() {
   const [loading, setLoading] = useState(true);
   const [selectedTarea, setSelectedTarea] = useState<Tarea | null>(null);
   const [timelineOpen, setTimelineOpen] = useState(false);
-  const [etapasOpen, setEtapasOpen] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!activeProtocoloId) {
@@ -1089,17 +1081,19 @@ export default function ProgresoPage() {
             tone="default"
             padding="lg"
             header={(
-              <button
-                type="button"
-                onClick={() => setTimelineOpen((v) => !v)}
-                className="flex w-full items-center justify-between gap-3 text-left"
-              >
+              <div className="flex items-center justify-between gap-3">
                 <SectionIntro
                   title="Historial de actividad"
                   description="Todas las tareas ordenadas de más reciente a más antigua."
                 />
-                <span className={`shrink-0 text-sm text-[color:var(--text-ink-muted)] transition-transform duration-[var(--motion-fast)] ${timelineOpen ? "rotate-90" : ""}`}>▶</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setTimelineOpen((v) => !v)}
+                  className="shrink-0 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] px-3 py-1.5 text-xs font-semibold text-[color:var(--text-ink-muted)] transition-all duration-[var(--motion-fast)] hover:border-[color:var(--border-default)] hover:text-[color:var(--text-ink)]"
+                >
+                  {timelineOpen ? "Ocultar" : "Mostrar"}
+                </button>
+              </div>
             )}
           >
             {timelineOpen && (
@@ -1313,34 +1307,8 @@ export default function ProgresoPage() {
           )}
         </AppCard>
 
-        {grouped.length > 0 && (
-          <div className="flex items-center justify-end">
-            <button
-              type="button"
-              onClick={() => {
-                const allOpen = grouped.every((e) => etapasOpen[e.nombre]);
-                if (allOpen) {
-                  setEtapasOpen({});
-                } else {
-                  const next: Record<string, boolean> = {};
-                  grouped.forEach((e) => { next[e.nombre] = true; });
-                  setEtapasOpen(next);
-                }
-              }}
-              className="flex items-center gap-1.5 text-xs text-[color:var(--text-ink-muted)] transition hover:text-[color:var(--text-ink)]"
-            >
-              <span className={`text-[10px] transition-transform duration-[var(--motion-fast)] ${grouped.every((e) => etapasOpen[e.nombre]) ? "rotate-90" : ""}`}>▶</span>
-              {grouped.every((e) => etapasOpen[e.nombre]) ? "Colapsar todas" : "Expandir todas"}
-            </button>
-          </div>
-        )}
         {grouped.map((etapa) => (
-          <EtapaSection
-            key={etapa.nombre}
-            etapa={etapa}
-            open={etapasOpen[etapa.nombre] ?? false}
-            onToggle={() => setEtapasOpen((prev) => ({ ...prev, [etapa.nombre]: !prev[etapa.nombre] }))}
-          />
+          <EtapaSection key={etapa.nombre} etapa={etapa} />
         ))}
 
       </div>
