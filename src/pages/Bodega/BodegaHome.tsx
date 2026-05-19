@@ -79,13 +79,6 @@ export default function BodegaHome() {
         <SectionIntro
           title="Administración de bodega"
           description="Gestioná los recursos maestros y el contexto operativo de la bodega activa."
-          actions={activeProtocolo ? (
-            <span className="rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-[color:var(--surface-soft)] px-3 py-2 text-xs font-semibold text-[color:var(--accent-primary)]">
-              Protocolo base activo: {[activeProtocolo.nombre, activeProtocolo.version ? `v${activeProtocolo.version}` : null]
-                .filter(Boolean)
-                .join(" ")}
-            </span>
-          ) : undefined}
         />
 
         {showProtocolConfig ? (
