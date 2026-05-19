@@ -107,8 +107,9 @@ const Fincas = () => {
     <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-6xl space-y-8">
         <SectionIntro
-          title="Administración de fincas"
-          description="Supervisa y gestiona tus fincas."
+          eyebrow="Campo"
+          title="Fincas"
+          description="Supervisa y gestiona las fincas vinculadas a la bodega activa."
         />
 
         <AppCard

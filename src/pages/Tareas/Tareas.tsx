@@ -8,8 +8,9 @@ import {
   NoticeBanner,
   SectionIntro,
 } from "../../components/ui";
-import { getMatchedCatalogTaskId } from "./tareas.helpers";
+import type { Tarea } from "../../features/encargos/api";
 import OrderRow from "./components/OrderRow";
+import TaskDetailModal from "./components/TaskDetailModal";
 import CreateOrderForm from "./components/CreateOrderForm";
 import { useTareasData } from "./useTareasData";
 
@@ -33,10 +34,6 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
     saving,
     error,
     deletingTaskId,
-    expandedTaskId,
-    setExpandedTaskId,
-    expandedTaskEntries,
-    expandedTaskEntriesLoading,
     fincas,
     cuartelOptions,
     assigneeOptions,
@@ -47,8 +44,6 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
     groupedProtocoloTaskOptions,
     requiresFincaTarget,
     selectedCatalogTask,
-    getEventoTipoForTask,
-    refreshTasks,
     onCreate,
     onDeleteTask,
     confirmDialog,
@@ -56,19 +51,30 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
 
   const [ordersView, setOrdersView] = useState<"pending" | "completed">("pending");
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [detailTask, setDetailTask] = useState<Tarea | null>(null);
 
   return (
-    <div className={isManagerMode ? "w-full" : "min-h-screen bg-secondary px-6 py-10"}>
+    <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-6xl space-y-6">
         <SectionIntro
+          eyebrow="Trabajo diario"
           title="Órdenes de trabajo"
           description={
             isManagerMode
               ? "Centro diario para crear, asignar y completar órdenes operativas."
               : "Vista operario: gestión de órdenes asignadas a tu usuario."
           }
+          actions={canRenderManagerFlow ? (
+            <AppButton
+              type="button"
+              variant="primary"
+              size="sm"
+              onClick={() => setShowCreateModal(true)}
+            >
+              Crear orden de trabajo
+            </AppButton>
+          ) : undefined}
         />
-
 
         {!activeBodegaId ? (
           <GuidedState
@@ -80,18 +86,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
               </Link>
             )}
           />
-        ) : canRenderManagerFlow ? (
-          <div className="flex justify-end">
-            <AppButton
-              type="button"
-              variant="primary"
-              size="sm"
-              onClick={() => setShowCreateModal(true)}
-            >
-              Crear orden de trabajo
-            </AppButton>
-          </div>
-        ) : isManagerMode ? (
+        ) : isManagerMode && !canRenderManagerFlow ? (
           <AppCard as="section" tone="default" padding="lg" header={<h2 className="text-lg font-semibold text-text">Sin permisos de encargado</h2>}>
             <p className="text-xs text-text-secondary">
               Para asignar tareas necesitás rol de encargado de finca o de bodega.
@@ -176,15 +171,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                         key={taskId}
                         task={task}
                         variant="pending"
-                        isExpanded={expandedTaskId === taskId}
-                        taskEntries={expandedTaskEntries[taskId]}
-                        loadingEntries={expandedTaskEntriesLoading[taskId] ?? false}
-                        onToggleExpand={() => setExpandedTaskId(expandedTaskId === taskId ? null : taskId)}
-                        catalogTaskId={getMatchedCatalogTaskId(task.titulo, getEventoTipoForTask(task))}
-                        isFincaTask={Boolean(task.finca_id ?? task.finca?.finca_id)}
-                        canDelete={canRenderManagerFlow}
-                        isDeleting={deletingTaskId === taskId}
-                        onDelete={() => void onDeleteTask(task)}
+                        onOpenDetail={() => setDetailTask(task)}
                       />
                     );
                   })}
@@ -213,10 +200,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                         key={taskId}
                         task={task}
                         variant="completed"
-                        isExpanded={expandedTaskId === taskId}
-                        taskEntries={expandedTaskEntries[taskId]}
-                        loadingEntries={expandedTaskEntriesLoading[taskId] ?? false}
-                        onToggleExpand={() => setExpandedTaskId(expandedTaskId === taskId ? null : taskId)}
+                        onOpenDetail={() => setDetailTask(task)}
                       />
                     );
                   })}
@@ -272,6 +256,14 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
           onCancel={() => setShowCreateModal(false)}
         />
       </AppModal>
+
+      <TaskDetailModal
+        task={detailTask}
+        onClose={() => setDetailTask(null)}
+        canDelete={canRenderManagerFlow}
+        isDeleting={detailTask ? deletingTaskId === String(detailTask.tarea_id ?? detailTask.id ?? "") : false}
+        onDelete={() => { if (detailTask) void onDeleteTask(detailTask); }}
+      />
 
       {confirmDialog}
     </div>

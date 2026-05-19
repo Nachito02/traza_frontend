@@ -684,6 +684,7 @@ const Usuarios = () => {
 
         {/* Header */}
         <SectionIntro
+          eyebrow="Personal"
           title="Usuarios y roles"
           description="Gestioná el equipo que trabaja en la bodega: usuarios con cuenta y operarios de campo."
         />
