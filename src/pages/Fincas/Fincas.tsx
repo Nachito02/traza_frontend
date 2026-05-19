@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AppButton, AppCard, GuidedState, NoticeBanner, SectionIntro, useConfirmDialog } from "../../components/ui";
 import {
@@ -8,11 +8,13 @@ import {
 import { useAuthStore } from "../../store/authStore";
 import { useFincasStore } from "../../features/fincas/store";
 import { getApiErrorMessage } from "../../lib/api";
+import { resolveModuleAccess } from "../../lib/permissions";
 
 const Fincas = () => {
   const { confirm, ConfirmDialog } = useConfirmDialog();
+  const user = useAuthStore((state) => state.user);
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
-  const fincas = useFincasStore((state) => state.fincas);
+  const fincasFromStore = useFincasStore((state) => state.fincas);
   const fincasLoading = useFincasStore((state) => state.loading);
   const fincasError = useFincasStore((state) => state.error);
   const loadFincas = useFincasStore((state) => state.loadFincas);
@@ -22,6 +24,22 @@ const Fincas = () => {
     null,
   );
   const [deletingFincaId, setDeletingFincaId] = useState<string | null>(null);
+
+  const access = resolveModuleAccess(user, activeBodegaId);
+  // Managers can create/edit/delete fincas; pure finca operators are read-only.
+  const canManage = access.canAccessBodega;
+
+  // Fallback: if the bodega-level fetch returns empty, use the fincas the user
+  // is directly linked to (stored in user.fincas by the auth service).
+  const userLinkedFincas = useMemo(() => {
+    const anyUser = user as { fincas?: Array<{ finca_id?: string | number; nombre?: string }> } | null;
+    return (anyUser?.fincas ?? []).map((f) => ({
+      finca_id: String(f.finca_id ?? ""),
+      nombre_finca: f.nombre ?? undefined,
+    } as FincaDetail));
+  }, [user]);
+
+  const fincas = fincasFromStore.length > 0 ? fincasFromStore : userLinkedFincas;
 
   const pickDetailValue = (detail: FincaDetail | undefined, keys: string[]) => {
     if (!detail) return "-";
@@ -71,12 +89,12 @@ const Fincas = () => {
           header={(
             <SectionIntro
               title="Fincas"
-              description="Administración de fincas."
-              actions={(
+              description={canManage ? "Administración de fincas." : "Fincas vinculadas a tu perfil."}
+              actions={canManage ? (
                 <Link to="/setup/finca">
                   <AppButton variant="secondary" size="sm">Crear finca</AppButton>
                 </Link>
-              )}
+              ) : undefined}
             />
           )}
         >
@@ -97,15 +115,22 @@ const Fincas = () => {
             ) : fincasError ? (
               <NoticeBanner tone="danger">{fincasError}</NoticeBanner>
             ) : fincas.length === 0 ? (
-              <GuidedState
-                title="Todavía no hay fincas cargadas"
-                description="Para planificar trabajo de campo y vincular cuarteles, primero cargá la finca base de esta bodega."
-                action={(
-                  <Link to="/setup/finca">
-                    <AppButton variant="primary" size="sm">Crear primera finca</AppButton>
-                  </Link>
-                )}
-              />
+              canManage ? (
+                <GuidedState
+                  title="Todavía no hay fincas cargadas"
+                  description="Para planificar trabajo de campo y vincular cuarteles, primero cargá la finca base de esta bodega."
+                  action={(
+                    <Link to="/setup/finca">
+                      <AppButton variant="primary" size="sm">Crear primera finca</AppButton>
+                    </Link>
+                  )}
+                />
+              ) : (
+                <GuidedState
+                  title="No tenés fincas asignadas todavía"
+                  description="Un encargado de bodega debe vincularte a una finca antes de que puedas operar desde acá."
+                />
+              )
             ) : (
               <div className="grid gap-3 md:grid-cols-2">
                 {fincas.map((finca) => (
@@ -167,31 +192,30 @@ const Fincas = () => {
                             >
                               <AppButton variant="secondary" size="sm">Ver detalle</AppButton>
                             </Link>
-                            <Link
-                              to={`/admin/fincas?edit=${encodeURIComponent(String(finca.finca_id ?? finca.id ?? ""))}`}
-                              className="inline-flex"
-                            >
-                              <AppButton variant="secondary" size="sm">Editar finca</AppButton>
-                            </Link>
-                            <AppButton
-                              type="button"
-                              variant="danger"
-                              size="sm"
-                              disabled={deletingFincaId === fincaId}
-                              onClick={() =>
-                                void onDeleteFinca(
-                                  fincaId,
-                                  String(
-                                    finca.nombre_finca ??
+                            {canManage ? (
+                              <>
+                                <Link
+                                  to={`/admin/fincas?edit=${encodeURIComponent(String(finca.finca_id ?? finca.id ?? ""))}`}
+                                  className="inline-flex"
+                                >
+                                  <AppButton variant="secondary" size="sm">Editar finca</AppButton>
+                                </Link>
+                                <AppButton
+                                  type="button"
+                                  variant="danger"
+                                  size="sm"
+                                  disabled={deletingFincaId === fincaId}
+                                  onClick={() =>
+                                    void onDeleteFinca(
                                       fincaId,
-                                  ),
-                                )
-                              }
-                            >
-                              {deletingFincaId === fincaId
-                                ? "Eliminando..."
-                                : "Eliminar finca"}
-                            </AppButton>
+                                      String(finca.nombre_finca ?? fincaId),
+                                    )
+                                  }
+                                >
+                                  {deletingFincaId === fincaId ? "Eliminando..." : "Eliminar finca"}
+                                </AppButton>
+                              </>
+                            ) : null}
                           </div>
                         </>
                       );
