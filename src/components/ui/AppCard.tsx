@@ -45,14 +45,18 @@ function AppCard({
   return (
     <Component
       className={joinClasses(
-        "rounded-[var(--radius-xl)]",
+        "rounded-[var(--radius-xl)] animate-fade-up",
         toneClasses[tone],
         paddingClasses[padding],
         className,
       )}
       {...props}
     >
-      {header ? <div className="mb-4">{header}</div> : null}
+      {header ? (
+        <div className="mb-4 border-b border-[color:var(--border-shell)] pb-4">
+          {header}
+        </div>
+      ) : null}
       <div>{children}</div>
       {footer ? <div className="mt-4">{footer}</div> : null}
     </Component>

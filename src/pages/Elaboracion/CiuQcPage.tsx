@@ -200,7 +200,7 @@ export default function CiuQcPage({
           resource="cius"
           bodegaId={activeBodegaId}
           hidePrimaryAction={hidePrimaryAction}
-          separatedLayout={!hidePrimaryAction}
+          formInModal={!hidePrimaryAction}
           fields={[
             {
               name: "fincaId",
@@ -274,7 +274,7 @@ export default function CiuQcPage({
           defaultValues={vinculoDefaults}
           onCreated={onVinculoCreated}
           hidePrimaryAction={hidePrimaryAction}
-          separatedLayout={!hidePrimaryAction}
+          formInModal={!hidePrimaryAction}
         />
       ) : null}
     </div>

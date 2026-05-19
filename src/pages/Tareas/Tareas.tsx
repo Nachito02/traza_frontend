@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import {
   AppButton,
   AppCard,
+  AppModal,
   GuidedState,
   NoticeBanner,
   SectionIntro,
@@ -54,7 +55,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
   } = useTareasData(mode);
 
   const [ordersView, setOrdersView] = useState<"pending" | "completed">("pending");
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   return (
     <div className={isManagerMode ? "w-full" : "min-h-screen bg-secondary px-6 py-10"}>
@@ -66,16 +67,6 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
               ? "Centro diario para crear, asignar y completar órdenes operativas."
               : "Vista operario: gestión de órdenes asignadas a tu usuario."
           }
-          actions={(
-            <AppButton
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => void refreshTasks()}
-            >
-              Refrescar
-            </AppButton>
-          )}
         />
 
 
@@ -90,67 +81,23 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
             )}
           />
         ) : canRenderManagerFlow ? (
-          <AppCard
-            as="section"
-            tone="default"
-            padding={showCreateForm ? "lg" : "md"}
-            header={(
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold text-text">
-                    {showCreateForm ? "Nueva orden de trabajo" : "Crear orden"}
-                  </h2>
-                  <p className="mt-1 text-xs text-text-secondary">
-                    {showCreateForm
-                      ? `Usuario actual: ${user?.nombre ?? user?.email ?? "Usuario"}`
-                      : "Desplegá el formulario solo cuando necesites asignar un nuevo trabajo."}
-                  </p>
-                </div>
-                <AppButton
-                  type="button"
-                  variant={showCreateForm ? "secondary" : "primary"}
-                  size="sm"
-                  onClick={() => setShowCreateForm((current) => !current)}
-                >
-                  {showCreateForm ? "Cerrar formulario" : "Crear orden de trabajo"}
-                </AppButton>
-              </div>
-            )}
-          >
-            {showCreateForm ? (
-              <CreateOrderForm
-                managerScope={managerScope}
-                form={form}
-                onFormChange={(updates) => setForm((prev) => ({ ...prev, ...updates }))}
-                activeProtocolo={activeProtocolo}
-                protocolProcesses={protocolProcesses}
-                groupedProtocolProcesses={groupedProtocolProcesses}
-                scopedProtocoloTaskOptions={scopedProtocoloTaskOptions}
-                groupedProtocoloTaskOptions={groupedProtocoloTaskOptions}
-                requiresFincaTarget={requiresFincaTarget}
-                fincas={fincas}
-                cuartelOptions={cuartelOptions}
-                assigneeOptions={assigneeOptions}
-                selectedCatalogTask={selectedCatalogTask}
-                saving={saving}
-                onSubmit={() => void onCreate()}
-              />
-            ) : null}
-          </AppCard>
+          <div className="flex justify-end">
+            <AppButton
+              type="button"
+              variant="primary"
+              size="sm"
+              onClick={() => setShowCreateModal(true)}
+            >
+              Crear orden de trabajo
+            </AppButton>
+          </div>
         ) : isManagerMode ? (
-          <AppCard
-            as="section"
-            tone="default"
-            padding="lg"
-            header={<h2 className="text-lg font-semibold text-text">Sin permisos de encargado</h2>}
-          >
+          <AppCard as="section" tone="default" padding="lg" header={<h2 className="text-lg font-semibold text-text">Sin permisos de encargado</h2>}>
             <p className="text-xs text-text-secondary">
               Para asignar tareas necesitás rol de encargado de finca o de bodega.
             </p>
           </AppCard>
-        ) : (
-         <></>
-        )}
+        ) : null}
 
         {error ? <NoticeBanner tone="danger">{error}</NoticeBanner> : null}
 
@@ -280,6 +227,52 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
         ) : null}
 
       </div>
+      {/* ── Modal: Nueva orden de trabajo ──────────────────────────── */}
+      <AppModal
+        opened={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        title={(
+          <div className="flex w-full items-center justify-between">
+            <span>Nueva orden de trabajo</span>
+            <button
+              type="button"
+              aria-label="Cerrar"
+              onClick={() => setShowCreateModal(false)}
+              className="rounded-[var(--radius-md)] p-1.5 text-[color:var(--text-ink-muted)] transition-colors hover:bg-white/10 hover:text-[color:var(--text-ink)]"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        )}
+        description={`Usuario actual: ${user?.nombre ?? user?.email ?? "Usuario"}`}
+        size="lg"
+        showHeaderDivider
+      >
+        <CreateOrderForm
+          managerScope={managerScope}
+          form={form}
+          onFormChange={(updates) => setForm((prev) => ({ ...prev, ...updates }))}
+          activeProtocolo={activeProtocolo}
+          protocolProcesses={protocolProcesses}
+          groupedProtocolProcesses={groupedProtocolProcesses}
+          scopedProtocoloTaskOptions={scopedProtocoloTaskOptions}
+          groupedProtocoloTaskOptions={groupedProtocoloTaskOptions}
+          requiresFincaTarget={requiresFincaTarget}
+          fincas={fincas}
+          cuartelOptions={cuartelOptions}
+          assigneeOptions={assigneeOptions}
+          selectedCatalogTask={selectedCatalogTask}
+          saving={saving}
+          onSubmit={async () => {
+            await onCreate();
+            setShowCreateModal(false);
+          }}
+          onCancel={() => setShowCreateModal(false)}
+        />
+      </AppModal>
+
       {confirmDialog}
     </div>
   );
