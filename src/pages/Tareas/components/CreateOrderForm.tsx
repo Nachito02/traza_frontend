@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   AppButton,
   AppInput,
@@ -86,7 +87,10 @@ type CreateOrderFormProps = {
   // Acciones
   saving: boolean;
   onSubmit: () => void;
+  onCancel?: () => void;
 };
+
+type FieldErrors = Partial<Record<"actividad" | "tareaProtocolo" | "fincaId" | "cuartelId", string>>;
 
 // ─── Componente ───────────────────────────────────────────────────────────────
 
@@ -106,7 +110,36 @@ export default function CreateOrderForm({
   selectedCatalogTask,
   saving,
   onSubmit,
+  onCancel,
 }: CreateOrderFormProps) {
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+
+  const clearError = (field: keyof FieldErrors) => {
+    if (fieldErrors[field]) setFieldErrors((prev) => ({ ...prev, [field]: undefined }));
+  };
+
+  const handleSubmit = () => {
+    const errors: FieldErrors = {};
+
+    if (managerScope === "bodega" && activeProtocolo && !form.selectedProcesoId) {
+      errors.actividad = "Seleccioná una actividad del protocolo.";
+    }
+    if (managerScope === "finca" && !form.tareaProtocolo) {
+      errors.tareaProtocolo = "Seleccioná una tarea del protocolo.";
+    }
+    if (requiresFincaTarget && !form.fincaId) {
+      errors.fincaId = "Seleccioná una finca.";
+    }
+    if (requiresFincaTarget && form.fincaId && !form.cuartelId) {
+      errors.cuartelId = "Seleccioná un cuartel.";
+    }
+
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
+    onSubmit();
+  };
+
   return (
     <>
       <div className="grid gap-4 md:grid-cols-2">
@@ -117,6 +150,7 @@ export default function CreateOrderForm({
             <AppSelect
               label="Actividad del protocolo"
               value={form.selectedProcesoId}
+              error={fieldErrors.actividad}
               onChange={(e) => {
                 const procesoId = e.target.value;
                 const proceso = protocolProcesses.find((p) => p.proceso_id === procesoId);
@@ -127,6 +161,7 @@ export default function CreateOrderForm({
                     ? (getMatchedCatalogTaskId(proceso.nombre, proceso.evento_tipo) ?? "")
                     : "",
                 });
+                clearError("actividad");
               }}
               className="md:col-span-2"
             >
@@ -151,6 +186,7 @@ export default function CreateOrderForm({
           <AppSelect
             label="Tarea del protocolo"
             value={form.tareaProtocolo}
+            error={fieldErrors.tareaProtocolo}
             onChange={(e) => {
               const selected = e.target.value;
               const task = scopedProtocoloTaskOptions.find((item) => item.value === selected);
@@ -158,6 +194,7 @@ export default function CreateOrderForm({
                 tareaProtocolo: selected,
                 titulo: task?.titulo ?? "",
               });
+              clearError("tareaProtocolo");
             }}
             className="md:col-span-2"
           >
@@ -199,7 +236,11 @@ export default function CreateOrderForm({
             <AppSelect
               label="Finca"
               value={form.fincaId}
-              onChange={(e) => onFormChange({ fincaId: e.target.value, cuartelId: "" })}
+              error={fieldErrors.fincaId}
+              onChange={(e) => {
+                onFormChange({ fincaId: e.target.value, cuartelId: "" });
+                clearError("fincaId");
+              }}
             >
               <option value="">Seleccionar finca</option>
               {fincas.map((finca) => {
@@ -215,7 +256,11 @@ export default function CreateOrderForm({
             <AppSelect
               label="Cuartel"
               value={form.cuartelId}
-              onChange={(e) => onFormChange({ cuartelId: e.target.value })}
+              error={fieldErrors.cuartelId}
+              onChange={(e) => {
+                onFormChange({ cuartelId: e.target.value });
+                clearError("cuartelId");
+              }}
               disabled={!form.fincaId}
             >
               <option value="">Seleccionar cuartel</option>
@@ -286,11 +331,16 @@ export default function CreateOrderForm({
         </div>
       ) : null}
 
-      {/* ── Botón de guardar ──────────────────────────────────────────────── */}
-      <div className="mt-6">
-        <AppButton type="button" onClick={onSubmit} disabled={saving} loading={saving}>
+      {/* ── Acciones ──────────────────────────────────────────────────────── */}
+      <div className="mt-6 flex flex-wrap gap-2">
+        <AppButton type="button" variant="primary" onClick={handleSubmit} disabled={saving} loading={saving}>
           {saving ? "Guardando..." : "Registrar orden de trabajo"}
         </AppButton>
+        {onCancel ? (
+          <AppButton type="button" variant="ghost" disabled={saving} onClick={onCancel}>
+            Cancelar
+          </AppButton>
+        ) : null}
       </div>
     </>
   );

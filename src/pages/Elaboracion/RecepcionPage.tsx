@@ -477,7 +477,7 @@ export default function RecepcionPage({
           resource="remitos-uva"
           bodegaId={activeBodegaId}
           hidePrimaryAction={hidePrimaryAction}
-          separatedLayout={!hidePrimaryAction}
+          formInModal={!hidePrimaryAction}
           fields={remitoFields}
           validate={validateRemito}
           onCreated={handleRemitoCreated}
@@ -491,7 +491,7 @@ export default function RecepcionPage({
           resource="recepciones-bodega"
           bodegaId={activeBodegaId}
           hidePrimaryAction={hidePrimaryAction}
-          separatedLayout={!hidePrimaryAction}
+          formInModal={!hidePrimaryAction}
           fields={recepcionFields}
           defaultValues={recepcionDefaultValues ?? recepcionDefaults}
           onCreated={handleRecepcionCreated}
@@ -505,7 +505,7 @@ export default function RecepcionPage({
           resource="analisis-recepcion"
           bodegaId={activeBodegaId}
           hidePrimaryAction={hidePrimaryAction}
-          separatedLayout={!hidePrimaryAction}
+          formInModal={!hidePrimaryAction}
           fields={analisisFields}
           defaultValues={analisisDefaultValues ?? analisisDefaults}
         />

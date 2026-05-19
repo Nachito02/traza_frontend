@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AppButton, AppCard, GuidedState, NoticeBanner, SectionIntro, useConfirmDialog } from "../../components/ui";
 import {
   deleteFinca,
+  fetchFincaById,
   type Finca as FincaDetail,
 } from "../../features/fincas/api";
 import { useAuthStore } from "../../store/authStore";
@@ -29,17 +30,44 @@ const Fincas = () => {
   // Managers can create/edit/delete fincas; pure finca operators are read-only.
   const canManage = access.canAccessBodega;
 
-  // Fallback: if the bodega-level fetch returns empty, use the fincas the user
-  // is directly linked to (stored in user.fincas by the auth service).
-  const userLinkedFincas = useMemo(() => {
-    const anyUser = user as { fincas?: Array<{ finca_id?: string | number; nombre?: string }> } | null;
-    return (anyUser?.fincas ?? []).map((f) => ({
-      finca_id: String(f.finca_id ?? ""),
-      nombre_finca: f.nombre ?? undefined,
-    } as FincaDetail));
+  // IDs of fincas the user is directly linked to via their auth profile.
+  const userFincaIds = useMemo(() => {
+    const anyUser = user as { fincas?: Array<{ finca_id?: string | number }> } | null;
+    return (anyUser?.fincas ?? [])
+      .map((f) => String(f.finca_id ?? ""))
+      .filter(Boolean);
   }, [user]);
 
-  const fincas = fincasFromStore.length > 0 ? fincasFromStore : userLinkedFincas;
+  // Fallback fincas fetched individually by ID.
+  // Used when the bodega-level list returns empty (operators often lack
+  // permission to list all fincas for a bodega but can read individual ones).
+  const [fallbackFincas, setFallbackFincas] = useState<FincaDetail[]>([]);
+  const [fallbackLoading, setFallbackLoading] = useState(false);
+
+  const loadFallbackFincas = useCallback(async (ids: string[]) => {
+    if (ids.length === 0) return;
+    setFallbackLoading(true);
+    try {
+      const results = await Promise.allSettled(ids.map((id) => fetchFincaById(id)));
+      setFallbackFincas(
+        results
+          .filter((r): r is PromiseFulfilledResult<FincaDetail> => r.status === "fulfilled")
+          .map((r) => r.value),
+      );
+    } finally {
+      setFallbackLoading(false);
+    }
+  }, []);
+
+  // After the bodega-level fetch completes and is still empty, try individual fetches.
+  useEffect(() => {
+    if (fincasLoading) return;
+    if (fincasFromStore.length > 0) return;
+    void loadFallbackFincas(userFincaIds);
+  }, [fincasLoading, fincasFromStore.length, userFincaIds, loadFallbackFincas]);
+
+  const fincas = fincasFromStore.length > 0 ? fincasFromStore : fallbackFincas;
+  const isLoading = fincasLoading || fallbackLoading;
 
   const pickDetailValue = (detail: FincaDetail | undefined, keys: string[]) => {
     if (!detail) return "-";
@@ -79,8 +107,9 @@ const Fincas = () => {
     <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-6xl space-y-8">
         <SectionIntro
-          title="Administración de fincas"
-          description="Supervisa y gestiona tus fincas."
+          eyebrow="Campo"
+          title="Fincas"
+          description="Supervisa y gestiona las fincas vinculadas a la bodega activa."
         />
 
         <AppCard
@@ -110,7 +139,7 @@ const Fincas = () => {
                   </Link>
                 )}
               />
-            ) : fincasLoading ? (
+            ) : isLoading ? (
               <NoticeBanner>Cargando fincas…</NoticeBanner>
             ) : fincasError ? (
               <NoticeBanner tone="danger">{fincasError}</NoticeBanner>

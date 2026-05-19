@@ -1,17 +1,138 @@
 import { useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
-  AppCard,
-  MetricCard,
+  ArrowRight,
+  ClipboardPenLine,
+  ListTodo,
+  Map,
+  TrendingUp,
+  Warehouse,
+} from "lucide-react";
+import {
+  GuidedState,
   NoticeBanner,
   OperationalReadinessCard,
   type OperationalReadinessStep,
-  SectionIntro,
 } from "../../components/ui";
 import { useFincasStore } from "../../features/fincas/store";
 import { resolveModuleAccess } from "../../lib/permissions";
 import { useAuthStore } from "../../store/authStore";
 import { useDashboardData } from "./useDashboardData";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Buenos días";
+  if (hour < 19) return "Buenas tardes";
+  return "Buenas noches";
+}
+
+// ─── Sub-componentes ──────────────────────────────────────────────────────────
+
+type ActionTileProps = {
+  to: string;
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  badge?: React.ReactNode;
+  accent?: boolean;
+};
+
+function ActionTile({ to, icon, title, description, badge, accent = false }: ActionTileProps) {
+  return (
+    <Link
+      to={to}
+      className={[
+        "group relative overflow-hidden rounded-[var(--radius-xl)] border p-6 transition-all duration-[var(--motion-base)] ease-[var(--motion-standard)]",
+        "hover:-translate-y-0.5 hover:shadow-[var(--shadow-raised)]",
+        accent
+          ? "border-[color:var(--border-default)] bg-[color:var(--surface-base)]"
+          : "border-[color:var(--border-shell)] bg-[color:var(--surface-base)] hover:border-[color:var(--border-default)]",
+      ].join(" ")}
+    >
+      {/* Top accent line */}
+      {accent ? (
+        <div className="absolute inset-x-0 top-0 h-[2px] bg-[color:var(--accent-primary)]" />
+      ) : null}
+
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div
+          className={[
+            "flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-lg)] border",
+            accent
+              ? "border-[color:var(--border-default)] bg-[color:var(--surface-accent-soft)] text-[color:var(--accent-primary)]"
+              : "border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] text-[color:var(--text-ink-muted)]",
+          ].join(" ")}
+        >
+          {icon}
+        </div>
+        {badge !== undefined && badge !== null ? (
+          <div
+            className={[
+              "rounded-full px-3 py-1 text-sm font-bold",
+              accent
+                ? "bg-[color:var(--surface-accent-soft)] text-[color:var(--accent-primary)]"
+                : "bg-[color:var(--surface-muted)] text-[color:var(--text-ink)]",
+            ].join(" ")}
+          >
+            {badge}
+          </div>
+        ) : null}
+      </div>
+
+      {/* Body */}
+      <div className="mt-5">
+        <h2 className="text-lg font-semibold text-[color:var(--text-ink)]">{title}</h2>
+        <p className="mt-1 text-sm leading-relaxed text-[color:var(--text-ink-muted)]">{description}</p>
+      </div>
+
+      {/* CTA */}
+      <div
+        className={[
+          "mt-5 flex items-center gap-1.5 text-xs font-semibold transition-colors",
+          accent
+            ? "text-[color:var(--accent-primary)]"
+            : "text-[color:var(--text-ink-muted)] group-hover:text-[color:var(--text-ink)]",
+        ].join(" ")}
+      >
+        Abrir
+        <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+      </div>
+    </Link>
+  );
+}
+
+type ContextTileProps = {
+  to: string;
+  icon: React.ReactNode;
+  label: string;
+  value: React.ReactNode;
+};
+
+function ContextTile({ to, icon, label, value }: ContextTileProps) {
+  return (
+    <Link
+      to={to}
+      className="group flex items-center gap-3 rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-4 py-3 transition-all duration-[var(--motion-fast)] hover:border-[color:var(--border-default)] hover:bg-[color:var(--surface-base)]"
+    >
+      <span className="shrink-0 text-[color:var(--text-ink-muted)] group-hover:text-[color:var(--accent-primary)]">
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[color:var(--text-ink-muted)]">
+          {label}
+        </div>
+        <div className="mt-0.5 truncate text-sm font-semibold text-[color:var(--text-ink)]">
+          {value}
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
 
 const Dashboard = () => {
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
@@ -20,9 +141,17 @@ const Dashboard = () => {
   const fincas = useFincasStore((state) => state.fincas);
   const fincasLoading = useFincasStore((state) => state.loading);
   const loadFincas = useFincasStore((state) => state.loadFincas);
-  const activeBodega = bodegas.find((bodega) => bodega.bodega_id === String(activeBodegaId));
+
+  const activeBodega = bodegas.find((b) => b.bodega_id === String(activeBodegaId));
   const access = resolveModuleAccess(user, activeBodegaId);
   const dailyOrdersPath = access.canAccessOperacion ? "/ordenes" : "/tareas";
+
+  const nombreUsuario = useMemo(() => {
+    const nombre = (user as { nombre?: string } | null)?.nombre;
+    if (nombre) return nombre;
+    const email = (user as { email?: string } | null)?.email ?? "";
+    return email.split("@")[0] ?? "operario";
+  }, [user]);
 
   useEffect(() => {
     if (!activeBodegaId) return;
@@ -33,28 +162,13 @@ const Dashboard = () => {
     useDashboardData(activeBodegaId, fincas);
 
   const stats = useMemo(() => {
-    const enCurso = trazabilidades.filter((item) => item.estado === "en_curso").length;
-    const finalizadas = trazabilidades.filter((item) =>
-      ["finalizada", "certificada"].includes(item.estado),
-    ).length;
-    const borrador = trazabilidades.filter((item) => item.estado === "draft").length;
-    const campaniasAbiertas = campanias.filter((item) => item.estado === "abierta").length;
-
-    return {
-      enCurso,
-      finalizadas,
-      borrador,
-      campaniasAbiertas,
-    };
+    const enCurso = trazabilidades.filter((t) => t.estado === "en_curso").length;
+    const campaniasAbiertas = campanias.filter((c) => c.estado === "abierta").length;
+    return { enCurso, campaniasAbiertas };
   }, [campanias, trazabilidades]);
 
   const readinessSteps = useMemo<OperationalReadinessStep[]>(() => {
     const hasBodega = Boolean(activeBodegaId);
-    const hasCampania = stats.campaniasAbiertas > 0;
-    const hasFincas = fincas.length > 0;
-    const hasCuarteles = cuartelesCount > 0;
-    const hasVasijas = vasijasCount > 0;
-
     return [
       {
         key: "bodega",
@@ -70,7 +184,7 @@ const Dashboard = () => {
         description: "La campaña ordena los registros por temporada y evita mezclar datos operativos.",
         actionLabel: "Configurar campaña",
         to: "/setup/campania",
-        done: hasCampania,
+        done: stats.campaniasAbiertas > 0,
         disabled: !hasBodega,
       },
       {
@@ -79,7 +193,7 @@ const Dashboard = () => {
         description: "Cargá la unidad productiva donde se origina la uva.",
         actionLabel: "Crear finca",
         to: "/setup/finca",
-        done: hasFincas,
+        done: fincas.length > 0,
         disabled: !hasBodega,
       },
       {
@@ -88,8 +202,8 @@ const Dashboard = () => {
         description: "Dividí la finca en cuarteles para asignar órdenes y registrar cosechas.",
         actionLabel: "Crear cuarteles",
         to: "/setup/cuarteles",
-        done: hasCuarteles,
-        disabled: !hasFincas,
+        done: cuartelesCount > 0,
+        disabled: fincas.length === 0,
       },
       {
         key: "vasijas",
@@ -97,162 +211,126 @@ const Dashboard = () => {
         description: "Cargá al menos una vasija para registrar recepción, elaboración y movimientos.",
         actionLabel: "Crear vasija",
         to: "/bodega/vasijas/nueva",
-        done: hasVasijas,
+        done: vasijasCount > 0,
         disabled: !hasBodega,
       },
     ];
   }, [activeBodegaId, cuartelesCount, fincas.length, stats.campaniasAbiertas, vasijasCount]);
 
-  const showReadinessCard = activeBodegaId && readinessSteps.some((step) => !step.done);
+  const showReadinessCard = activeBodegaId && readinessSteps.some((s) => !s.done);
 
-  const metricLinkClass =
-    "rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] p-4 text-[color:var(--text-on-dark)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)] hover:border-[color:var(--border-default)] hover:bg-[color:var(--surface-soft)] hover:-translate-y-0.5 hover:shadow-[var(--shadow-soft)]";
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
-      <div className="mx-auto w-full max-w-6xl">
-        {/*
-        <AppCard as="section" padding="lg" className="mb-8 bg-[color:var(--surface-hero)] text-[color:var(--text-on-dark)]">
-          <SectionIntro
-            title={<span className="text-3xl font-bold text-[color:var(--text-on-dark)]">Panel de administracion</span>}
-            description="Vista general de la bodega activa, sus recursos y el estado de los procesos."
-            className="[&>div>p]:text-[color:var(--text-on-dark-muted)]"
-            actions={(
-              <>
-                <AppButton type="button" variant="secondary" onClick={() => navigate("/ordenes")}>
-                  Ir a órdenes
-                </AppButton>
-                <AppButton type="button" variant="secondary" onClick={() => navigate("/operacion")}>
-                  Ir a Registro operativo
-                </AppButton>
-                <AppButton type="button" variant="secondary" onClick={() => navigate("/progreso")}>
-                  Ver progreso
-                </AppButton>
-              </>
+      <div className="mx-auto w-full max-w-6xl space-y-8">
+
+        {/* ── Saludo ──────────────────────────────────────────────── */}
+        <div>
+          <p className="text-sm text-[color:var(--text-ink-muted)]">{getGreeting()},</p>
+          <h1 className="text-3xl font-bold text-[color:var(--text-ink)] capitalize">
+            {nombreUsuario}
+          </h1>
+          {activeBodega ? (
+            <p className="mt-1.5 text-xs text-[color:var(--text-ink-muted)]">
+              Bodega activa:{" "}
+              <Link to="/contexto" className="font-semibold text-[color:var(--accent-primary)] hover:underline">
+                {activeBodega.nombre}
+              </Link>
+            </p>
+          ) : null}
+        </div>
+
+        {/* ── Sin bodega ───────────────────────────────────────────── */}
+        {!activeBodegaId ? (
+          <GuidedState
+            title="Seleccioná una bodega para empezar"
+            description="El dashboard y las funciones operativas dependen de tener una bodega activa. Elegí el contexto para continuar."
+            action={(
+              <Link to="/contexto">
+                <button
+                  type="button"
+                  className="inline-flex cursor-pointer items-center gap-2 rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-[color:var(--action-primary-bg)] px-4 py-2 text-sm font-semibold text-[color:var(--action-primary-text)] transition-all hover:bg-[color:var(--action-primary-hover)]"
+                >
+                  Elegir bodega
+                </button>
+              </Link>
             )}
           />
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <div className={heroMetricClass}>
-              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--text-accent)]">
-                Bodega activa
-              </div>
-              <div className="mt-1 text-lg font-semibold text-[color:var(--text-ink)]">
-                {activeBodega?.nombre ?? "Sin seleccionar"}
-              </div>
-            </div>
-            <div className={heroMetricClass}>
-              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--text-accent)]">
-                Operación
-              </div>
-              <div className="mt-1 text-lg font-semibold text-[color:var(--text-ink)]">
-                {access.canAccessOperacion ? "Disponible" : "Sin acceso"}
-              </div>
-            </div>
-          </div>
-        </AppCard>
-        */}
-
-        {!activeBodegaId ? (
-          <NoticeBanner tone="danger" className="p-6">
-            Seleccioná una bodega para ver datos de fincas, cuarteles y operación.
-          </NoticeBanner>
         ) : (
           <div className="space-y-6">
+
+            {/* ── Setup checklist (solo si hay pasos incompletos) ─── */}
             {showReadinessCard ? (
               <OperationalReadinessCard
                 steps={readinessSteps}
-                description="Tu bodega ya existe. Ahora completá la estructura mínima para que las órdenes y registros tengan contexto."
+                description="Completá la estructura mínima para que las órdenes y registros tengan contexto."
               />
             ) : null}
 
-            <AppCard
-              as="section"
-              padding="md"
-              header={(
-                <SectionIntro
-                  title="Recursos principales"
-                  description="Accesos rápidos a la estructura base y al trabajo operativo diario."
+            {/* ── Tiles de acción principales ─────────────────────── */}
+            <div className={[
+              "grid gap-4",
+              access.canAccessOperacion ? "md:grid-cols-2" : "md:grid-cols-1 max-w-lg",
+            ].join(" ")}>
+              <ActionTile
+                to={dailyOrdersPath}
+                icon={<ListTodo className="h-5 w-5" />}
+                title="Órdenes de trabajo"
+                description="Creá, asigná y completá órdenes operativas. Centro diario de trabajo del equipo."
+                badge={loading ? "…" : tareasCount > 0 ? `${tareasCount} pendiente${tareasCount !== 1 ? "s" : ""}` : "Al día"}
+                accent
+              />
+              {access.canAccessOperacion ? (
+                <ActionTile
+                  to="/operacion"
+                  icon={<ClipboardPenLine className="h-5 w-5" />}
+                  title="Registro operativo"
+                  description="Ingresá recepción de uva, operaciones de vasija, cortes y fraccionamiento."
                 />
-              )}
-            >
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <Link to="/contexto" className="block h-full">
-                  <MetricCard
-                    label="Bodega activa"
-                    value={activeBodega?.nombre ?? "Sin seleccionar"}
-                    className={metricLinkClass}
-                    valueClassName="text-xl"
-                  />
-                </Link>
-                <Link to="/fincas" className="block h-full">
-                  <MetricCard label="Fincas" value={fincasLoading ? "…" : fincas.length} className={metricLinkClass} />
-                </Link>
-                <Link to="/fincas" className="block h-full">
-                  <MetricCard label="Cuarteles" value={loading ? "…" : cuartelesCount} className={metricLinkClass} />
-                </Link>
-                <Link to="/progreso" className="block h-full">
-                  <MetricCard label="Procesos" value={loading ? "…" : trazabilidades.length} className={metricLinkClass} />
-                </Link>
-              </div>
-            </AppCard>
+              ) : null}
+            </div>
 
-            <AppCard
-              as="section"
-              padding="md"
-              header={(
-                <SectionIntro
-                  title="Seguimiento diario"
-                  description="Indicadores rápidos para entrar a trabajar sobre pendientes y recursos de bodega."
+            {/* ── Contexto rápido ──────────────────────────────────── */}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <ContextTile
+                to="/fincas"
+                icon={<Map className="h-4 w-4" />}
+                label="Fincas"
+                value={fincasLoading ? "…" : `${fincas.length} registrada${fincas.length !== 1 ? "s" : ""}`}
+              />
+              <ContextTile
+                to="/bodega"
+                icon={<Warehouse className="h-4 w-4" />}
+                label="Vasijas"
+                value={loading ? "…" : `${vasijasCount} en bodega`}
+              />
+              <ContextTile
+                to="/admin/campanias"
+                icon={<ListTodo className="h-4 w-4" />}
+                label="Campaña"
+                value={
+                  loading
+                    ? "…"
+                    : stats.campaniasAbiertas > 0
+                      ? `${stats.campaniasAbiertas} abierta${stats.campaniasAbiertas !== 1 ? "s" : ""}`
+                      : "Sin campaña activa"
+                }
+              />
+              {access.canAccessBodega ? (
+                <ContextTile
+                  to="/progreso"
+                  icon={<TrendingUp className="h-4 w-4" />}
+                  label="Procesos en curso"
+                  value={loading ? "…" : `${stats.enCurso} activo${stats.enCurso !== 1 ? "s" : ""}`}
                 />
-              )}
-            >
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <Link to="/bodega" className="block h-full">
-                  <MetricCard label="Vasijas" value={loading ? "…" : vasijasCount} className={metricLinkClass} />
-                </Link>
-                <Link to={dailyOrdersPath} className="block h-full">
-                  <MetricCard label="Órdenes pendientes" value={loading ? "…" : tareasCount} className={metricLinkClass} />
-                </Link>
-                {access.canAccessOperacion ? (
-                  <Link to="/operacion" className="block h-full">
-                    <MetricCard label="Registro operativo" value="Disponible" className={metricLinkClass} />
-                  </Link>
-                ) : null}
-              </div>
-            </AppCard>
+              ) : null}
+            </div>
 
-            <AppCard
-              as="section"
-              padding="md"
-              header={(
-                <SectionIntro
-                  title="Estado de procesos"
-                  description="Estado general de los procesos operativos y de las campañas abiertas."
-                />
-              )}
-            >
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <Link to="/progreso" className="block h-full">
-                  <MetricCard label="En curso" value={stats.enCurso} className={metricLinkClass} />
-                </Link>
-                <Link to="/progreso" className="block h-full">
-                  <MetricCard label="Finalizadas / Certificadas" value={stats.finalizadas} className={metricLinkClass} />
-                </Link>
-                <Link to="/progreso" className="block h-full">
-                  <MetricCard label="Borrador" value={stats.borrador} className={metricLinkClass} />
-                </Link>
-                <Link to="/admin/campanias" className="block h-full">
-                  <MetricCard label="Campañas abiertas" value={stats.campaniasAbiertas} className={metricLinkClass} />
-                </Link>
-              </div>
-            </AppCard>
-
-            {error && (
-              <NoticeBanner tone="danger">
-                {error}
-              </NoticeBanner>
-            )}
+            {error ? (
+              <NoticeBanner tone="danger">{error}</NoticeBanner>
+            ) : null}
           </div>
         )}
+
       </div>
     </div>
   );

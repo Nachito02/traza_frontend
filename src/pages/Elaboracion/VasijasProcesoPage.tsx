@@ -151,7 +151,7 @@ export default function VasijasProcesoPage({
           resource="vasijas"
           bodegaId={activeBodegaId}
           hidePrimaryAction={hidePrimaryAction}
-          separatedLayout={!hidePrimaryAction}
+          formInModal={!hidePrimaryAction}
           fields={VASIJA_FIELDS}
         />
       ) : null}
@@ -163,7 +163,7 @@ export default function VasijasProcesoPage({
           resource="operaciones-vasija"
           bodegaId={activeBodegaId}
           hidePrimaryAction={hidePrimaryAction}
-          separatedLayout={!hidePrimaryAction}
+          formInModal={!hidePrimaryAction}
           fields={[
             {
               name: "vasijaOrigenId",
@@ -215,7 +215,7 @@ export default function VasijasProcesoPage({
           bodegaId={activeBodegaId}
           withBodegaId={false}
           hidePrimaryAction={hidePrimaryAction}
-          separatedLayout={!hidePrimaryAction}
+          formInModal={!hidePrimaryAction}
           fields={[
             { name: "vasijaId", label: "Vasija", type: "select", required: true, options: vasijaOptions, sourceKey: "vasija_id" },
             { name: "fecha_hora", label: "Fecha y hora", type: "datetime-local", required: true },
@@ -235,7 +235,7 @@ export default function VasijasProcesoPage({
           bodegaId={activeBodegaId}
           withBodegaId={false}
           hidePrimaryAction={hidePrimaryAction}
-          separatedLayout={!hidePrimaryAction}
+          formInModal={!hidePrimaryAction}
           fields={[
             { name: "vasijaId", label: "Vasija", type: "select", required: true, options: vasijaOptions, sourceKey: "vasija_id" },
             { name: "fecha_hora", label: "Fecha y hora", type: "datetime-local", required: true },

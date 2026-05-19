@@ -77,7 +77,8 @@ export default function BodegaHome() {
     <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-6xl space-y-6">
         <SectionIntro
-          title="Administración de bodega"
+          eyebrow="Bodega"
+          title="Administración"
           description="Gestioná los recursos maestros y el contexto operativo de la bodega activa."
         />
 

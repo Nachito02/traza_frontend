@@ -57,13 +57,13 @@ function AppModal({
       centered
       size={sizeClasses[size]}
       overlayProps={{
-        backgroundOpacity: 1,
-        blur: 0,
+        backgroundOpacity: 0.78,
+        blur: 8,
         className: joinClasses("bg-[color:var(--surface-overlay)]", overlayClassName),
       }}
       classNames={{
         content: joinClasses(
-          "overflow-hidden rounded-[var(--radius-xl)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] text-[color:var(--text-ink)] shadow-[var(--shadow-raised)]",
+          "overflow-hidden rounded-[var(--radius-xl)] border border-[color:var(--border-subtle)] bg-[color:var(--surface-muted)] text-[color:var(--text-ink)] shadow-[var(--shadow-raised)]",
           contentClassName,
         ),
         body: "p-0",

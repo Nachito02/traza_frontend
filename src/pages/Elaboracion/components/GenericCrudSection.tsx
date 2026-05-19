@@ -66,6 +66,8 @@ type GenericCrudSectionProps = {
   };
   hidePrimaryAction?: boolean;
   separatedLayout?: boolean;
+  /** When true the create/edit form opens inside an AppModal instead of inline. */
+  formInModal?: boolean;
   defaultValues?: Record<string, string | boolean>;
   onCreated?: (item: ElaboracionEntity) => void | Promise<void>;
 };
@@ -288,6 +290,7 @@ export default function GenericCrudSection({
   controller,
   hidePrimaryAction = false,
   separatedLayout = false,
+  formInModal = false,
   defaultValues,
   onCreated,
 }: GenericCrudSectionProps) {
@@ -302,6 +305,7 @@ export default function GenericCrudSection({
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [confirmDelete, setConfirmDelete] = useState<ElaboracionEntity | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "form">(separatedLayout ? "list" : "form");
+  const [showFormModal, setShowFormModal] = useState(false);
 
   const mergedParams = useMemo(() => {
     const params: Record<string, string | number | undefined> = {
@@ -464,7 +468,9 @@ export default function GenericCrudSection({
       setEditingId(null);
       setEditingItem(null);
       setFieldErrors({});
-      if (separatedLayout) {
+      if (formInModal) {
+        setShowFormModal(false);
+      } else if (separatedLayout) {
         setViewMode("list");
       }
       await load();
@@ -508,7 +514,9 @@ export default function GenericCrudSection({
     setEditingItem(item);
     setError(null);
     setFieldErrors({});
-    if (separatedLayout) {
+    if (formInModal) {
+      setShowFormModal(true);
+    } else if (separatedLayout) {
       setViewMode("form");
     }
   };
@@ -561,7 +569,11 @@ export default function GenericCrudSection({
     setEditingItem(null);
     setError(null);
     setFieldErrors({});
-    setViewMode("form");
+    if (formInModal) {
+      setShowFormModal(true);
+    } else {
+      setViewMode("form");
+    }
   };
 
   const onCancelForm = () => {
@@ -570,7 +582,9 @@ export default function GenericCrudSection({
     setValues({ ...getInitialValues(fields), ...(defaultValues ?? {}) });
     setError(null);
     setFieldErrors({});
-    if (separatedLayout) {
+    if (formInModal) {
+      setShowFormModal(false);
+    } else if (separatedLayout) {
       setViewMode("list");
     }
   };
@@ -636,26 +650,27 @@ export default function GenericCrudSection({
             .filter((row): row is { key: string; label: string; value: string } => row !== null)
             .slice(0, 5);
           return (
-            <AppCard
+            <div
               key={displayId}
-              as="article"
-              tone="soft"
-              padding="sm"
-              className="border-[color:var(--border-shell)] bg-[color:var(--surface-elevated)]"
+              className="rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-4 py-3"
             >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <div className="text-[0.68rem] font-black uppercase tracking-[0.24em] text-[color:var(--accent-primary)]">
-                    Registro
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-semibold text-[color:var(--text-ink)]">
+                    {title} <span className="font-normal text-[color:var(--text-ink-muted)]">#{shortId}</span>
                   </div>
-                  <div className="mt-1 text-sm font-bold text-[color:var(--text-on-dark)]">
-                    {title} #{shortId}
-                  </div>
+                  {previewRows.length > 0 ? (
+                    <div className="mt-1.5 flex flex-wrap gap-x-5 gap-y-1">
+                      {previewRows.map((row) => (
+                        <span key={row.key} className="text-xs text-[color:var(--text-ink-muted)]">
+                          <span className="font-medium text-[color:var(--text-ink-muted)]">{row.label}:</span>{" "}
+                          <span className="text-[color:var(--text-ink)]">{row.value}</span>
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
-                <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
-                  <div className="max-w-full rounded-full border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-1 text-[0.68rem] font-semibold text-[color:var(--text-on-dark-muted)]">
-                    ID {displayId}
-                  </div>
+                <div className="flex shrink-0 items-center gap-2">
                   <AppButton
                     type="button"
                     variant="secondary"
@@ -674,26 +689,7 @@ export default function GenericCrudSection({
                   </AppButton>
                 </div>
               </div>
-
-              {previewRows.length > 0 ? (
-                <div className="mt-3 grid gap-2 md:grid-cols-2">
-                  {previewRows.map((row) => (
-                    <div
-                      key={row.key}
-                      className="rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-2 shadow-[var(--shadow-inset-soft)]"
-                    >
-                      <div className="text-[0.64rem] font-black uppercase tracking-[0.18em] text-[color:var(--text-on-dark-muted)]">
-                        {row.label}
-                      </div>
-                      <div className="mt-1 break-words text-sm font-semibold text-[color:var(--text-on-dark)]">
-                        {row.value}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-
-            </AppCard>
+            </div>
           );
         })
       )}
@@ -772,7 +768,7 @@ export default function GenericCrudSection({
       </div>
 
       {!hidePrimaryAction ? (
-        <div className="mt-3 flex flex-wrap justify-end gap-2">
+        <div className="mt-3 flex flex-wrap gap-2">
           <AppButton
             type="button"
             variant="primary"
@@ -784,10 +780,10 @@ export default function GenericCrudSection({
           </AppButton>
           <AppButton
             type="button"
-            variant="secondary"
+            variant="ghost"
             onClick={onCancelForm}
           >
-            {editingId ? "Cancelar edición" : "Volver al listado"}
+            Cancelar
           </AppButton>
         </div>
       ) : null}
@@ -804,7 +800,7 @@ export default function GenericCrudSection({
           title={title}
           description={description}
           actions={
-            separatedLayout && viewMode === "list" && !hidePrimaryAction ? (
+            ((separatedLayout && viewMode === "list") || formInModal) && !hidePrimaryAction ? (
               <AppButton type="button" variant="primary" size="sm" onClick={onStartCreate}>
                 Nuevo registro
               </AppButton>
@@ -814,9 +810,40 @@ export default function GenericCrudSection({
       )}
     >
 
-      {separatedLayout ? (viewMode === "form" ? renderForm() : renderList()) : renderForm()}
+      {formInModal
+        ? renderList()
+        : separatedLayout
+          ? (viewMode === "form" ? renderForm() : renderList())
+          : renderForm()
+      }
 
       {renderFeedback()}
+
+      {formInModal ? (
+        <AppModal
+          opened={showFormModal}
+          onClose={onCancelForm}
+          title={(
+            <div className="flex w-full items-center justify-between">
+              <span>{editingId ? `Editar ${title}` : `Nuevo ${title}`}</span>
+              <button
+                type="button"
+                aria-label="Cerrar"
+                onClick={onCancelForm}
+                className="rounded-[var(--radius-md)] p-1.5 text-[color:var(--text-ink-muted)] transition-colors hover:bg-white/10 hover:text-[color:var(--text-ink)]"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+          )}
+          size="lg"
+          showHeaderDivider
+        >
+          {renderForm()}
+        </AppModal>
+      ) : null}
 
       {confirmDelete && (
         <AppModal

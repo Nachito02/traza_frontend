@@ -8,10 +8,8 @@ import {
   deleteTarea,
   fetchCanManageTareas,
   fetchPendientesByScope,
-  fetchTareaAsignacionDetail,
   fetchTareasByBodega,
   type Tarea,
-  type TareaEntradaDetail,
 } from "../../features/encargos/api";
 import { fetchAuthUsers, type AuthUser } from "../../features/users/api";
 import { fetchOperariosByBodega } from "../../features/operarios/api";
@@ -98,12 +96,6 @@ export type UseTareasDataReturn = {
   error: string | null;
   deletingTaskId: string | null;
 
-  // Entradas expandidas
-  expandedTaskId: string | null;
-  setExpandedTaskId: (id: string | null) => void;
-  expandedTaskEntries: Record<string, TareaEntradaDetail[]>;
-  expandedTaskEntriesLoading: Record<string, boolean>;
-
   // Fincas y cuarteles
   fincas: ReturnType<typeof useFincasStore.getState>["fincas"];
   cuartelOptions: Cuartel[];
@@ -155,9 +147,6 @@ export function useTareasData(mode: "manager" | "operator"): UseTareasDataReturn
   const [forceMineMode, setForceMineMode] = useState(true);
   const [activeProtocolo, setActiveProtocolo] = useState<ProtocoloExpanded | null>(null);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
-  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
-  const [expandedTaskEntries, setExpandedTaskEntries] = useState<Record<string, TareaEntradaDetail[]>>({});
-  const [expandedTaskEntriesLoading, setExpandedTaskEntriesLoading] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [completedLoading, setCompletedLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -579,33 +568,6 @@ export function useTareasData(mode: "manager" | "operator"): UseTareasDataReturn
     setForm((prev) => ({ ...prev, tareaProtocolo: "", titulo: "" }));
   }, [form.tareaProtocolo, scopedProtocoloTaskOptions]);
 
-  // ── Effect: cargar entradas al expandir una tarea ─────────────────────────
-  useEffect(() => {
-    if (!expandedTaskId) return;
-    if (expandedTaskEntries[expandedTaskId] !== undefined) return;
-    const task =
-      tasks.find((t) => getTaskId(t) === expandedTaskId) ??
-      completedTasks.find((t) => getTaskId(t) === expandedTaskId);
-    if (!task) return;
-    const asignacionId = task.tarea_asignacion?.[0]?.tarea_asignacion_id;
-    if (!asignacionId) {
-      setExpandedTaskEntries((prev) => ({ ...prev, [expandedTaskId]: [] }));
-      return;
-    }
-    setExpandedTaskEntriesLoading((prev) => ({ ...prev, [expandedTaskId]: true }));
-    void fetchTareaAsignacionDetail(asignacionId)
-      .then((entries) =>
-        setExpandedTaskEntries((prev) => ({ ...prev, [expandedTaskId]: entries })),
-      )
-      .catch(() =>
-        setExpandedTaskEntries((prev) => ({ ...prev, [expandedTaskId]: [] })),
-      )
-      .finally(() =>
-        setExpandedTaskEntriesLoading((prev) => ({ ...prev, [expandedTaskId]: false })),
-      );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expandedTaskId]);
-
   // ── Acciones ──────────────────────────────────────────────────────────────
   const onCreate = async () => {
     if (!activeBodegaId) { setError("Seleccioná una bodega activa."); return; }
@@ -717,10 +679,6 @@ export function useTareasData(mode: "manager" | "operator"): UseTareasDataReturn
     saving,
     error,
     deletingTaskId,
-    expandedTaskId,
-    setExpandedTaskId,
-    expandedTaskEntries,
-    expandedTaskEntriesLoading,
     fincas,
     cuartelOptions,
     assigneeOptions,
