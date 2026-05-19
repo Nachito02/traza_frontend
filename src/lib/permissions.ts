@@ -33,6 +33,9 @@ function normalizeRoles(input: unknown): string[] {
     return input
       .flatMap((role) => {
         if (typeof role === "string") return [role];
+        // Nested arrays (e.g. roles_en_bodega: string[] embedded inside a
+        // larger array) must be recursed into rather than treated as objects.
+        if (Array.isArray(role)) return normalizeRoles(role);
         if (role && typeof role === "object") {
           const anyRole = role as Record<string, unknown>;
           return [
@@ -88,7 +91,15 @@ function getUserBodegaRoles(user: UserLike, activeBodegaId: string | number | nu
     anyUser.rolesEnBodega,
     anyUser.rolEnBodega,
   ]);
-  if (!activeBodegaId) return topLevelRoles;
+  const allBodegaRoles = normalizeRoles(
+    (anyUser.bodegas ?? []).flatMap((bodega) => [
+      bodega.roles_en_bodega,
+      bodega.rol_en_bodega,
+      bodega.rolesEnBodega,
+      bodega.rolEnBodega,
+    ]),
+  );
+  if (!activeBodegaId) return Array.from(new Set([...topLevelRoles, ...allBodegaRoles]));
 
   const match = (anyUser.bodegas ?? []).find((item) => {
     const sameId = String(item.bodega_id ?? "") === String(activeBodegaId);
