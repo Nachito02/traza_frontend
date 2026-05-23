@@ -34,6 +34,7 @@ export type Tarea = {
     codigo_cuartel?: string;
   } | null;
   tarea_asignacion?: TareaAsignacion[];
+  evento_tipo?: string | null;
 };
 
 export type CreateTareaPayload = {
