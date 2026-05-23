@@ -41,7 +41,6 @@ import {
   dedupeTasksById,
   getDefaultTaskForCategory,
   getTaskCompletedDate,
-  getTaskId,
   includesAnyRole,
   isCompletedTask,
   isFincaProductionOption,

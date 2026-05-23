@@ -116,7 +116,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => { setOrdersView("pending"); setExpandedTaskId(null); }}
+                    onClick={() => { setOrdersView("pending"); }}
                     className={[
                       "inline-flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] border px-3 py-2 text-xs font-semibold shadow-[var(--shadow-inset-soft)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)]",
                       ordersView === "pending"
@@ -131,7 +131,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setOrdersView("completed"); setExpandedTaskId(null); }}
+                    onClick={() => { setOrdersView("completed"); }}
                     className={[
                       "inline-flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] border px-3 py-2 text-xs font-semibold shadow-[var(--shadow-inset-soft)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)]",
                       ordersView === "completed"
