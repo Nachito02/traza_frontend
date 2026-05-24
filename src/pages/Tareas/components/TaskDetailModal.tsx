@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppButton, AppModal } from "../../../components/ui";
+import { resolveModuleAccess } from "../../../lib/permissions";
+import { useAuthStore } from "../../../store/authStore";
 import {
   fetchTareaAsignacionDetail,
   type Tarea,
@@ -41,25 +43,25 @@ function EstadoBadge({ estado }: { estado: string | undefined }) {
   switch (normalizeTaskStatus(estado)) {
     case "completado":
       return (
-        <span className="rounded-full border border-[color:var(--feedback-success-border)] bg-[color:var(--feedback-success-bg)] px-2 py-0.5 text-[10px] font-semibold text-[color:var(--feedback-success-text)]">
+        <span className="rounded-full border border-[color:var(--feedback-success-border)] bg-[color:var(--feedback-success-bg)] px-3 py-1 text-xs font-semibold text-[color:var(--feedback-success-text)]">
           Completado
         </span>
       );
     case "en_progreso":
       return (
-        <span className="rounded-full border border-[color:var(--feedback-warning-border)] bg-[color:var(--feedback-warning-bg)] px-2 py-0.5 text-[10px] font-semibold text-[color:var(--feedback-warning-text)]">
+        <span className="rounded-full border border-[color:var(--feedback-warning-border)] bg-[color:var(--feedback-warning-bg)] px-3 py-1 text-xs font-semibold text-[color:var(--feedback-warning-text)]">
           En progreso
         </span>
       );
     case "cancelado":
       return (
-        <span className="rounded-full border border-[color:var(--feedback-danger-border)] bg-[color:var(--feedback-danger-bg)] px-2 py-0.5 text-[10px] font-semibold text-[color:var(--feedback-danger-text)]">
+        <span className="rounded-full border border-[color:var(--feedback-danger-border)] bg-[color:var(--feedback-danger-bg)] px-3 py-1 text-xs font-semibold text-[color:var(--feedback-danger-text)]">
           Cancelado
         </span>
       );
     default:
       return (
-        <span className="rounded-full border border-[color:var(--feedback-warning-border)] bg-[color:var(--feedback-warning-bg)] px-2 py-0.5 text-[10px] font-semibold text-[color:var(--feedback-warning-text)]">
+        <span className="rounded-full border border-[color:var(--feedback-warning-border)] bg-[color:var(--feedback-warning-bg)] px-3 py-1 text-xs font-semibold text-[color:var(--feedback-warning-text)]">
           Pendiente
         </span>
       );
@@ -112,10 +114,10 @@ function AdjuntosContent({ adj }: { adj: AdjuntosPayload }) {
       const isMissing = missingRequired.includes(campo);
       return (
         <div key={campo}>
-          <p className={`text-[9px] font-semibold uppercase tracking-[0.14em] ${isMissing ? "text-red-400/80" : "text-[color:var(--text-ink-muted)]"}`}>
+          <p className={`text-xs font-semibold uppercase tracking-wide ${isMissing ? "text-red-400/80" : "text-[color:var(--text-ink-muted)]"}`}>
             {formatFieldKey(campo)}
           </p>
-          <p className={`mt-0.5 text-xs ${isEmpty ? "italic text-[color:var(--text-ink-muted)]" : "font-medium text-[color:var(--text-ink)]"}`}>
+          <p className={`mt-0.5 text-sm ${isEmpty ? "italic text-[color:var(--text-ink-muted)]" : "font-medium text-[color:var(--text-ink)]"}`}>
             {isEmpty ? "—" : display}
           </p>
         </div>
@@ -125,13 +127,13 @@ function AdjuntosContent({ adj }: { adj: AdjuntosPayload }) {
   return (
     <div className="space-y-4">
       {eventotipo && (
-        <span className="rounded-full border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-2 py-0.5 text-[10px] capitalize text-[color:var(--text-ink-muted)]">
+        <span className="rounded-full border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-2.5 py-1 text-xs capitalize text-[color:var(--text-ink-muted)]">
           {eventotipo}
         </span>
       )}
       {allFields.length > 0 && hasDraft ? (
         <div>
-          <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.14em] text-[color:var(--text-ink-muted)]">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[color:var(--text-ink-muted)]">
             Datos registrados
             {requiredTotal > 0 && (
               <span className="ml-2 font-normal normal-case">
@@ -144,7 +146,7 @@ function AdjuntosContent({ adj }: { adj: AdjuntosPayload }) {
           )}
           {opcionales.length > 0 && (
             <div className="mt-3">
-              <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.14em] text-[color:var(--text-ink-muted)] opacity-60">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[color:var(--text-ink-muted)] opacity-60">
                 Opcionales
               </p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-3">{renderFields(opcionales)}</div>
@@ -153,16 +155,16 @@ function AdjuntosContent({ adj }: { adj: AdjuntosPayload }) {
         </div>
       ) : hasDraft ? (
         <div>
-          <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.14em] text-[color:var(--text-ink-muted)]">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[color:var(--text-ink-muted)]">
             Datos registrados
           </p>
           <div className="grid grid-cols-2 gap-x-4 gap-y-3">
             {Object.entries(draft!).filter(([, v]) => v != null && v !== "").map(([k, v]) => (
               <div key={k}>
-                <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[color:var(--text-ink-muted)]">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--text-ink-muted)]">
                   {formatFieldKey(k)}
                 </p>
-                <p className="mt-0.5 text-xs font-medium text-[color:var(--text-ink)]">{String(v)}</p>
+                <p className="mt-0.5 text-sm font-medium text-[color:var(--text-ink)]">{String(v)}</p>
               </div>
             ))}
           </div>
@@ -170,16 +172,16 @@ function AdjuntosContent({ adj }: { adj: AdjuntosPayload }) {
       ) : null}
       {notas && (
         <div>
-          <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[color:var(--text-ink-muted)]">Notas</p>
-          <p className="mt-1 text-xs text-[color:var(--text-ink)]">{notas}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--text-ink-muted)]">Notas</p>
+          <p className="mt-1 text-sm text-[color:var(--text-ink)]">{notas}</p>
         </div>
       )}
       {missingRequired.length > 0 && (
         <div className="rounded border border-red-500/20 bg-red-500/5 px-3 py-2">
-          <p className="mb-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-red-400/80">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-red-400/80">
             Faltan {missingRequired.length} campos obligatorios
           </p>
-          <p className="text-xs text-red-400/70">
+          <p className="text-sm text-red-400/70">
             {missingRequired.map((c) => formatFieldKey(c)).join(" · ")}
           </p>
         </div>
@@ -200,18 +202,18 @@ function EntradaRow({ entrada }: { entrada: TareaEntradaDetail }) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition hover:bg-[color:var(--action-ghost-bg)]"
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-[color:var(--action-ghost-bg)]"
       >
-        <p className="text-[10px] text-[color:var(--text-ink-muted)]">
+        <p className="text-sm text-[color:var(--text-ink-muted)]">
           {new Date(entrada.fecha).toLocaleString("es-AR")}
           {entrada.creadoPor?.nombre ? ` · ${entrada.creadoPor.nombre}` : ""}
         </p>
-        <span className="shrink-0 text-[10px] text-[color:var(--text-ink-muted)]">
+        <span className="shrink-0 text-sm text-[color:var(--text-ink-muted)]">
           {open ? "▲" : hasContent ? "▼" : "—"}
         </span>
       </button>
       {open && (
-        <div className="border-t border-[color:var(--border-shell)]/50 px-3 py-3">
+        <div className="border-t border-[color:var(--border-shell)]/50 px-4 py-3">
           {hasAdjuntos ? (
             <AdjuntosContent adj={adj} />
           ) : textContent ? (
@@ -226,10 +228,10 @@ function EntradaRow({ entrada }: { entrada: TareaEntradaDetail }) {
                     <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                       {entries.map(([key, val]) => (
                         <div key={key}>
-                          <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[color:var(--text-ink-muted)]">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--text-ink-muted)]">
                             {formatFieldKey(key)}
                           </p>
-                          <p className="mt-0.5 text-xs font-medium text-[color:var(--text-ink)]">
+                          <p className="mt-0.5 text-sm font-medium text-[color:var(--text-ink)]">
                             {formatCampoValue(val)}
                           </p>
                         </div>
@@ -238,10 +240,10 @@ function EntradaRow({ entrada }: { entrada: TareaEntradaDetail }) {
                   );
                 }
               } catch { /* texto plano */ }
-              return <p className="text-xs text-[color:var(--text-ink)]">{textContent}</p>;
+              return <p className="text-sm text-[color:var(--text-ink)]">{textContent}</p>;
             })()
           ) : (
-            <p className="text-[10px] text-[color:var(--text-ink-muted)]">Sin datos adicionales.</p>
+            <p className="text-sm text-[color:var(--text-ink-muted)]">Sin datos adicionales.</p>
           )}
         </div>
       )}
@@ -262,6 +264,9 @@ type TaskDetailModalProps = {
 export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, onDelete }: TaskDetailModalProps) {
   const [entradas, setEntradas] = useState<TareaEntradaDetail[] | null>(null);
   const [loadingEntradas, setLoadingEntradas] = useState(false);
+  const user = useAuthStore((state) => state.user);
+  const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
+  const access = resolveModuleAccess(user, activeBodegaId);
 
   useEffect(() => {
     if (!task) {
@@ -289,7 +294,7 @@ export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, 
   const isFincaTask = Boolean(task.finca_id ?? task.finca?.finca_id);
   const catalogTaskId = getMatchedCatalogTaskId(task.titulo, task.evento_tipo ?? null);
   const operativoHref = isFincaTask
-    ? "/operacion/campo"
+    ? (access.canAccessOperacionBodega ? "/operacion/campo" : "/campo")
     : (OPERACION_TASK_ROUTES[catalogTaskId ?? ""] ?? "/operacion/recepcion");
 
   return (
@@ -299,10 +304,10 @@ export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, 
       title={(
         <div className="flex w-full items-center justify-between">
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--text-ink-muted)]">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--text-ink-muted)]">
               Detalle de orden
             </p>
-            <p className="mt-0.5 truncate text-sm font-semibold text-[color:var(--text-ink)]">
+            <p className="mt-1 truncate text-lg font-semibold text-[color:var(--text-ink)]">
               {task.titulo}
             </p>
           </div>
@@ -312,7 +317,7 @@ export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, 
             onClick={onClose}
             className="ml-3 shrink-0 rounded-[var(--radius-md)] p-1.5 text-[color:var(--text-ink-muted)] transition-colors hover:bg-white/10 hover:text-[color:var(--text-ink)]"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
@@ -321,18 +326,18 @@ export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, 
       size="lg"
       showHeaderDivider
     >
-      <div className="space-y-4">
+      <div className="space-y-5">
 
         {/* Estado + fecha + prioridad */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3">
           <EstadoBadge estado={effectiveEstado} />
           {fecha && (
-            <span className={`text-xs ${fecha.overdue ? "font-semibold text-red-400" : "text-[color:var(--text-ink-muted)]"}`}>
+            <span className={`text-sm font-medium ${fecha.overdue ? "font-semibold text-red-400" : "text-[color:var(--text-ink-muted)]"}`}>
               {fecha.text}
             </span>
           )}
           {task.prioridad && (
-            <span className="text-xs capitalize text-[color:var(--text-ink-muted)]">
+            <span className="text-sm capitalize text-[color:var(--text-ink-muted)]">
               Prioridad: {task.prioridad}
             </span>
           )}
@@ -341,10 +346,10 @@ export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, 
         {/* Descripción */}
         {task.descripcion && (
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--text-ink-muted)]">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[color:var(--text-ink-muted)]">
               Descripción
             </p>
-            <p className="mt-1 text-sm text-[color:var(--text-ink)]">{task.descripcion}</p>
+            <p className="text-base text-[color:var(--text-ink)]">{task.descripcion}</p>
           </div>
         )}
 
@@ -352,12 +357,12 @@ export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, 
         {(task.finca || task.cuartel) && (
           <div className="flex flex-wrap gap-2">
             {task.finca?.nombre_finca && (
-              <span className="rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-2 py-0.5 text-[10px] text-[color:var(--text-ink-muted)]">
+              <span className="rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-1 text-sm text-[color:var(--text-ink-muted)]">
                 Finca: {task.finca.nombre_finca}
               </span>
             )}
             {task.cuartel?.codigo_cuartel && (
-              <span className="rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-2 py-0.5 text-[10px] text-[color:var(--text-ink-muted)]">
+              <span className="rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-1 text-sm text-[color:var(--text-ink-muted)]">
                 Cuartel: {task.cuartel.codigo_cuartel}
               </span>
             )}
@@ -376,28 +381,37 @@ export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, 
         {/* Asignaciones */}
         {(task.tarea_asignacion?.length ?? 0) > 0 && (
           <div>
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--text-ink-muted)]">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-[color:var(--text-ink-muted)]">
               Asignaciones
             </p>
             <div className="space-y-2">
               {task.tarea_asignacion!.map((a) => (
                 <div
                   key={a.tarea_asignacion_id}
-                  className="space-y-1 rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-2.5 text-xs"
+                  className="space-y-1.5 rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-4 py-3"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <EstadoBadge estado={a.estado} />
-                    <span className="text-[10px] text-[color:var(--text-ink-muted)]">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {normalizeTaskStatus(a.estado) !== "pendiente" && (
+                        <EstadoBadge estado={a.estado} />
+                      )}
+                      {a.app_user?.nombre && (
+                        <span className="text-sm font-medium text-[color:var(--text-ink)]">
+                          {a.app_user.nombre}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-sm text-[color:var(--text-ink-muted)]">
                       Asignada el {new Date(a.assigned_at).toLocaleDateString("es-AR")}
                     </span>
                   </div>
                   {a.completed_at && (
-                    <p className="text-[10px] text-[color:var(--feedback-success-text)]">
+                    <p className="text-sm text-[color:var(--feedback-success-text)]">
                       Completada el {new Date(a.completed_at).toLocaleString("es-AR")}
                     </p>
                   )}
                   {a.observaciones && (
-                    <p className="border-t border-[color:var(--border-shell)]/50 pt-1.5 text-[color:var(--text-ink)]">
+                    <p className="border-t border-[color:var(--border-shell)]/50 pt-2 text-sm text-[color:var(--text-ink)]">
                       {a.observaciones}
                     </p>
                   )}
@@ -409,11 +423,11 @@ export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, 
 
         {/* Registros */}
         {loadingEntradas && (
-          <p className="text-[10px] text-[color:var(--text-ink-muted)]">Cargando registros…</p>
+          <p className="text-sm text-[color:var(--text-ink-muted)]">Cargando registros…</p>
         )}
         {entradas && entradas.length > 0 && (
           <div>
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--text-ink-muted)]">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-[color:var(--text-ink-muted)]">
               Registros guardados ({entradas.length})
             </p>
             <div className="space-y-2">
@@ -424,7 +438,7 @@ export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, 
           </div>
         )}
         {entradas !== null && entradas.length === 0 && !loadingEntradas && (
-          <p className="text-[10px] text-[color:var(--text-ink-muted)]">
+          <p className="text-sm text-[color:var(--text-ink-muted)]">
             {(task.tarea_asignacion?.length ?? 0) === 0
               ? "Sin asignaciones — la tarea todavía no fue tomada por ningún operario."
               : normalizeTaskStatus(task.estado) === "completado"
@@ -434,17 +448,17 @@ export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, 
         )}
 
         {/* Metadata */}
-        <p className="border-t border-[color:var(--border-shell)]/50 pt-3 text-[10px] text-[color:var(--text-ink-muted)]">
+        <p className="border-t border-[color:var(--border-shell)]/50 pt-3 text-xs text-[color:var(--text-ink-muted)]">
           Creada: {task.created_at ? new Date(task.created_at).toLocaleString("es-AR") : "—"}
           {task.updated_at ? ` · Actualizada: ${new Date(task.updated_at).toLocaleString("es-AR")}` : ""}
         </p>
 
         {/* Acciones */}
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[color:var(--border-shell)]/50 pt-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--border-shell)]/50 pt-3">
           <Link
             to={operativoHref}
             onClick={onClose}
-            className="inline-flex items-center rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] px-3 py-1.5 text-xs font-semibold text-[color:var(--accent-primary)] transition hover:border-[color:var(--border-default)] hover:bg-[color:var(--action-secondary-hover)]"
+            className="inline-flex items-center rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] px-4 py-2 text-sm font-semibold text-[color:var(--accent-primary)] transition hover:border-[color:var(--border-default)] hover:bg-[color:var(--action-secondary-hover)]"
           >
             {isFincaTask ? "Ir a Operación Campo →" : "Ir a Registro Operativo →"}
           </Link>

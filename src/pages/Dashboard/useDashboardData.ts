@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { fetchCampanias, type Campania } from "../../features/campanias/api";
 import { fetchCuartelesByFinca } from "../../features/cuarteles/api";
-import { fetchPendientesByScope } from "../../features/encargos/api";
+import { fetchPendientesByScope, fetchTareasByBodega, type Tarea } from "../../features/encargos/api";
 import { listElaboracionResource } from "../../features/elaboracion/api";
 import { type Finca } from "../../features/fincas/api";
 import {
@@ -13,6 +13,7 @@ interface UseDashboardDataResult {
   cuartelesCount: number;
   vasijasCount: number;
   tareasCount: number;
+  tasks: Tarea[];
   trazabilidades: Trazabilidad[];
   campanias: Campania[];
   loading: boolean;
@@ -22,10 +23,12 @@ interface UseDashboardDataResult {
 export function useDashboardData(
   activeBodegaId: number | string | null | undefined,
   fincas: Finca[],
+  isManager = false,
 ): UseDashboardDataResult {
   const [cuartelesCount, setCuartelesCount] = useState(0);
   const [vasijasCount, setVasijasCount] = useState(0);
   const [tareasCount, setTareasCount] = useState(0);
+  const [tasks, setTasks] = useState<Tarea[]>([]);
   const [trazabilidades, setTrazabilidades] = useState<Trazabilidad[]>([]);
   const [campanias, setCampanias] = useState<Campania[]>([]);
   const [loading, setLoading] = useState(false);
@@ -36,6 +39,7 @@ export function useDashboardData(
       setCuartelesCount(0);
       setVasijasCount(0);
       setTareasCount(0);
+      setTasks([]);
       setTrazabilidades([]);
       setCampanias([]);
       return;
@@ -45,14 +49,15 @@ export function useDashboardData(
     setLoading(true);
     setError(null);
 
+    const tareasFetch = isManager
+      ? fetchTareasByBodega(String(activeBodegaId)).catch(() => [] as Tarea[])
+      : fetchPendientesByScope({ bodegaId: String(activeBodegaId), mode: "mine" }).catch(() => [] as Tarea[]);
+
     Promise.all([
       fetchTrazabilidades(activeBodegaId),
       fetchCampanias(activeBodegaId),
       listElaboracionResource("vasijas", { bodegaId: String(activeBodegaId) }).catch(() => []),
-      fetchPendientesByScope({
-        bodegaId: String(activeBodegaId),
-        mode: "mine",
-      }).catch(() => []),
+      tareasFetch,
       Promise.all(
         fincas
           .map((finca) => finca.finca_id ?? finca.id)
@@ -65,7 +70,9 @@ export function useDashboardData(
         setTrazabilidades(trazabilidadesData ?? []);
         setCampanias(campaniasData ?? []);
         setVasijasCount((vasijasData ?? []).length);
-        setTareasCount((tareasData ?? []).length);
+        const tareas = tareasData ?? [];
+        setTasks(tareas);
+        setTareasCount(tareas.length);
         const totalCuarteles = (cuartelesLists ?? []).reduce(
           (acc, list) => acc + (list?.length ?? 0),
           0,
@@ -84,12 +91,14 @@ export function useDashboardData(
     return () => {
       mounted = false;
     };
-  }, [activeBodegaId, fincas]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeBodegaId, fincas, isManager]);
 
   return {
     cuartelesCount,
     vasijasCount,
     tareasCount,
+    tasks,
     trazabilidades,
     campanias,
     loading,

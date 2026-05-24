@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { AppButton, AppCard, GuidedState, NoticeBanner, SectionIntro, useConfirmDialog } from "../../components/ui";
+import QrCuartelModal from "../../components/QrCuartelModal";
 import type { Cuartel } from "../../features/cuarteles/api";
 import {
   fetchCuartelById,
@@ -49,6 +50,7 @@ const FincaDetail = () => {
   const [recepcionesBodega, setRecepcionesBodega] = useState<ElaboracionEntity[]>([]);
   const [cius, setCius] = useState<ElaboracionEntity[]>([]);
   const [loadingOperativos, setLoadingOperativos] = useState(false);
+  const [qrCuartel, setQrCuartel] = useState<{ id: string; codigo: string } | null>(null);
 
   const fincaNombre = finca?.nombre_finca ?? "Finca";
   const fincaUbicacion = useMemo(() => {
@@ -611,6 +613,14 @@ const FincaDetail = () => {
                             >
                               <AppButton variant="secondary" size="sm">Editar cuartel</AppButton>
                             </Link>
+                            <AppButton
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => setQrCuartel({ id: cuartelId, codigo: cuartel.codigo_cuartel })}
+                            >
+                              Ver QR
+                            </AppButton>
                           </div>
 
                           {isExpanded ? (
@@ -842,6 +852,16 @@ const FincaDetail = () => {
         </AppCard>
       </div>
       {ConfirmDialog}
+
+      {qrCuartel && (
+        <QrCuartelModal
+          opened={Boolean(qrCuartel)}
+          onClose={() => setQrCuartel(null)}
+          cuartelId={qrCuartel.id}
+          cuartelCodigo={qrCuartel.codigo}
+          fincaNombre={fincaNombre}
+        />
+      )}
     </div>
   );
 };

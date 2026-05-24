@@ -1,9 +1,10 @@
 import { Avatar, Menu as MantineMenu } from "@mantine/core";
 import { useEffect, useMemo } from "react";
-import { LogOut, Menu, Settings, Shield, UserCircle2 } from "lucide-react";
+import { LogOut, Menu, Moon, Settings, Shield, Sun, UserCircle2 } from "lucide-react";
 import { AppSelect } from "./ui";
 import { useAuthStore } from "../store/authStore";
 import { useCampaniaStore } from "../store/campaniaStore";
+import { useTheme } from "../hooks/useTheme";
 import avatarGeneric from "../assets/avatar-generic.svg";
 
 type TopbarProps = {
@@ -25,6 +26,7 @@ const ContextField = ({ label, children }: ContextFieldProps) => (
 );
 
 const Topbar = ({ onOpenMenu }: TopbarProps) => {
+  const { theme, toggleTheme } = useTheme();
   const user = useAuthStore((state) => state.user);
   const bodegas = useAuthStore((state) => state.bodegas);
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
@@ -159,6 +161,16 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
               )}
             </ContextField>
           </div>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            title={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+            aria-label={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-shell-raised)] text-[color:var(--text-on-dark-muted)] transition hover:border-[color:var(--border-default)] hover:text-[color:var(--text-on-dark)]"
+          >
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
+
           <MantineMenu
             position="bottom-end"
             offset={12}

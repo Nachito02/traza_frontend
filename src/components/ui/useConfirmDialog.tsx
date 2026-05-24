@@ -52,6 +52,7 @@ export function useConfirmDialog() {
       closeOnOverlayClick={false}
       closeOnEscape={true}
       showFooterDivider={true}
+      zIndex={400}
       footer={
         <div className="flex justify-end gap-2">
           <AppButton type="button" variant="secondary" size="sm" onClick={handleCancel}>

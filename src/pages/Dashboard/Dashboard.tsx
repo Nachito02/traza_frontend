@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -9,14 +9,19 @@ import {
   Warehouse,
 } from "lucide-react";
 import {
+  AppCard,
   GuidedState,
   NoticeBanner,
   OperationalReadinessCard,
+  SectionIntro,
   type OperationalReadinessStep,
 } from "../../components/ui";
+import type { Tarea } from "../../features/encargos/api";
 import { useFincasStore } from "../../features/fincas/store";
 import { resolveModuleAccess } from "../../lib/permissions";
 import { useAuthStore } from "../../store/authStore";
+import OrderRow from "../Tareas/components/OrderRow";
+import TaskDetailModal from "../Tareas/components/TaskDetailModal";
 import { useDashboardData } from "./useDashboardData";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -158,8 +163,12 @@ const Dashboard = () => {
     void loadFincas(activeBodegaId);
   }, [activeBodegaId, loadFincas]);
 
-  const { cuartelesCount, vasijasCount, tareasCount, trazabilidades, campanias, loading, error } =
-    useDashboardData(activeBodegaId, fincas);
+  const isManager = access.isAdminSistema || (access.canAccessBodega && !access.isFincaOnly);
+
+  const { cuartelesCount, vasijasCount, tareasCount, tasks, trazabilidades, campanias, loading, error } =
+    useDashboardData(activeBodegaId, fincas, isManager);
+
+  const [selectedTask, setSelectedTask] = useState<Tarea | null>(null);
 
   const stats = useMemo(() => {
     const enCurso = trazabilidades.filter((t) => t.estado === "en_curso").length;
@@ -217,7 +226,8 @@ const Dashboard = () => {
     ];
   }, [activeBodegaId, cuartelesCount, fincas.length, stats.campaniasAbiertas, vasijasCount]);
 
-  const showReadinessCard = activeBodegaId && readinessSteps.some((s) => !s.done);
+  const canSeeSetup = access.isAdminSistema || access.canAccessBodega;
+  const showReadinessCard = canSeeSetup && activeBodegaId && readinessSteps.some((s) => !s.done);
 
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
@@ -288,6 +298,60 @@ const Dashboard = () => {
                 />
               ) : null}
             </div>
+
+            {/* ── Tareas ───────────────────────────────────────────── */}
+            {activeBodegaId && !loading && tasks.length > 0 && (
+              <AppCard
+                as="section"
+                tone="default"
+                padding="lg"
+                header={
+                  <SectionIntro
+                    title={isManager ? "Tareas del equipo" : "Mis tareas"}
+                    description={
+                      isManager
+                        ? `${tareasCount} tarea${tareasCount !== 1 ? "s" : ""} en curso en la bodega activa`
+                        : `Tenés ${tareasCount} tarea${tareasCount !== 1 ? "s" : ""} pendiente${tareasCount !== 1 ? "s" : ""} asignada${tareasCount !== 1 ? "s" : ""}`
+                    }
+                    actions={
+                      <Link
+                        to={dailyOrdersPath}
+                        className="text-sm font-medium text-[color:var(--accent-primary)] hover:underline"
+                      >
+                        Ver todas →
+                      </Link>
+                    }
+                  />
+                }
+              >
+                <div className="mt-1 space-y-1.5">
+                  {tasks.slice(0, 8).map((task) => (
+                    <OrderRow
+                      key={String(task.tarea_id ?? task.id ?? "")}
+                      task={task}
+                      variant="pending"
+                      onOpenDetail={() => setSelectedTask(task)}
+                    />
+                  ))}
+                  {tasks.length > 8 && (
+                    <Link
+                      to={dailyOrdersPath}
+                      className="block pt-1 text-center text-sm text-[color:var(--text-ink-muted)] hover:text-[color:var(--accent-primary)]"
+                    >
+                      + {tasks.length - 8} más — ver todas
+                    </Link>
+                  )}
+                </div>
+              </AppCard>
+            )}
+
+            {selectedTask && (
+              <TaskDetailModal
+                task={selectedTask}
+                opened={Boolean(selectedTask)}
+                onClose={() => setSelectedTask(null)}
+              />
+            )}
 
             {/* ── Contexto rápido ──────────────────────────────────── */}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
