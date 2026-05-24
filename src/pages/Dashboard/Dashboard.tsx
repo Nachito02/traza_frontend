@@ -348,7 +348,6 @@ const Dashboard = () => {
             {selectedTask && (
               <TaskDetailModal
                 task={selectedTask}
-                opened={Boolean(selectedTask)}
                 onClose={() => setSelectedTask(null)}
               />
             )}

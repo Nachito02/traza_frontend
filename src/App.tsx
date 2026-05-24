@@ -40,7 +40,7 @@ import CampoPage from "./pages/Elaboracion/CampoPage";
 import FincasAdmin from "./pages/Admin/FincasAdmin";
 import CuartelesAdmin from "./pages/Admin/CuartelesAdmin";
 import CampaniasAdmin from "./pages/Admin/CampaniasAdmin";
-import ProtocolosAdmin from "./pages/Admin/ProtocolosAdmin";
+// import ProtocolosAdmin from "./pages/Admin/ProtocolosAdmin";
 import QrCuartelesAdmin from "./pages/Admin/QrCuartelesAdmin";
 import TrazabilidadPublica from "./pages/Public/TrazabilidadPublica";
 import BodegaHome from "./pages/Bodega/BodegaHome";
