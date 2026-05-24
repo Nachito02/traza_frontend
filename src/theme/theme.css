@@ -96,10 +96,10 @@
   --font-heading: "Red Hat Display", sans-serif;
   --font-accent: "Geist", sans-serif;
 
-  --font-size-xs: 0.75rem;
-  --font-size-sm: 0.875rem;
-  --font-size-md: 1rem;
-  --font-size-lg: 1.125rem;
+  --font-size-xs: 0.8125rem;   /* 13.8px */
+  --font-size-sm: 0.9375rem;   /* 15.9px */
+  --font-size-md: 1.0625rem;   /* 18px */
+  --font-size-lg: 1.1875rem;   /* 20.2px */
   --font-size-xl: 1.5rem;
   --font-size-2xl: 1.875rem;
   --font-size-3xl: 2.25rem;
@@ -122,6 +122,9 @@
   --motion-slow: 320ms;
   --motion-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
 
+  /* Shadow inset adjusted for light */
+  --shadow-inset-soft: inset 0 1px 0 rgba(248, 250, 252, 0.4);
+
   /* Legacy aliases kept during migration */
   --color-primary: var(--surface-base);
   --color-secondary: var(--app-bg);
@@ -132,5 +135,94 @@
   --color-text-dark-secondary: var(--text-ink);
   --color-wine: var(--accent-primary);
   --color-wine-light: var(--brand-sand-500);
+  --color-gold: var(--accent-secondary);
+}
+
+/* ── Light mode ─────────────────────────────────────────────────────────── */
+[data-theme="light"] {
+  color-scheme: light;
+
+  /* Surfaces */
+  --app-bg: #f0f4fa;
+  --surface-base: #dce8f5;
+  --surface-base-soft: rgba(220, 232, 245, 0.5);
+  --surface-shell: rgba(255, 255, 255, 0.98);
+  --surface-shell-raised: rgba(240, 244, 250, 0.97);
+  --surface-hero: #c8dcf0;
+  --surface-muted: #ffffff;
+  --surface-soft: #edf3fb;
+  --surface-accent-soft: rgba(0, 168, 98, 0.1);
+  --surface-overlay: rgba(10, 20, 60, 0.45);
+
+  /* Form fields */
+  --field-bg: #ffffff;
+  --field-bg-hover: #f5f8ff;
+  --field-bg-focus: #f5f8ff;
+  --field-border: rgba(7, 19, 95, 0.18);
+  --field-border-hover: rgba(7, 19, 95, 0.32);
+  --field-border-focus: rgba(0, 168, 98, 0.7);
+  --field-text: #050b2f;
+  --field-placeholder: rgba(7, 19, 95, 0.38);
+  --field-label: rgba(7, 19, 95, 0.68);
+  --field-error: #c0392b;
+  --field-error-bg: rgba(192, 57, 43, 0.05);
+
+  /* Text */
+  --text-primary: #050b2f;
+  --text-secondary: #4a6080;
+  --text-on-dark: #07135f;
+  --text-on-dark-muted: rgba(7, 19, 95, 0.65);
+  --text-ink: #07135f;
+  --text-ink-muted: rgba(7, 19, 95, 0.55);
+  --text-accent: #00a862;
+
+  /* Borders */
+  --border-subtle: rgba(0, 168, 98, 0.25);
+  --border-default: rgba(0, 168, 98, 0.45);
+  --border-strong: #00a862;
+  --border-shell: rgba(7, 19, 95, 0.1);
+
+  /* Actions */
+  --accent-primary: #00a862;
+  --accent-primary-hover: #007d49;
+  --accent-secondary: #00a862;
+  --action-primary-bg: #00a862;
+  --action-primary-hover: #007d49;
+  --action-primary-text: #ffffff;
+  --action-secondary-bg: #ffffff;
+  --action-secondary-hover: #edf3fb;
+  --action-ghost-bg: rgba(7, 19, 95, 0.04);
+  --action-ghost-hover: rgba(7, 19, 95, 0.08);
+  --action-danger-bg: rgba(192, 57, 43, 0.1);
+  --action-danger-hover: rgba(192, 57, 43, 0.18);
+
+  /* Feedback */
+  --feedback-success: #00a862;
+  --feedback-warning: #b07d1a;
+  --feedback-danger: #c0392b;
+  --feedback-neutral: #dce8f5;
+  --feedback-success-bg: rgba(0, 168, 98, 0.1);
+  --feedback-success-border: rgba(0, 168, 98, 0.4);
+  --feedback-success-text: #006b3e;
+  --feedback-warning-bg: rgba(176, 125, 26, 0.1);
+  --feedback-warning-border: rgba(176, 125, 26, 0.35);
+  --feedback-warning-text: #7a5210;
+  --feedback-danger-bg: rgba(192, 57, 43, 0.08);
+  --feedback-danger-border: rgba(192, 57, 43, 0.3);
+  --feedback-danger-text: #922b21;
+  --feedback-neutral-bg: rgba(220, 232, 245, 0.8);
+  --feedback-neutral-border: rgba(7, 19, 95, 0.15);
+  --feedback-neutral-text: rgba(7, 19, 95, 0.6);
+
+  /* Shadows */
+  --shadow-soft: 0 12px 28px rgba(7, 19, 95, 0.1);
+  --shadow-raised: 0 18px 40px rgba(7, 19, 95, 0.14);
+  --shadow-inset-soft: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+
+  /* Legacy */
+  --color-primary: var(--surface-base);
+  --color-secondary: var(--app-bg);
+  --color-wine: var(--accent-primary);
+  --color-wine-light: #00a862;
   --color-gold: var(--accent-secondary);
 }

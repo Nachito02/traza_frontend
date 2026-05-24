@@ -18,6 +18,7 @@ export type AppModalProps = {
   overlayClassName?: string;
   showHeaderDivider?: boolean;
   showFooterDivider?: boolean;
+  zIndex?: number;
 };
 
 function joinClasses(...classes: Array<string | false | null | undefined>) {
@@ -46,11 +47,13 @@ function AppModal({
   overlayClassName,
   showHeaderDivider = false,
   showFooterDivider = true,
+  zIndex,
 }: AppModalProps) {
   return (
     <Modal
       opened={opened}
       onClose={onClose}
+      {...(zIndex !== undefined ? { zIndex } : {})}
       withCloseButton={false}
       closeOnClickOutside={closeOnOverlayClick}
       closeOnEscape={closeOnEscape}

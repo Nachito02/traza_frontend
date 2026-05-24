@@ -3,7 +3,6 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import Topbar from "../components/Topbar";
 import { useAuthStore } from "../store/authStore";
 import Aside from "../components/Aside";
-import CorchoBotLauncher from "../components/CorchoBotLauncher";
 
 const AppLayout = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -50,7 +49,7 @@ const AppLayout = () => {
         <Aside className="h-full" onNavigate={() => setMobileMenuOpen(false)} />
       </div>
 
-      <CorchoBotLauncher />
+      {/* <CorchoBotLauncher /> */}
     </div>
   );
 };

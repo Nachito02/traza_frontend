@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { createCuartel } from "../../features/cuarteles/api";
 import { useFincasStore } from "../../features/fincas/store";
@@ -25,6 +25,17 @@ import {
 
 function optionalNumber(value: string) {
   return value.trim() ? Number(value) : null;
+}
+
+function OptLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      {children}
+      <span className="rounded-full bg-[color:var(--surface-soft)] px-1.5 py-0.5 text-[11px] font-normal text-[color:var(--text-ink-muted)]">
+        Opcional
+      </span>
+    </span>
+  );
 }
 
 type CuartelForm = {
@@ -395,7 +406,7 @@ const SetupCuarteles = () => {
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <AppInput
-              label="Cantidad de hileras"
+              label={<OptLabel>Cantidad de hileras</OptLabel>}
               type="number"
               step="1"
               uiSize="lg"
@@ -405,7 +416,7 @@ const SetupCuarteles = () => {
               error={fieldErrors.cantidad_hileras}
             />
             <AppInput
-              label="Largo de hileras (m)"
+              label={<OptLabel>Largo de hileras (m)</OptLabel>}
               type="number"
               step="0.01"
               uiSize="lg"
@@ -415,7 +426,7 @@ const SetupCuarteles = () => {
               error={fieldErrors.largo_hileras_m}
             />
             <AppInput
-              label="Densidad de hileras"
+              label={<OptLabel>Densidad de hileras</OptLabel>}
               type="number"
               step="0.01"
               uiSize="lg"
@@ -425,7 +436,7 @@ const SetupCuarteles = () => {
               error={fieldErrors.densidad_hileras}
             />
             <AppInput
-              label="Distancia de plantación"
+              label={<OptLabel>Distancia de plantación</OptLabel>}
               type="text"
               uiSize="lg"
               placeholder="Ej. 2.5 x 1.2 m"
@@ -435,7 +446,7 @@ const SetupCuarteles = () => {
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <AppSelect
-              label="Sistema de riego"
+              label={<OptLabel>Sistema de riego</OptLabel>}
               uiSize="lg"
               value={form.sistema_riego}
               onChange={(e) => onChange("sistema_riego", e.target.value)}
@@ -448,7 +459,7 @@ const SetupCuarteles = () => {
               ))}
             </AppSelect>
             <AppSelect
-              label="Manejo de cultivo"
+              label={<OptLabel>Manejo de cultivo</OptLabel>}
               uiSize="lg"
               value={form.sistema_productivo}
               onChange={(e) => onChange("sistema_productivo", e.target.value)}
@@ -461,7 +472,7 @@ const SetupCuarteles = () => {
               ))}
             </AppSelect>
             <AppSelect
-              label="Sistema de conducción"
+              label={<OptLabel>Sistema de conducción</OptLabel>}
               uiSize="lg"
               value={form.sistema_conduccion}
               onChange={(e) => onChange("sistema_conduccion", e.target.value)}
@@ -485,13 +496,6 @@ const SetupCuarteles = () => {
               onClick={() => void handleSubmit()}
             >
               {saving ? "Guardando..." : "Crear cuartel"}
-            </AppButton>
-            <AppButton
-              type="button"
-              variant="secondary"
-              onClick={() => navigate("/fincas")}
-            >
-              Finalizar
             </AppButton>
           </div>
         </form>

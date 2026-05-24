@@ -7,6 +7,11 @@ export type TareaAsignacion = {
   assigned_at: string;
   completed_at?: string | null;
   observaciones?: string | null;
+  app_user?: {
+    user_id: string;
+    nombre: string;
+    email?: string | null;
+  } | null;
 };
 
 export type Tarea = {
@@ -172,14 +177,36 @@ export async function finalizarTareaAsignacion(tareaAsignacionId: string) {
   return response.data;
 }
 
+export type AdjuntoRecord = {
+  cid: string;
+  url: string;
+  nombre: string;
+  tipo: string;
+  size: number;
+};
+
 export type TareaEntradaDetail = {
   entradaId: string;
   descripcion?: string | null;
   notas?: string | null;
-  adjuntos?: unknown;
+  adjuntos?: AdjuntoRecord[];
   fecha: string;
   creadoPor?: { user_id: string; nombre: string } | null;
 };
+
+export async function uploadEntradaAdjunto(
+  entradaId: string,
+  file: File,
+): Promise<{ adjunto: AdjuntoRecord; adjuntos: AdjuntoRecord[] }> {
+  const formData = new FormData();
+  formData.append("imagen", file);
+  const response = await apiClient.post<{ adjunto: AdjuntoRecord; adjuntos: AdjuntoRecord[] }>(
+    `/tareas/entradas/${encodeURIComponent(entradaId)}/adjuntos`,
+    formData,
+    { headers: { "Content-Type": "multipart/form-data" } },
+  );
+  return response.data;
+}
 
 export async function fetchTareasByBodega(bodegaId: string): Promise<Tarea[]> {
   try {

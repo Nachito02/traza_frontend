@@ -42,6 +42,10 @@
   --shadow-raised: var(--shadow-raised);
 }
 
+html {
+  font-size: 17px;
+}
+
 html,
 body,
 #root {
