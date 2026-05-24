@@ -6,7 +6,7 @@ import {
   Warehouse,
   ClipboardPenLine,
   // Bot,
-  ScrollText,
+  // ScrollText,
   TrendingUp,
   Settings2,
   QrCode,
