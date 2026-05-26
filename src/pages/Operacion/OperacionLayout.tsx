@@ -47,11 +47,7 @@ export default function OperacionLayout() {
                   <AppButton variant="primary" size="sm">Configurar protocolo</AppButton>
                 </Link>
               )}
-              secondaryAction={(
-                <Link to="/setup/protocolos">
-                  <AppButton variant="secondary" size="sm">Usar setup guiado</AppButton>
-                </Link>
-              )}
+              secondaryAction={undefined}
               steps={[
                 { label: "Bodega activa", done: Boolean(activeBodegaId) },
                 { label: "Protocolo activo", done: false },

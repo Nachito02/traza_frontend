@@ -25,7 +25,6 @@ import SetupHome from "./pages/Setup/SetupHome";
 import SetupFinca from "./pages/Setup/SetupFinca";
 import SetupCampania from "./pages/Setup/SetupCampania";
 import SetupCuarteles from "./pages/Setup/SetupCuarteles";
-import SetupProtocolos from "./pages/Setup/SetupProtocolos";
 import FincaDetail from "./pages/Fincas/FincaDetail";
 import Fincas from "./pages/Fincas/Fincas";
 import Usuarios from "./pages/Usuarios/Usuarios";
@@ -224,7 +223,7 @@ export default function App() {
         <Route path="/setup/finca" element={<SetupFinca />} />
         <Route path="/setup/campania" element={<SetupCampania />} />
         <Route path="/setup/cuarteles" element={<SetupCuarteles />} />
-        <Route path="/setup/protocolos" element={<SetupProtocolos />} />
+        <Route path="/setup/protocolos" element={<Navigate to="/fincas" replace />} />
         <Route path="/trazabilidades" element={<Navigate to="/ordenes" replace />} />
         <Route path="/trazabilidades/nueva" element={<Navigate to="/ordenes" replace />} />
         <Route path="/trazabilidades/:id/plan" element={<Navigate to="/ordenes" replace />} />
