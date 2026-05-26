@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { createCuartel } from "../../features/cuarteles/api";
+import { createCuartel, type GeoJSONPolygon, type Centroide } from "../../features/cuarteles/api";
+import CuartelMapEditor from "../../components/CuartelMapEditor";
 import { useFincasStore } from "../../features/fincas/store";
 import { useAuthStore } from "../../store/authStore";
 import { getApiErrorMessage } from "../../lib/api";
@@ -67,6 +68,8 @@ const SetupCuarteles = () => {
   const loadFincas = useFincasStore((state) => state.loadFincas);
   const [createdCodigo, setCreatedCodigo] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(true);
+  const [mapPolygon, setMapPolygon] = useState<GeoJSONPolygon | null>(null);
+  const [mapCentroid, setMapCentroid] = useState<Centroide | null>(null);
   const notifications = useAppNotifications();
 
   const [form, setForm] = useState<CuartelForm>({
@@ -206,9 +209,13 @@ const SetupCuarteles = () => {
         largo_hileras_m: optionalNumber(form.largo_hileras_m),
         densidad_hileras: optionalNumber(form.densidad_hileras),
         distancia_plantacion: form.distancia_plantacion.trim() || null,
+        poligono: mapPolygon,
+        centroide: mapCentroid,
       });
       sessionStorage.setItem("setupFincaId", form.fincaId);
       setCreatedCodigo(form.codigo_cuartel.trim());
+      setMapPolygon(null);
+      setMapCentroid(null);
       setShowForm(false);
       notifications.notifySuccess({
         title: "Cuartel creado",
@@ -244,6 +251,8 @@ const SetupCuarteles = () => {
     setCreatedCodigo(null);
     setError(null);
     setFieldErrors({});
+    setMapPolygon(null);
+    setMapCentroid(null);
     setShowForm(true);
   };
 
@@ -306,16 +315,9 @@ const SetupCuarteles = () => {
               <AppButton
                 type="button"
                 variant="secondary"
-                onClick={() => navigate("/setup/protocolos")}
-              >
-                Seguir con protocolo
-              </AppButton>
-              <AppButton
-                type="button"
-                variant="ghost"
                 onClick={() => navigate("/fincas")}
               >
-                Finalizar
+                Ir a fincas
               </AppButton>
             </div>
           </AppCard>
@@ -485,6 +487,27 @@ const SetupCuarteles = () => {
               ))}
             </AppSelect>
           </div>
+
+          {/* ── Editor de límites en mapa ───────────────────────── */}
+          <AppCard as="div" tone="soft" padding="md">
+            <div className="mb-3">
+              <div className="text-sm font-semibold text-[color:var(--text-ink)]">
+                Límites del cuartel en mapa
+                <span className="ml-2 rounded-full bg-[color:var(--surface-muted)] px-2 py-0.5 text-[11px] font-normal text-[color:var(--text-ink-muted)]">
+                  Opcional
+                </span>
+              </div>
+              <p className="mt-0.5 text-xs text-[color:var(--text-ink-muted)]">
+                Hacé click en el mapa satelital para trazar el polígono del cuartel.
+              </p>
+            </div>
+            <CuartelMapEditor
+              onChange={(poly, centroid) => {
+                setMapPolygon(poly);
+                setMapCentroid(centroid);
+              }}
+            />
+          </AppCard>
 
           {error ? <NoticeBanner tone="danger">{error}</NoticeBanner> : null}
           <div className="flex flex-wrap gap-3">

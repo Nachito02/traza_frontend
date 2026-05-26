@@ -73,6 +73,7 @@ const CuartelMapEditor = ({ initialPolygon, initialCentroid, onChange }: Props) 
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [webglSupported] = useState<boolean>(() => mapboxgl.supported());
   const [points, setPoints] = useState<LngLat[]>(() =>
     initialPointsFromPolygon(initialPolygon),
   );
@@ -104,7 +105,7 @@ const CuartelMapEditor = ({ initialPolygon, initialCentroid, onChange }: Props) 
   // Inicializar el mapa una sola vez
   useEffect(() => {
     const token = getMapboxToken();
-    if (!token || !containerRef.current) return;
+    if (!token || !containerRef.current || !webglSupported) return;
 
     mapboxgl.accessToken = token;
 
@@ -186,6 +187,22 @@ const CuartelMapEditor = ({ initialPolygon, initialCentroid, onChange }: Props) 
   const handleClear = useCallback(() => setPoints([]), []);
 
   const token = getMapboxToken();
+
+  // ── Sin soporte WebGL ────────────────────────────────────────────────────
+  if (!webglSupported) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 rounded-[var(--radius-xl)] border border-dashed border-[color:var(--border-default)] bg-[color:var(--surface-soft)] p-8 text-center">
+        <span className="text-3xl">🗺️</span>
+        <div>
+          <p className="font-semibold text-[color:var(--text-ink)]">Mapa no disponible</p>
+          <p className="mt-1 text-sm text-[color:var(--text-ink-muted)]">
+            Tu navegador no soporta WebGL, necesario para el editor de límites.
+            Podés igualmente guardar el cuartel sin polígono.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // ── Sin token ────────────────────────────────────────────────────────────
   if (!token) {

@@ -127,8 +127,8 @@ export default function BodegaHome() {
                   title="La bodega no tiene protocolo activo"
                   description="Sin protocolo activo, Operación no puede mostrar las etapas y actividades necesarias para registrar órdenes y eventos."
                   action={(
-                    <Link to="/setup/protocolos">
-                      <AppButton variant="primary" size="sm">Completar setup de protocolo</AppButton>
+                    <Link to="/admin/protocolos">
+                      <AppButton variant="primary" size="sm">Ver protocolos</AppButton>
                     </Link>
                   )}
                   steps={[
