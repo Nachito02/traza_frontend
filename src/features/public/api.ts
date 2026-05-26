@@ -60,6 +60,11 @@ export type PublicCiu = {
   emitido_at: string;
 };
 
+export type PublicGeoJSONPolygon = {
+  type: "Polygon";
+  coordinates: [number, number][][];
+};
+
 export type PublicTrazabilidadCuartel = {
   cuartel: {
     cuartel_id: string;
@@ -71,6 +76,8 @@ export type PublicTrazabilidadCuartel = {
     sistema_riego: string | null;
     sistema_productivo: string | null;
     sistema_conduccion: string | null;
+    poligono?: PublicGeoJSONPolygon | null;
+    centroide?: { lat: number; lng: number } | null;
     finca: {
       finca_id: string;
       nombre_finca: string;

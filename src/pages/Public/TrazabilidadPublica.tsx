@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
   fetchPublicTrazabilidadCuartel,
@@ -11,6 +11,7 @@ import {
   getSistemaConduccionLabel,
 } from "../../domain/viticultura/catalogos";
 import trazaLogo from "../../assets/traza_logo_02.png";
+import { buildMapboxStaticUrl } from "../../lib/mapbox";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -142,6 +143,156 @@ const EventCard = ({ icon, label, accent, children }: EventCardProps) => (
   </div>
 );
 
+// ── Lightbox ───────────────────────────────────────────────────────────────
+
+type LightboxImage = { url: string; nombre: string };
+
+function Lightbox({ images, startIndex, onClose }: { images: LightboxImage[]; startIndex: number; onClose: () => void }) {
+  const [idx, setIdx] = useState(startIndex);
+
+  const prev = useCallback(() => setIdx((i) => (i - 1 + images.length) % images.length), [images.length]);
+  const next = useCallback(() => setIdx((i) => (i + 1) % images.length), [images.length]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft") prev();
+      if (e.key === "ArrowRight") next();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose, prev, next]);
+
+  const img = images[idx];
+  if (!img) return null;
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 9999,
+        background: "rgba(5,11,47,0.92)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}
+    >
+      {/* Prev */}
+      {images.length > 1 && (
+        <button
+          onClick={(e) => { e.stopPropagation(); prev(); }}
+          style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 44, height: 44, fontSize: 20, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+        >‹</button>
+      )}
+
+      {/* Image */}
+      <div onClick={(e) => e.stopPropagation()} style={{ maxWidth: "90vw", maxHeight: "90vh", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+        <img
+          src={img.url}
+          alt={img.nombre}
+          style={{ maxWidth: "90vw", maxHeight: "80vh", borderRadius: 12, objectFit: "contain", boxShadow: "0 8px 40px rgba(0,0,0,0.5)" }}
+        />
+        <div style={{ color: "rgba(237,242,247,0.7)", fontSize: 12, textAlign: "center" }}>
+          {img.nombre}
+          {images.length > 1 && <span style={{ marginLeft: 12, opacity: 0.5 }}>{idx + 1} / {images.length}</span>}
+        </div>
+      </div>
+
+      {/* Next */}
+      {images.length > 1 && (
+        <button
+          onClick={(e) => { e.stopPropagation(); next(); }}
+          style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 44, height: 44, fontSize: 20, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+        >›</button>
+      )}
+
+      {/* Close */}
+      <button
+        onClick={onClose}
+        style={{ position: "absolute", top: 16, right: 16, background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 36, height: 36, fontSize: 18, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+      >×</button>
+    </div>
+  );
+}
+
+// ── Image gallery ──────────────────────────────────────────────────────────
+
+function ImageGallery({ images, files }: { images: LightboxImage[]; files: { url: string; nombre: string; tipo: string }[] }) {
+  const [lightbox, setLightbox] = useState<{ open: boolean; index: number }>({ open: false, index: 0 });
+
+  if (images.length === 0 && files.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      {/* Images grid */}
+      {images.length > 0 && (
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: images.length === 1 ? "1fr" : images.length === 2 ? "1fr 1fr" : "repeat(3, 1fr)",
+          gap: 6,
+          marginBottom: files.length > 0 ? 8 : 0,
+        }}>
+          {images.map((img, i) => (
+            <button
+              key={img.url}
+              onClick={() => setLightbox({ open: true, index: i })}
+              style={{
+                all: "unset",
+                cursor: "zoom-in",
+                display: "block",
+                aspectRatio: images.length === 1 ? "16/9" : "1/1",
+                borderRadius: 8,
+                overflow: "hidden",
+                border: "1px solid #d9e3ed",
+                position: "relative",
+              }}
+            >
+              <img
+                src={img.url}
+                alt={img.nombre}
+                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "opacity 0.15s" }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "0.85"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "1"; }}
+              />
+              {/* Overlay hint on single image */}
+              {images.length === 1 && (
+                <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(5,11,47,0.55)", borderRadius: 6, padding: "3px 8px", fontSize: 11, color: "#fff" }}>
+                  🔍 Ver
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Non-image file links */}
+      {files.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {files.map((f) => (
+            <a
+              key={f.url}
+              href={f.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "5px 10px", borderRadius: 8,
+                border: "1px solid #d9e3ed", background: "#f7f9fc",
+                textDecoration: "none", fontSize: 12, color: "#07135f", fontWeight: 600,
+              }}
+            >
+              <span style={{ fontSize: 16 }}>{publicFileIcon(f.tipo)}</span>
+              <span style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.nombre}</span>
+            </a>
+          ))}
+        </div>
+      )}
+
+      {lightbox.open && (
+        <Lightbox images={images} startIndex={lightbox.index} onClose={() => setLightbox({ open: false, index: 0 })} />
+      )}
+    </div>
+  );
+}
+
 // ── Main page ──────────────────────────────────────────────────────────────
 
 const TrazabilidadPublica = () => {
@@ -272,6 +423,22 @@ const TrazabilidadPublica = () => {
                 )}
               </div>
 
+              {/* Imagen satelital del cuartel */}
+              {data.cuartel.poligono && (() => {
+                const url = buildMapboxStaticUrl(data.cuartel.poligono, { width: 800, height: 320 });
+                if (!url) return null;
+                return (
+                  <div style={{ marginTop: 20, borderRadius: 12, overflow: "hidden", border: "1px solid #d9e3ed" }}>
+                    <img
+                      src={url}
+                      alt={`Ubicación del cuartel ${data.cuartel.codigo_cuartel}`}
+                      style={{ width: "100%", display: "block", objectFit: "cover", height: 220 }}
+                      loading="lazy"
+                    />
+                  </div>
+                );
+              })()}
+
               {/* Summary counters */}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 20, paddingTop: 20, borderTop: "1px solid #edf2f7" }}>
                 <Counter value={data.tareas.length} label="tareas registradas" />
@@ -380,54 +547,12 @@ const TrazabilidadPublica = () => {
                                       {e.descripcion}
                                     </div>
                                   )}
-                                  {/* Adjuntos — images as thumbnails, other files as links */}
+                                  {/* Adjuntos — gallery with lightbox */}
                                   {Array.isArray(e.adjuntos) && e.adjuntos.length > 0 && (
-                                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-                                      {e.adjuntos.map((adj) =>
-                                        adj.tipo.startsWith("image/") ? (
-                                          <a
-                                            key={adj.cid}
-                                            href={adj.url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            style={{ display: "block", borderRadius: 8, overflow: "hidden", border: "1px solid #d9e3ed" }}
-                                          >
-                                            <img
-                                              src={adj.url}
-                                              alt={adj.nombre}
-                                              style={{ width: 80, height: 80, objectFit: "cover", display: "block" }}
-                                            />
-                                          </a>
-                                        ) : (
-                                          <a
-                                            key={adj.cid}
-                                            href={adj.url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            style={{
-                                              display: "flex",
-                                              flexDirection: "column",
-                                              alignItems: "center",
-                                              justifyContent: "center",
-                                              gap: 4,
-                                              width: 80,
-                                              height: 80,
-                                              borderRadius: 8,
-                                              border: "1px solid #d9e3ed",
-                                              background: "#f7f9fc",
-                                              padding: "4px 6px",
-                                              textDecoration: "none",
-                                              overflow: "hidden",
-                                            }}
-                                          >
-                                            <span style={{ fontSize: 24, lineHeight: 1 }}>{publicFileIcon(adj.tipo)}</span>
-                                            <span style={{ fontSize: 9, color: "#4a6080", fontWeight: 600, textAlign: "center", wordBreak: "break-all", lineClamp: 2, WebkitLineClamp: 2, display: "-webkit-box", WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                                              {adj.nombre}
-                                            </span>
-                                          </a>
-                                        )
-                                      )}
-                                    </div>
+                                    <ImageGallery
+                                      images={(e.adjuntos).filter((a) => a.tipo.startsWith("image/")).map((a) => ({ url: a.url, nombre: a.nombre }))}
+                                      files={(e.adjuntos).filter((a) => !a.tipo.startsWith("image/"))}
+                                    />
                                   )}
                                 </div>
                               ))}
