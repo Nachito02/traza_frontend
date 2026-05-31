@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   AppButton,
   AppCard,
   AppModal,
+  AppSelect,
   GuidedState,
   NoticeBanner,
   SectionIntro,
@@ -13,10 +14,23 @@ import OrderRow from "./components/OrderRow";
 import TaskDetailModal from "./components/TaskDetailModal";
 import CreateOrderForm from "./components/CreateOrderForm";
 import { useTareasData } from "./useTareasData";
+import { getTaskCompletedDate, isCompletedTask } from "./tareas.helpers";
 
 type TareasProps = {
   mode?: "manager" | "operator";
 };
+
+type SortDir = "desc" | "asc";
+type StatusFilter = "todos" | "pendientes" | "completadas";
+
+// Fecha relevante para ordenar: completada → fecha de completado; si no, fecha límite; si no, creación
+function taskSortTime(task: Tarea): number {
+  if (isCompletedTask(task)) {
+    return getTaskCompletedDate(task)?.getTime() ?? 0;
+  }
+  const ref = task.fecha_fin ?? task.updated_at ?? task.created_at;
+  return ref ? new Date(String(ref)).getTime() : 0;
+}
 
 const Tareas = ({ mode = "operator" }: TareasProps) => {
   const {
@@ -49,9 +63,33 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
     confirmDialog,
   } = useTareasData(mode);
 
-  const [ordersView, setOrdersView] = useState<"pending" | "completed">("pending");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("todos");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [detailTask, setDetailTask] = useState<Tarea | null>(null);
+
+  const listLoading =
+    statusFilter === "completadas"
+      ? completedLoading
+      : statusFilter === "pendientes"
+        ? loading
+        : loading || completedLoading;
+
+  const visibleTasks = useMemo(() => {
+    const base =
+      statusFilter === "pendientes"
+        ? tasks
+        : statusFilter === "completadas"
+          ? completedTasks
+          : [...tasks, ...completedTasks];
+    return base
+      .slice()
+      .sort((a, b) =>
+        sortDir === "desc"
+          ? taskSortTime(b) - taskSortTime(a)
+          : taskSortTime(a) - taskSortTime(b),
+      );
+  }, [statusFilter, sortDir, tasks, completedTasks]);
 
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
@@ -104,108 +142,73 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
             header={(
               <div className="space-y-4">
                 <SectionIntro
-                  title={ordersView === "pending" ? "Pendientes" : "Completadas"}
+                  title="Órdenes"
                   description={
-                    ordersView === "pending"
-                      ? isManagerMode
-                        ? "Seguimiento de órdenes creadas y registros pendientes por completar."
-                        : "Tus órdenes activas, listas para registrar avances y finalizarlas."
-                      : "Historial de trabajos cerrados para revisar qué ya quedó resuelto."
+                    isManagerMode
+                      ? "Seguimiento de órdenes creadas: filtrá por estado y ordenalas por fecha."
+                      : "Tus órdenes asignadas: filtrá por estado y ordenalas por fecha."
                   }
                 />
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => { setOrdersView("pending"); }}
-                    className={[
-                      "inline-flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] border px-3 py-2 text-xs font-semibold shadow-[var(--shadow-inset-soft)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)]",
-                      ordersView === "pending"
-                        ? "border-[color:var(--border-default)] bg-[color:var(--action-primary-bg)] text-[color:var(--text-primary)]"
-                        : "border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] text-[color:var(--text-on-dark-muted)] hover:border-[color:var(--border-default)] hover:bg-[color:var(--action-secondary-hover)] hover:text-[color:var(--text-on-dark)]",
-                    ].join(" ")}
-                  >
-                    Pendientes
-                    <span className="rounded-full bg-[color:var(--surface-muted)] px-2 py-0.5 text-[11px] text-[color:var(--text-on-dark)]">
-                      {loading ? "..." : tasks.length}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setOrdersView("completed"); }}
-                    className={[
-                      "inline-flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] border px-3 py-2 text-xs font-semibold shadow-[var(--shadow-inset-soft)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)]",
-                      ordersView === "completed"
-                        ? "border-[color:var(--border-default)] bg-[color:var(--action-primary-bg)] text-[color:var(--text-primary)]"
-                        : "border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] text-[color:var(--text-on-dark-muted)] hover:border-[color:var(--border-default)] hover:bg-[color:var(--action-secondary-hover)] hover:text-[color:var(--text-on-dark)]",
-                    ].join(" ")}
-                  >
-                    Completadas
-                    <span className="rounded-full bg-[color:var(--surface-muted)] px-2 py-0.5 text-[11px] text-[color:var(--text-on-dark)]">
-                      {completedLoading ? "..." : completedTasks.length}
-                    </span>
-                  </button>
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="w-44">
+                    <AppSelect
+                      label="Ordenar por fecha"
+                      value={sortDir}
+                      onChange={(e) => setSortDir(e.target.value as SortDir)}
+                    >
+                      <option value="desc">Más recientes primero</option>
+                      <option value="asc">Más antiguas primero</option>
+                    </AppSelect>
+                  </div>
+                  <div className="w-44">
+                    <AppSelect
+                      label="Estado"
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+                    >
+                      <option value="todos">Todas</option>
+                      <option value="pendientes">Pendientes</option>
+                      <option value="completadas">Completadas</option>
+                    </AppSelect>
+                  </div>
                 </div>
               </div>
             )}
           >
-            {/* ── Pendientes ─────────────────────────────────────── */}
-            {ordersView === "pending" ? (
-              loading ? (
-                <NoticeBanner tone="info">Cargando tareas…</NoticeBanner>
-              ) : tasks.length === 0 ? (
-                <GuidedState
-                  title="No hay órdenes pendientes"
-                  description={
-                    isManagerMode
+            {listLoading ? (
+              <NoticeBanner tone="info">Cargando órdenes…</NoticeBanner>
+            ) : visibleTasks.length === 0 ? (
+              <GuidedState
+                title={
+                  statusFilter === "completadas"
+                    ? "Todavía no hay órdenes completadas"
+                    : statusFilter === "pendientes"
+                      ? "No hay órdenes pendientes"
+                      : "No hay órdenes que mostrar"
+                }
+                description={
+                  statusFilter === "completadas"
+                    ? "Cuando una orden se finalice, aparecerá en este historial para que el equipo pueda auditar el trabajo cerrado."
+                    : isManagerMode
                       ? "Cuando crees una orden de trabajo, aparecerá acá para seguir su estado y completar el registro operativo."
                       : "Cuando te asignen una orden, aparecerá en este espacio con la acción correspondiente."
-                  }
-                />
-              ) : (
-                <div className="relative mt-2 space-y-1 pl-6">
-                  <div className="pointer-events-none absolute bottom-2 left-[7px] top-2 w-px bg-[color:var(--border-shell)]" aria-hidden />
-                  {tasks.map((task) => {
-                    const taskId = String(task.tarea_id ?? task.id ?? "");
-                    return (
-                      <OrderRow
-                        key={taskId}
-                        task={task}
-                        variant="pending"
-                        onOpenDetail={() => setDetailTask(task)}
-                      />
-                    );
-                  })}
-                </div>
-              )
+                }
+              />
             ) : (
-              /* ── Completadas ─────────────────────────────────────── */
-              completedLoading ? (
-                <NoticeBanner tone="info">Cargando órdenes completadas…</NoticeBanner>
-              ) : completedTasks.length === 0 ? (
-                <GuidedState
-                  title="Todavía no hay órdenes completadas"
-                  description="Cuando una orden se finalice, aparecerá en este historial para que el equipo pueda auditar el trabajo cerrado."
-                  steps={[
-                    { label: "Pendientes bajo control", done: tasks.length === 0 },
-                    { label: "Historial operativo", done: false },
-                  ]}
-                />
-              ) : (
-                <div className="relative mt-2 space-y-1 pl-6">
-                  <div className="pointer-events-none absolute bottom-2 left-[7px] top-2 w-px bg-[color:var(--border-shell)]" aria-hidden />
-                  {completedTasks.map((task) => {
-                    const taskId = String(task.tarea_id ?? task.id ?? "");
-                    return (
-                      <OrderRow
-                        key={taskId}
-                        task={task}
-                        variant="completed"
-                        onOpenDetail={() => setDetailTask(task)}
-                      />
-                    );
-                  })}
-                </div>
-              )
+              <div className="relative mt-2 space-y-1 pl-6">
+                <div className="pointer-events-none absolute bottom-2 left-[7px] top-2 w-px bg-[color:var(--border-shell)]" aria-hidden />
+                {visibleTasks.map((task) => {
+                  const taskId = String(task.tarea_id ?? task.id ?? "");
+                  return (
+                    <OrderRow
+                      key={taskId}
+                      task={task}
+                      variant={isCompletedTask(task) ? "completed" : "pending"}
+                      onOpenDetail={() => setDetailTask(task)}
+                    />
+                  );
+                })}
+              </div>
             )}
           </AppCard>
         ) : null}

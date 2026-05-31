@@ -13,20 +13,11 @@ type StepConfig = {
   label: string;
 };
 
-type PendingCiuNextStep =
-  | {
-      from: "ciu";
-      title: string;
-      description: string;
-      primaryLabel: string;
-      ciuId: string;
-    }
-  | {
-      from: "vinculo";
-      title: string;
-      description: string;
-      primaryLabel: string;
-    };
+type PendingCiuNextStep = {
+  title: string;
+  description: string;
+  primaryLabel: string;
+};
 
 const STEPS: StepConfig[] = [
   { key: "remito",   label: "Remito de uva" },
@@ -51,9 +42,11 @@ export default function IngresoUvaFlowPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [recepcionDefaults, setRecepcionDefaults] = useState<Record<string, string | boolean>>({});
   const [analisisDefaults, setAnalisisDefaults] = useState<Record<string, string | boolean>>({});
-  const [vinculoDefaults, setVinculoDefaults] = useState<Record<string, string | boolean>>({});
   const [referenceOptionsVersion, setReferenceOptionsVersion] = useState(0);
   const [pendingCiuNextStep, setPendingCiuNextStep] = useState<PendingCiuNextStep | null>(null);
+  // Solo se abre el modal automáticamente cuando se llega a un paso vía "Continuar".
+  // Si el usuario navega manualmente por los tabs para consultar registros, no se abre.
+  const [autoOpenStep, setAutoOpenStep] = useState<IngresoUvaStep | null>(null);
   const activeStep = getStepFromParams(searchParams.get("paso") ?? searchParams.get("section"));
 
   const goToStep = (step: IngresoUvaStep) => {
@@ -65,38 +58,39 @@ export default function IngresoUvaFlowPage() {
     });
   };
 
+  // Navegación manual por los tabs: nunca auto-abre el modal.
+  const goToStepManually = (step: IngresoUvaStep) => {
+    setAutoOpenStep(null);
+    goToStep(step);
+  };
+
+  // Estos callbacks se disparan únicamente al confirmar "Continuar" desde el paso previo,
+  // por eso marcamos el destino como auto-abrible.
+  const handleRecepcionDefaults = (values: Record<string, string | boolean>) => {
+    setRecepcionDefaults(values);
+    setAutoOpenStep("recepcion");
+  };
+
+  const handleAnalisisDefaults = (values: Record<string, string | boolean>) => {
+    setAnalisisDefaults(values);
+    setAutoOpenStep("analisis");
+  };
+
   const handleCiuCreated = (item: ElaboracionEntity) => {
     const ciuId = resolveStringId(item, ["ciu_id", "id_ciu", "id"]);
     if (!ciuId) return;
     setReferenceOptionsVersion((current) => current + 1);
-    setVinculoDefaults({ ciuId });
     setPendingCiuNextStep({
-      from: "ciu",
-      title: "CIU guardado",
+      title: "CIU emitido",
       description:
-        "El comprobante ya quedó registrado. Ahora podés vincularlo con la recepción correspondiente para cerrar el ingreso sin dejar el CIU suelto.",
-      primaryLabel: "Vincular recepción",
-      ciuId,
-    });
-  };
-
-  const handleVinculoCreated = () => {
-    setPendingCiuNextStep({
-      from: "vinculo",
-      title: "CIU vinculado",
-      description:
-        "El CIU ya quedó asociado a la recepción. Podés continuar con el ingreso a vasija o volver más tarde si todavía no está definido el destino.",
+        "El CIU quedó asociado al ingreso correspondiente. Podés continuar con el ingreso a vasija o volver más tarde si todavía no está definido el destino.",
       primaryLabel: "Continuar a vasija",
     });
   };
 
   const continueCiuNextStep = () => {
     if (!pendingCiuNextStep) return;
-    if (pendingCiuNextStep.from === "ciu") {
-      setVinculoDefaults({ ciuId: pendingCiuNextStep.ciuId });
-    } else {
-      goToStep("vasija");
-    }
+    goToStep("vasija");
     setPendingCiuNextStep(null);
   };
 
@@ -120,7 +114,7 @@ export default function IngresoUvaFlowPage() {
           <SectionSelector
             bare
             value={activeStep}
-            onChange={(key) => goToStep(key)}
+            onChange={(key) => goToStepManually(key)}
             options={STEPS}
           />
         </div>
@@ -131,8 +125,8 @@ export default function IngresoUvaFlowPage() {
           initialSection="remito"
           hideSectionSelector
           onSectionChange={(section) => goToStep(section)}
-          onRecepcionDefaultsChange={setRecepcionDefaults}
-          onAnalisisDefaultsChange={setAnalisisDefaults}
+          onRecepcionDefaultsChange={handleRecepcionDefaults}
+          onAnalisisDefaultsChange={handleAnalisisDefaults}
         />
       ) : null}
 
@@ -140,10 +134,11 @@ export default function IngresoUvaFlowPage() {
         <RecepcionPage
           initialSection="recepcion"
           hideSectionSelector
+          autoOpenForm={autoOpenStep === "recepcion"}
           onSectionChange={(section) => goToStep(section)}
           recepcionDefaultValues={recepcionDefaults}
-          onRecepcionDefaultsChange={setRecepcionDefaults}
-          onAnalisisDefaultsChange={setAnalisisDefaults}
+          onRecepcionDefaultsChange={handleRecepcionDefaults}
+          onAnalisisDefaultsChange={handleAnalisisDefaults}
         />
       ) : null}
 
@@ -151,30 +146,25 @@ export default function IngresoUvaFlowPage() {
         <RecepcionPage
           initialSection="analisis"
           hideSectionSelector
+          autoOpenForm={autoOpenStep === "analisis"}
           onSectionChange={(section) => goToStep(section)}
           analisisDefaultValues={analisisDefaults}
-          onRecepcionDefaultsChange={setRecepcionDefaults}
-          onAnalisisDefaultsChange={setAnalisisDefaults}
+          onRecepcionDefaultsChange={handleRecepcionDefaults}
+          onAnalisisDefaultsChange={handleAnalisisDefaults}
         />
       ) : null}
 
       {activeStep === "ciu" ? (
         <div className="space-y-3">
-          <NoticeBanner tone="info" title="CIU como cierre del ingreso">
-            Creá el CIU cuando la recepción ya exista. Después vinculalo con esa recepción para que el comprobante no quede suelto.
+          <NoticeBanner tone="info" title="El CIU se asocia al ingreso">
+            Cada CIU queda vinculado al ingreso (recepción) que elijas. No puede emitirse un CIU
+            suelto, y cada ingreso admite un único CIU.
           </NoticeBanner>
           <CiuQcPage
-            initialSection="ciu"
             hideSectionSelector
+            ciuDefaultValues={analisisDefaults}
             referenceOptionsVersion={referenceOptionsVersion}
             onCiuCreated={handleCiuCreated}
-          />
-          <CiuQcPage
-            initialSection="vinculo"
-            hideSectionSelector
-            vinculoDefaults={vinculoDefaults}
-            referenceOptionsVersion={referenceOptionsVersion}
-            onVinculoCreated={handleVinculoCreated}
           />
         </div>
       ) : null}
@@ -191,9 +181,7 @@ export default function IngresoUvaFlowPage() {
             />
           )}
         >
-          <NoticeBanner tone="info" title="Siguiente paso operativo">
-            En Concos este paso aparece como registro del CIU en inventario de vasijas. En Traza se resuelve desde Operación de vasijas, usando la recepción como referencia.
-          </NoticeBanner>
+         
           <div className="mt-4 flex flex-wrap gap-2">
             <Link to="/operacion/vasijas">
               <AppButton variant="primary">Abrir vasijas y proceso</AppButton>

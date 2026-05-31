@@ -923,12 +923,32 @@ function TareaRow({
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
+type SortDir = "desc" | "asc";
+type StatusFilter = "todos" | "pendientes" | "completadas";
+
+// Fecha relevante para ordenar: completada → completed_at; si no, fecha_fin; si no, created_at
+function tareaSortTime(tarea: Tarea): number {
+  if (normalizeEstado(tarea.estado) === "completado") {
+    const completedAt =
+      tarea.tarea_asignacion
+        ?.map((a) => a.completed_at)
+        .filter(Boolean)
+        .sort()
+        .reverse()[0] ?? tarea.updated_at;
+    if (completedAt) return new Date(completedAt).getTime();
+  }
+  const ref = tarea.fecha_fin ?? tarea.updated_at ?? tarea.created_at;
+  return ref ? new Date(String(ref)).getTime() : 0;
+}
+
 export default function CampoPage({ standalone = false }: { standalone?: boolean }) {
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const fincas = useFincasStore((state) => state.fincas);
   const loadFincas = useFincasStore((state) => state.loadFincas);
   const [tareas, setTareas] = useState<Tarea[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("todos");
 
   const loadTareas = () => {
     if (!activeBodegaId) { setLoading(false); return; }
@@ -1023,6 +1043,32 @@ export default function CampoPage({ standalone = false }: { standalone?: boolean
             <MetricCard label="Pendientes" value={totales.pendientes} hint="Sin iniciar o vencidas" />
           </div>
         )}
+
+        {tareasDeCampo.length > 0 && (
+          <div className="mt-5 flex flex-wrap items-end gap-3">
+            <div className="w-44">
+              <AppSelect
+                label="Ordenar por fecha"
+                value={sortDir}
+                onChange={(e) => setSortDir(e.target.value as SortDir)}
+              >
+                <option value="desc">Más recientes primero</option>
+                <option value="asc">Más antiguas primero</option>
+              </AppSelect>
+            </div>
+            <div className="w-44">
+              <AppSelect
+                label="Estado"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+              >
+                <option value="todos">Todas</option>
+                <option value="pendientes">Pendientes</option>
+                <option value="completadas">Completadas</option>
+              </AppSelect>
+            </div>
+          </div>
+        )}
       </AppCard>
 
       {tareasDeCampo.length === 0 ? (
@@ -1031,37 +1077,58 @@ export default function CampoPage({ standalone = false }: { standalone?: boolean
           Las tareas aparecen cuando los operarios reciben órdenes de trabajo asociadas a una finca.
         </NoticeBanner>
       ) : (
-        porFinca.map((grupo) => (
-          <AppCard
-            key={grupo.fincaId}
-            as="section"
-            tone="default"
-            padding="lg"
-            header={(
-              <SectionIntro
-                title={grupo.nombre}
-                description={`${grupo.tareas.length} tarea${grupo.tareas.length !== 1 ? "s" : ""} registrada${grupo.tareas.length !== 1 ? "s" : ""}`}
-              />
-            )}
-          >
-            <div className="space-y-2">
-              {grupo.tareas
+        (() => {
+          const gruposVisibles = porFinca
+            .map((grupo) => {
+              const tareasFiltradas = grupo.tareas
+                .filter((t) => {
+                  if (statusFilter === "todos") return true;
+                  const completada = normalizeEstado(t.estado) === "completado";
+                  return statusFilter === "completadas" ? completada : !completada;
+                })
                 .slice()
                 .sort((a, b) => {
-                  const aTime = new Date(String(a.updated_at ?? a.created_at ?? 0)).getTime();
-                  const bTime = new Date(String(b.updated_at ?? b.created_at ?? 0)).getTime();
-                  return bTime - aTime;
-                })
-                .map((tarea) => (
+                  const aTime = tareaSortTime(a);
+                  const bTime = tareaSortTime(b);
+                  return sortDir === "desc" ? bTime - aTime : aTime - bTime;
+                });
+              return { ...grupo, tareas: tareasFiltradas };
+            })
+            .filter((grupo) => grupo.tareas.length > 0);
+
+          if (gruposVisibles.length === 0) {
+            return (
+              <NoticeBanner tone="info">
+                No hay tareas que coincidan con el filtro seleccionado.
+              </NoticeBanner>
+            );
+          }
+
+          return gruposVisibles.map((grupo) => (
+            <AppCard
+              key={grupo.fincaId}
+              as="section"
+              tone="default"
+              padding="lg"
+              header={(
+                <SectionIntro
+                  title={grupo.nombre}
+                  description={`${grupo.tareas.length} tarea${grupo.tareas.length !== 1 ? "s" : ""} registrada${grupo.tareas.length !== 1 ? "s" : ""}`}
+                />
+              )}
+            >
+              <div className="space-y-2">
+                {grupo.tareas.map((tarea) => (
                   <TareaRow
                     key={String(tarea.tarea_id ?? tarea.id ?? "")}
                     tarea={tarea}
                     onCompleted={loadTareas}
                   />
                 ))}
-            </div>
-          </AppCard>
-        ))
+              </div>
+            </AppCard>
+          ));
+        })()
       )}
     </div>
   );

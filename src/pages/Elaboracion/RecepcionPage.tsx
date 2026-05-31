@@ -11,24 +11,6 @@ import GenericCrudSection, { type CrudField, type SelectOption } from "./compone
 import SectionSelector from "./components/SectionSelector";
 import { useSearchParams } from "react-router-dom";
 
-function toOptions(items: ElaboracionEntity[], idKeys: string[], labelKeys: string[]): SelectOption[] {
-  return items
-    .map((item) => {
-      const id = idKeys
-        .map((key) => item[key])
-        .find((value) => typeof value === "string" || typeof value === "number");
-      const label = labelKeys
-        .map((key) => item[key])
-        .find((value) => typeof value === "string" || typeof value === "number");
-      if (id === undefined || id === null) return null;
-      return {
-        value: String(id),
-        label: String(label ?? id),
-      };
-    })
-    .filter((option): option is SelectOption => option !== null);
-}
-
 function resolveStringId(item: ElaboracionEntity, keys: string[]) {
   const id = keys
     .map((key) => item[key])
@@ -90,10 +72,61 @@ function formatRecepcionOption(item: ElaboracionEntity): SelectOption | null {
   };
 }
 
+function formatRemitoOption(item: ElaboracionEntity): SelectOption | null {
+  const id = item.remito_uva_id ?? item.id_remito ?? item.remito_id ?? item.id;
+  if (typeof id !== "string" && typeof id !== "number") return null;
+
+  const salida = typeof item.salida_finca === "string" ? new Date(item.salida_finca) : null;
+  const salidaLabel = salida && !Number.isNaN(salida.getTime())
+    ? salida.toLocaleString("es-AR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : null;
+
+  const finca = item.finca && typeof item.finca === "object"
+    ? item.finca as Record<string, unknown>
+    : {};
+  const cuartel = item.cuartel && typeof item.cuartel === "object"
+    ? item.cuartel as Record<string, unknown>
+    : {};
+
+  const fincaLabel = typeof finca.nombre_finca === "string" ? finca.nombre_finca : null;
+  const cuartelLabel = typeof cuartel.codigo_cuartel === "string" ? cuartel.codigo_cuartel : null;
+  const origen = [fincaLabel, cuartelLabel].filter(Boolean).join(" / ");
+  const kg = typeof item.kg_declarados === "string" || typeof item.kg_declarados === "number"
+    ? `${item.kg_declarados} kg`
+    : null;
+  const patente = typeof item.patente === "string" && item.patente.trim()
+    ? item.patente.trim()
+    : null;
+  const transportista = typeof item.transportista === "string" && item.transportista.trim()
+    ? item.transportista.trim()
+    : null;
+
+  const parts = [
+    origen || null,
+    salidaLabel ? `Salida ${salidaLabel}` : null,
+    kg,
+    patente ? `Patente ${patente}` : null,
+    transportista,
+  ].filter(Boolean);
+
+  return {
+    value: String(id),
+    label: parts.length > 0 ? parts.join(" · ") : `Remito ${String(id).slice(0, 8)}`,
+  };
+}
+
 type RecepcionPageProps = {
   initialSection?: "remito" | "recepcion" | "analisis";
   hideSectionSelector?: boolean;
   hidePrimaryAction?: boolean;
+  /** Auto-opens the create modal on mount (only when arriving via the guided flow). */
+  autoOpenForm?: boolean;
   onSectionChange?: (section: "remito" | "recepcion" | "analisis") => void;
   recepcionDefaultValues?: Record<string, string | boolean>;
   analisisDefaultValues?: Record<string, string | boolean>;
@@ -123,6 +156,7 @@ export default function RecepcionPage({
   initialSection = "remito",
   hideSectionSelector = false,
   hidePrimaryAction = false,
+  autoOpenForm = false,
   onSectionChange,
   recepcionDefaultValues,
   analisisDefaultValues,
@@ -169,11 +203,9 @@ export default function RecepcionPage({
       listElaboracionResource("recepciones-bodega", { bodegaId: String(activeBodegaId) }),
     ]);
     setRemitoOptions(
-      toOptions(
-        remitos,
-        ["remito_uva_id", "id_remito", "remito_id", "id"],
-        ["patente", "transportista", "remito_uva_id", "id_remito"],
-      ),
+      remitos
+        .map(formatRemitoOption)
+        .filter((option): option is SelectOption => option !== null),
     );
     setRecepcionOptions(
       recepciones
@@ -443,6 +475,7 @@ export default function RecepcionPage({
           bodegaId={activeBodegaId}
           hidePrimaryAction={hidePrimaryAction}
           formInModal={!hidePrimaryAction}
+          autoOpenForm={autoOpenForm}
           fields={recepcionFields}
           defaultValues={recepcionDefaultValues ?? recepcionDefaults}
           onCreated={handleRecepcionCreated}
@@ -457,6 +490,7 @@ export default function RecepcionPage({
           bodegaId={activeBodegaId}
           hidePrimaryAction={hidePrimaryAction}
           formInModal={!hidePrimaryAction}
+          autoOpenForm={autoOpenForm}
           fields={analisisFields}
           defaultValues={analisisDefaultValues ?? analisisDefaults}
         />

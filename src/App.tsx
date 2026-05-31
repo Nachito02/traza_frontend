@@ -162,7 +162,7 @@ export default function App() {
       <Route path="/" element={<Navigate to="/login" replace />} />
       {/* Public — no auth required */}
       <Route path="/trazabilidad/:cuartelId" element={<TrazabilidadPublica />} />
-      <Route path="/login" element={<Login />} />
+      <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} />
       <Route path="/registro" element={<Register />} />
       <Route path="/cambiar-password" element={<ChangePassword />} />
       <Route element={<AppLayout />}>

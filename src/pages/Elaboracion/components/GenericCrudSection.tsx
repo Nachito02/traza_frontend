@@ -68,6 +68,8 @@ type GenericCrudSectionProps = {
   separatedLayout?: boolean;
   /** When true the create/edit form opens inside an AppModal instead of inline. */
   formInModal?: boolean;
+  /** When true (with formInModal), auto-opens the create modal on mount if defaultValues are provided. */
+  autoOpenForm?: boolean;
   defaultValues?: Record<string, string | boolean>;
   onCreated?: (item: ElaboracionEntity) => void | Promise<void>;
 };
@@ -240,25 +242,13 @@ function formatRelatedFieldValue(
     return label || formatItemFieldValue(item[sourceKey]);
   }
 
-  if (
-    (resource === "analisis-recepcion" || resource === "ciu-recepciones") &&
-    sourceKey === "recepcion_bodega_id"
-  ) {
+  if (resource === "analisis-recepcion" && sourceKey === "recepcion_bodega_id") {
     const recepcion = getNestedRecord(item, "recepcion_bodega");
     const fecha = formatDateTimeValue(recepcion?.fecha_hora);
     const kilos = recepcion?.kg_pesados !== undefined && recepcion?.kg_pesados !== null
       ? `${recepcion.kg_pesados} kg`
       : null;
     const label = [fecha, kilos].filter(Boolean).join(" · ");
-    return label || formatItemFieldValue(item[sourceKey]);
-  }
-
-  if (resource === "ciu-recepciones" && sourceKey === "ciu_id") {
-    const ciu = getNestedRecord(item, "ciu");
-    const finca = ciu?.finca && typeof ciu.finca === "object" && !Array.isArray(ciu.finca)
-      ? ciu.finca as Record<string, unknown>
-      : null;
-    const label = [ciu?.codigo_ciu, finca?.nombre_finca].filter(Boolean).join(" · ");
     return label || formatItemFieldValue(item[sourceKey]);
   }
 
@@ -291,6 +281,7 @@ export default function GenericCrudSection({
   hidePrimaryAction = false,
   separatedLayout = false,
   formInModal = false,
+  autoOpenForm = false,
   defaultValues,
   onCreated,
 }: GenericCrudSectionProps) {
@@ -353,6 +344,16 @@ export default function GenericCrudSection({
     setFieldErrors({});
     setViewMode(separatedLayout && !hasDefaultValues ? "list" : "form");
   }, [defaultValues, fields, resource]);
+
+  const autoOpenHandledRef = useRef(false);
+  useEffect(() => {
+    if (autoOpenHandledRef.current) return;
+    if (!autoOpenForm || !formInModal) return;
+    const hasDefaultValues = defaultValues && Object.keys(defaultValues).length > 0;
+    if (!hasDefaultValues) return;
+    autoOpenHandledRef.current = true;
+    setShowFormModal(true);
+  }, [autoOpenForm, formInModal, defaultValues]);
 
   const onSubmit = async () => {
     if (!bodegaId && withBodegaId) {

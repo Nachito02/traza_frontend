@@ -44,6 +44,7 @@ export default function VasijasProcesoPage({
     "vasijas" | "operaciones" | "existencias" | "fermentacion"
   >(initialSection);
   const [vasijaOptions, setVasijaOptions] = useState<SelectOption[]>([]);
+  const [vasijaOptionsVersion, setVasijaOptionsVersion] = useState(0);
   const [bodegaUsers, setBodegaUsers] = useState<AuthUser[]>([]);
 
   useEffect(() => {
@@ -69,6 +70,8 @@ export default function VasijasProcesoPage({
     listElaboracionResource("vasijas", { bodegaId: String(activeBodegaId) }).then((vasijas) => {
       setVasijaOptions(toOptions(vasijas, ["id_vasija", "vasija_id", "id"], ["codigo", "tipo", "id_vasija"]));
     });
+    // vasijaOptionsVersion se incrementa cada vez que se crea una vasija nueva,
+    // asegurando que los selects en otras secciones reflejen el estado actual.
     fetchAuthUsers()
       .then((users) => {
         setBodegaUsers(
@@ -78,7 +81,7 @@ export default function VasijasProcesoPage({
         );
       })
       .catch(() => setBodegaUsers([]));
-  }, [activeBodegaId]);
+  }, [activeBodegaId, vasijaOptionsVersion]);
 
   const userOptions = useMemo<SelectOption[]>(
     () =>
@@ -153,6 +156,7 @@ export default function VasijasProcesoPage({
           hidePrimaryAction={hidePrimaryAction}
           formInModal={!hidePrimaryAction}
           fields={VASIJA_FIELDS}
+          onCreated={() => setVasijaOptionsVersion((v) => v + 1)}
         />
       ) : null}
 

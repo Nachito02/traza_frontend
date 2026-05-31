@@ -21,7 +21,6 @@ export type ElaboracionEntity = Record<string, unknown> & {
 
 export type ElaboracionResourceKey =
   | "cius"
-  | "ciu-recepciones"
   | "qc-ingreso-uva"
   | "existencias-vasija"
   | "controles-fermentacion"
@@ -135,35 +134,11 @@ export async function patchElaboracionResource(
   return response.data;
 }
 
-type CiuRecepcionKey = {
-  ciuId: string;
-  recepcionBodegaId: string;
-};
-
-function buildCiuRecepcionPath(resource: ElaboracionResourceKey, key: CiuRecepcionKey) {
-  return `/elaboracion/${resource}/${encodeURIComponent(key.ciuId)}/${encodeURIComponent(key.recepcionBodegaId)}`;
-}
-
-export async function patchCiuRecepcion(
-  key: CiuRecepcionKey,
-  payload: Record<string, unknown>,
-) {
-  const response = await apiClient.patch<ElaboracionEntity>(
-    buildCiuRecepcionPath("ciu-recepciones", key),
-    payload,
-  );
-  return response.data;
-}
-
 export async function deleteElaboracionResource(
   resource: ElaboracionResourceKey,
   id: string,
 ) {
   await apiClient.delete(`/elaboracion/${resource}/${encodeURIComponent(id)}`);
-}
-
-export async function deleteCiuRecepcion(key: CiuRecepcionKey) {
-  await apiClient.delete(buildCiuRecepcionPath("ciu-recepciones", key));
 }
 
 export async function fetchTrazabilidadInversaPorQr(codigoQr: string) {

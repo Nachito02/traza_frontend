@@ -324,7 +324,8 @@ const Dashboard = () => {
                   />
                 }
               >
-                <div className="mt-1 space-y-1.5">
+                <div className="relative mt-2 space-y-1 pl-6">
+                  <div className="pointer-events-none absolute bottom-2 left-[7px] top-2 w-px bg-[color:var(--border-shell)]" aria-hidden />
                   {tasks.slice(0, 8).map((task) => (
                     <OrderRow
                       key={String(task.tarea_id ?? task.id ?? "")}

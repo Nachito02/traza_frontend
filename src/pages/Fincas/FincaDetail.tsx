@@ -3,12 +3,16 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   AppButton,
   AppCard,
+  AppSelect,
   GuidedState,
   NoticeBanner,
   SectionIntro,
   useConfirmDialog,
 } from "../../components/ui";
 import QrCuartelModal from "../../components/QrCuartelModal";
+import OrderRow from "../Tareas/components/OrderRow";
+import TaskDetailModal from "../Tareas/components/TaskDetailModal";
+import { isCompletedTask } from "../Tareas/tareas.helpers";
 import type { Cuartel } from "../../features/cuarteles/api";
 import { fetchCuartelesByFinca } from "../../features/cuarteles/api";
 import { fetchTareasByBodega, type Tarea } from "../../features/encargos/api";
@@ -23,27 +27,6 @@ import {
   getSistemaRiegoLabel,
   getVariedadLabel,
 } from "../../domain/viticultura/catalogos";
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-function estadoBadgeClass(estado: string) {
-  const e = estado.toLowerCase();
-  if (e === "completado") return "text-[color:var(--feedback-success-text)] bg-green-50 border-green-200";
-  if (e === "en_progreso" || e === "en_curso") return "text-[color:var(--accent-primary)] bg-blue-50 border-blue-200";
-  if (e === "cancelado") return "text-[color:var(--feedback-danger-text)] bg-red-50 border-red-200";
-  return "text-[color:var(--text-ink-muted)] bg-[color:var(--surface-muted)] border-[color:var(--border-shell)]";
-}
-
-function estadoLabel(estado: string) {
-  const map: Record<string, string> = {
-    completado: "Completado",
-    en_progreso: "En progreso",
-    en_curso: "En curso",
-    pendiente: "Pendiente",
-    cancelado: "Cancelado",
-  };
-  return map[estado.toLowerCase()] ?? estado;
-}
 
 // ── Sub-componentes ────────────────────────────────────────────────────────
 
@@ -145,6 +128,9 @@ const FincaDetail = () => {
 
   const [deletingFinca, setDeletingFinca] = useState(false);
   const [qrCuartel, setQrCuartel] = useState<{ id: string; codigo: string } | null>(null);
+  const [selectedTarea, setSelectedTarea] = useState<Tarea | null>(null);
+  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
+  const [statusFilter, setStatusFilter] = useState<"todos" | "pendientes" | "completadas">("todos");
 
   const fincaNombre = finca?.nombre_finca ?? "Finca";
 
@@ -157,17 +143,21 @@ const FincaDetail = () => {
     return null;
   }, [finca]);
 
-  // Últimas tareas de esta finca (para el historial)
-  const historial = useMemo(() =>
-    tareas
+  // Tareas de esta finca filtradas y ordenadas según los controles del historial
+  const historial = useMemo(() => {
+    return tareas
       .filter((t) => String(t.finca_id ?? t.finca?.finca_id ?? "") === String(id))
+      .filter((t) => {
+        if (statusFilter === "todos") return true;
+        const completada = isCompletedTask(t);
+        return statusFilter === "completadas" ? completada : !completada;
+      })
       .sort((a, b) => {
         const at = new Date(String(a.updated_at ?? a.created_at ?? 0)).getTime();
         const bt = new Date(String(b.updated_at ?? b.created_at ?? 0)).getTime();
-        return bt - at;
-      })
-      .slice(0, 8),
-  [tareas, id]);
+        return sortDir === "desc" ? bt - at : at - bt;
+      });
+  }, [tareas, id, statusFilter, sortDir]);
 
   // Fetch cuarteles
   useEffect(() => {
@@ -327,7 +317,7 @@ const FincaDetail = () => {
           header={(
             <SectionIntro
               title="Historial de tareas"
-              description="Últimas órdenes de trabajo registradas para esta finca."
+              description="Órdenes de trabajo registradas para esta finca."
               actions={(
                 <Link to="/ordenes">
                   <AppButton variant="ghost" size="sm">Ver todas →</AppButton>
@@ -338,50 +328,63 @@ const FincaDetail = () => {
         >
           {loadingTareas ? (
             <NoticeBanner>Cargando tareas…</NoticeBanner>
-          ) : historial.length === 0 ? (
-            <p className="py-4 text-sm text-[color:var(--text-ink-muted)]">
-              Todavía no hay tareas registradas para esta finca.
-            </p>
           ) : (
-            <div className="mt-2 space-y-2">
-              {historial.map((t) => {
-                const estado = t.estado ?? "pendiente";
-                const fecha = t.updated_at ?? t.created_at;
-                return (
-                  <div
-                    key={String(t.tarea_id ?? t.id ?? "")}
-                    className="flex items-start justify-between gap-4 rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-4 py-3"
+            <>
+              <div className="mt-4 flex flex-wrap items-end gap-3">
+                <div className="w-44">
+                  <AppSelect
+                    label="Ordenar por fecha"
+                    value={sortDir}
+                    onChange={(e) => setSortDir(e.target.value as "desc" | "asc")}
                   >
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-semibold text-[color:var(--text-ink)]">
-                        {t.titulo}
-                      </div>
-                      {t.cuartel?.codigo_cuartel && (
-                        <div className="mt-0.5 text-xs text-[color:var(--text-ink-muted)]">
-                          Cuartel {t.cuartel.codigo_cuartel}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex shrink-0 flex-col items-end gap-1">
-                      <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${estadoBadgeClass(estado)}`}>
-                        {estadoLabel(estado)}
-                      </span>
-                      {fecha && (
-                        <span className="text-[10px] text-[color:var(--text-ink-muted)]">
-                          {new Date(String(fecha)).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                    <option value="desc">Más recientes primero</option>
+                    <option value="asc">Más antiguas primero</option>
+                  </AppSelect>
+                </div>
+                <div className="w-44">
+                  <AppSelect
+                    label="Estado"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as "todos" | "pendientes" | "completadas")}
+                  >
+                    <option value="todos">Todas</option>
+                    <option value="pendientes">Pendientes</option>
+                    <option value="completadas">Completadas</option>
+                  </AppSelect>
+                </div>
+              </div>
+
+              {historial.length === 0 ? (
+                <p className="mt-4 py-2 text-sm text-[color:var(--text-ink-muted)]">
+                  {statusFilter === "todos"
+                    ? "Todavía no hay tareas registradas para esta finca."
+                    : "No hay tareas que coincidan con el filtro seleccionado."}
+                </p>
+              ) : (
+                <div className="relative mt-4 space-y-1 pl-6">
+                  <div
+                    className="pointer-events-none absolute bottom-2 left-[7px] top-2 w-px bg-[color:var(--border-shell)]"
+                    aria-hidden
+                  />
+                  {historial.map((t) => (
+                    <OrderRow
+                      key={String(t.tarea_id ?? t.id ?? "")}
+                      task={t}
+                      variant={isCompletedTask(t) ? "completed" : "pending"}
+                      onOpenDetail={() => setSelectedTarea(t)}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </AppCard>
 
       </div>
 
       {ConfirmDialog}
+
+      <TaskDetailModal task={selectedTarea} onClose={() => setSelectedTarea(null)} />
 
       {qrCuartel && (
         <QrCuartelModal

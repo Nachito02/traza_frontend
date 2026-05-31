@@ -16,6 +16,8 @@ import {
   NoticeBanner,
   SectionIntro,
 } from "../../components/ui";
+import TaskDetailModal from "../Tareas/components/TaskDetailModal";
+import OrderRow from "../Tareas/components/OrderRow";
 
 type ProcesoProgreso = {
   proceso_id: string;
@@ -532,176 +534,6 @@ function ProcesoRow({ proceso }: { proceso: ProcesoProgreso }) {
   );
 }
 
-function TareaModal({ tarea, onClose }: { tarea: Tarea; onClose: () => void }) {
-  const [entradas, setEntradas] = useState<TareaEntradaDetail[] | null>(null);
-  const [loadingEntradas, setLoadingEntradas] = useState(false);
-  const hasCompletedAssignment = tarea.tarea_asignacion?.some(
-    (a) => normalizeTaskEstado(a.estado) === "completado",
-  ) ?? false;
-  const effectiveEstado = hasCompletedAssignment ? "completado" : tarea.estado;
-  const fecha = hasCompletedAssignment ? null : fechaLabel(tarea);
-
-  useEffect(() => {
-    const asignaciones = tarea.tarea_asignacion ?? [];
-    if (asignaciones.length === 0) {
-      setEntradas([]);
-      return;
-    }
-    setLoadingEntradas(true);
-    Promise.all(asignaciones.map((a) => fetchTareaAsignacionDetail(a.tarea_asignacion_id)))
-      .then((results) => setEntradas(results.flat()))
-      .finally(() => setLoadingEntradas(false));
-  }, [tarea]);
-
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [onClose]);
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 flex w-full max-w-lg flex-col max-h-[85vh] rounded-[var(--radius-xl)] border border-[color:var(--border-default)] bg-[color:var(--surface-card)] shadow-2xl">
-        {/* Header */}
-        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[color:var(--border-default)] px-5 py-4">
-          <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[color:var(--text-ink-muted)]">Detalle de tarea</p>
-            <h2 className="mt-0.5 text-base font-semibold text-[color:var(--text-ink)]">{tarea.titulo}</h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="shrink-0 rounded-full px-2.5 py-1 text-sm text-[color:var(--text-ink-muted)] hover:bg-[color:var(--action-ghost-bg)] hover:text-[color:var(--text-ink)]"
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-          {/* Estado + fecha */}
-          <div className="flex flex-wrap items-center gap-2">
-            {estadoBadge(effectiveEstado)}
-            {fecha && (
-              <span className={`text-xs ${fecha.overdue ? "font-semibold text-red-400" : "text-[color:var(--text-ink-muted)]"}`}>
-                {fecha.text}
-              </span>
-            )}
-            {tarea.prioridad && (
-              <span className="text-xs capitalize text-[color:var(--text-ink-muted)]">
-                Prioridad: {tarea.prioridad}
-              </span>
-            )}
-          </div>
-
-          {/* Descripción */}
-          {tarea.descripcion && (
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--text-ink-muted)]">Descripción</p>
-              <p className="mt-1 text-sm text-[color:var(--text-ink)]">{tarea.descripcion}</p>
-            </div>
-          )}
-
-          {/* Finca / Cuartel */}
-          {(tarea.finca || tarea.cuartel) && (
-            <div className="flex flex-wrap gap-2">
-              {(tarea.finca?.nombre_finca) && (
-                <span className="rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-2 py-0.5 text-[10px] text-[color:var(--text-ink-muted)]">
-                  Finca: {tarea.finca?.nombre_finca}
-                </span>
-              )}
-              {tarea.cuartel?.codigo_cuartel && (
-                <span className="rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-2 py-0.5 text-[10px] text-[color:var(--text-ink-muted)]">
-                  Cuartel: {tarea.cuartel.codigo_cuartel}
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Imagen */}
-          {tarea.imagen_url && (
-            <img src={tarea.imagen_url} alt="Evidencia" className="w-full max-h-56 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] object-cover" />
-          )}
-
-          {/* Asignaciones */}
-          {(tarea.tarea_asignacion?.length ?? 0) > 0 && (
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--text-ink-muted)] mb-2">Asignaciones</p>
-              <div className="space-y-2">
-                {tarea.tarea_asignacion!.map((a) => (
-                  <div key={a.tarea_asignacion_id} className="rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-2.5 text-xs space-y-1">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      {estadoBadge(a.estado)}
-                      <span className="text-[10px] text-[color:var(--text-ink-muted)]">Asignada el {new Date(a.assigned_at).toLocaleDateString("es-AR")}</span>
-                    </div>
-                    {a.completed_at && (
-                      <p className="text-[10px] text-[color:var(--feedback-success-text)]">
-                        Completada el {new Date(a.completed_at).toLocaleString("es-AR")}
-                      </p>
-                    )}
-                    {a.observaciones && (
-                      <p className="border-t border-[color:var(--border-shell)]/50 pt-1.5 text-[color:var(--text-ink)]">{a.observaciones}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Registros */}
-          {loadingEntradas && <p className="text-[10px] text-[color:var(--text-ink-muted)]">Cargando registros…</p>}
-          {entradas && entradas.length > 0 && (
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--text-ink-muted)] mb-2">
-                Registros guardados ({entradas.length})
-              </p>
-              <div className="space-y-2">
-                {entradas.map((entrada) => (
-                  <EntradaRow key={entrada.entradaId} entrada={entrada} />
-                ))}
-              </div>
-            </div>
-          )}
-          {entradas !== null && entradas.length === 0 && (
-            <p className="text-[10px] text-[color:var(--text-ink-muted)]">
-              {(tarea.tarea_asignacion?.length ?? 0) === 0
-                ? "Sin asignaciones — la tarea todavía no fue tomada por ningún operario."
-                : normalizeTaskEstado(tarea.estado) === "completado"
-                  ? "Completada sin datos de formulario guardados."
-                  : "Sin registros guardados aún."}
-            </p>
-          )}
-
-          <p className="border-t border-[color:var(--border-shell)]/50 pt-3 text-[10px] text-[color:var(--text-ink-muted)]">
-            Creada: {tarea.created_at ? new Date(tarea.created_at).toLocaleString("es-AR") : "—"}
-            {tarea.updated_at ? ` · Actualizada: ${new Date(tarea.updated_at).toLocaleString("es-AR")}` : ""}
-          </p>
-
-          <div className="flex flex-wrap gap-2 border-t border-[color:var(--border-shell)]/50 pt-3">
-            <Link
-              to="/ordenes"
-              onClick={onClose}
-              className="inline-flex items-center rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] px-3 py-1.5 text-xs font-semibold text-[color:var(--text-ink)] transition hover:border-[color:var(--border-default)] hover:bg-[color:var(--action-secondary-hover)]"
-            >
-              Administrar en Órdenes →
-            </Link>
-            <Link
-              to={Boolean(tarea.finca_id ?? tarea.finca?.finca_id) ? "/operacion/campo" : "/operacion/recepcion"}
-              onClick={onClose}
-              className="inline-flex items-center rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] px-3 py-1.5 text-xs font-semibold text-[color:var(--accent-primary)] transition hover:border-[color:var(--border-default)] hover:bg-[color:var(--action-secondary-hover)]"
-            >
-              Ir a Registro Operativo →
-            </Link>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 type FincaResumen = {
   fincaId: string;
   nombre: string;
@@ -1101,57 +933,18 @@ export default function ProgresoPage() {
                 <div className="pointer-events-none absolute bottom-2 left-[7px] top-2 w-px bg-[color:var(--border-shell)]" aria-hidden />
                 {timelineTasks.map((task) => {
                   const taskId = String(task.tarea_id ?? task.id ?? "");
-                  const estado = normalizeTaskEstado(task.estado ?? "pendiente");
                   const hasCompletedAssignment = task.tarea_asignacion?.some(
                     (a) => normalizeTaskEstado(a.estado) === "completado",
                   ) ?? false;
-                  const completed = estado === "completado" || hasCompletedAssignment;
-                  const effectiveEstado = completed ? "completado" : estado;
-                  const candidates: number[] = [];
-                  for (const a of task.tarea_asignacion ?? []) {
-                    if (a.completed_at) candidates.push(new Date(a.completed_at).getTime());
-                  }
-                  if (task.updated_at) candidates.push(new Date(task.updated_at).getTime());
-                  if (task.created_at) candidates.push(new Date(task.created_at).getTime());
-                  const dateTs = candidates.length > 0 ? Math.max(...candidates) : 0;
-                  const dateStr = dateTs > 0
-                    ? new Date(dateTs).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })
-                    : "Sin fecha";
-                  const fincaNombre = task.finca?.nombre_finca ?? null;
-                  const cuartelCode = task.cuartel?.codigo_cuartel ?? null;
-                  const targetLabel = fincaNombre
-                    ? cuartelCode ? `${fincaNombre} / ${cuartelCode}` : fincaNombre
-                    : null;
+                  const completed =
+                    normalizeTaskEstado(task.estado) === "completado" || hasCompletedAssignment;
                   return (
-                    <div key={taskId} className="relative">
-                      <div
-                        className={[
-                          "absolute -left-6 top-[14px] h-3.5 w-3.5 rounded-full border-2",
-                          completed
-                            ? "border-[color:var(--feedback-success)] bg-[color:var(--feedback-success)]"
-                            : "border-[color:var(--feedback-warning)] bg-[color:var(--feedback-warning)]",
-                        ].join(" ")}
-                        aria-hidden
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setSelectedTarea(task)}
-                        className="w-full rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-transparent px-3 py-2.5 text-left transition-all duration-[var(--motion-fast)] hover:border-[color:var(--border-default)] hover:bg-[color:var(--surface-muted)]"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold text-[color:var(--text-ink)]">{task.titulo}</p>
-                            {targetLabel && (
-                              <p className="mt-0.5 text-[11px] text-[color:var(--text-ink-muted)]">{targetLabel}</p>
-                            )}
-                          </div>
-                          <div className="flex shrink-0 flex-col items-end gap-1">
-                            {estadoBadge(effectiveEstado)}
-                            <span className="text-[11px] text-[color:var(--text-ink-muted)]">{dateStr}</span>
-                          </div>
-                        </div>
-                      </button>
-                    </div>
+                    <OrderRow
+                      key={taskId}
+                      task={task}
+                      variant={completed ? "completed" : "pending"}
+                      onOpenDetail={() => setSelectedTarea(task)}
+                    />
                   );
                 })}
               </div>
@@ -1314,9 +1107,7 @@ export default function ProgresoPage() {
       </div>
     </div>
 
-    {selectedTarea && (
-      <TareaModal tarea={selectedTarea} onClose={() => setSelectedTarea(null)} />
-    )}
+    <TaskDetailModal task={selectedTarea} onClose={() => setSelectedTarea(null)} />
     </>
   );
 }
