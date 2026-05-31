@@ -7,7 +7,10 @@ import {
   fetchCuartelesByFinca,
   patchCuartel,
   type Cuartel,
+  type GeoJSONPolygon,
+  type Centroide,
 } from "../../features/cuarteles/api";
+import CuartelMapEditor from "../../components/CuartelMapEditor";
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
 import { useFincasStore } from "../../features/fincas/store";
@@ -99,8 +102,10 @@ export default function CuartelesAdmin() {
     Record<string, string>
   >({});
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const notifications = useAppNotifications();
+  // Estado del polígono (separado del FormState porque es JSON, no string)
+  const [mapPolygon, setMapPolygon] = useState<GeoJSONPolygon | null>(null);
+  const [mapCentroid, setMapCentroid] = useState<Centroide | null>(null);
 
   useEffect(() => {
     if (!activeBodegaId) return;
@@ -178,7 +183,7 @@ export default function CuartelesAdmin() {
     const numericFields: Array<{ key: keyof FormState; label: string; value: string }> = [
       { key: "cantidad_hileras", label: "Cantidad de hileras", value: form.cantidad_hileras },
       { key: "largo_hileras_m", label: "Largo de hileras", value: form.largo_hileras_m },
-      { key: "densidad_hileras", label: "Densidad de hileras", value: form.densidad_hileras },
+      { key: "densidad_hileras", label: "Densidad de plantación", value: form.densidad_hileras },
     ];
 
     numericFields.forEach((field) => {
@@ -233,7 +238,6 @@ export default function CuartelesAdmin() {
     setEditingId(null);
     setFormMode("create");
     setError(null);
-    setSuccess(null);
     setFieldErrors({});
     setForm({
       ...emptyForm,
@@ -243,10 +247,7 @@ export default function CuartelesAdmin() {
   }, [createParam, editParam, fincaIdParam, items]);
 
   const clearFormQueryState = () => {
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.delete("edit");
-    nextParams.delete("create");
-    setSearchParams(nextParams, { replace: true });
+    setSearchParams({}, { replace: true });
   };
 
   const onSubmit = async () => {
@@ -265,7 +266,6 @@ export default function CuartelesAdmin() {
 
     setSaving(true);
     setError(null);
-    setSuccess(null);
     setFieldErrors({});
     try {
       if (editingId) {
@@ -282,8 +282,9 @@ export default function CuartelesAdmin() {
           largo_hileras_m: optionalNumber(form.largo_hileras_m),
           densidad_hileras: optionalNumber(form.densidad_hileras),
           distancia_plantacion: form.distancia_plantacion.trim() || null,
+          poligono: mapPolygon,
+          centroide: mapCentroid,
         });
-        setSuccess("Cuartel actualizado.");
         notifications.notifySuccess({
           title: "Cuartel actualizado",
           message: `El cuartel ${form.codigo_cuartel.trim()} quedó actualizado correctamente.`,
@@ -303,8 +304,9 @@ export default function CuartelesAdmin() {
           largo_hileras_m: optionalNumber(form.largo_hileras_m),
           densidad_hileras: optionalNumber(form.densidad_hileras),
           distancia_plantacion: form.distancia_plantacion.trim() || null,
+          poligono: mapPolygon,
+          centroide: mapCentroid,
         });
-        setSuccess("Cuartel creado.");
         notifications.notifySuccess({
           title: "Cuartel creado",
           message: `El cuartel ${form.codigo_cuartel.trim()} quedó registrado correctamente.`,
@@ -312,6 +314,8 @@ export default function CuartelesAdmin() {
       }
 
       setForm(emptyForm);
+      setMapPolygon(null);
+      setMapCentroid(null);
       setEditingId(null);
       setFormMode("none");
       clearFormQueryState();
@@ -337,6 +341,8 @@ export default function CuartelesAdmin() {
       setEditingId(id);
       setFormMode("edit");
       setFieldErrors({});
+      setMapPolygon(detail.poligono ?? null);
+      setMapCentroid(detail.centroide ?? null);
       setForm({
         fincaId: String(detail.finca_id ?? fallbackFincaId ?? ""),
         codigo_cuartel: detail.codigo_cuartel ?? "",
@@ -377,7 +383,6 @@ export default function CuartelesAdmin() {
     if (!(await confirm(`¿Eliminar cuartel ${id}?`))) return;
     try {
       await deleteCuartel(id);
-      setSuccess("Cuartel eliminado.");
       await load();
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
@@ -432,7 +437,6 @@ export default function CuartelesAdmin() {
                         setForm({ ...emptyForm, fincaId: fincaIdParam || "" });
                         setFormMode("create");
                         setError(null);
-                        setSuccess(null);
                         setFieldErrors({});
                         setSearchParams((prev) => {
                           const next = new URLSearchParams(prev);
@@ -627,7 +631,7 @@ export default function CuartelesAdmin() {
                               </div>
                               <div>
                                 <span className="font-semibold text-[color:var(--text-ink)]">
-                                  Densidad de hileras:
+                                  Densidad de plantación:
                                 </span>{" "}
                                 {detail?.densidad_hileras ?? "-"}
                               </div>
@@ -648,7 +652,6 @@ export default function CuartelesAdmin() {
             </div>
 
             {error ? <NoticeBanner tone="danger" className="mt-4">{error}</NoticeBanner> : null}
-            {success ? <NoticeBanner tone="success" className="mt-4">{success}</NoticeBanner> : null}
           </AppCard>
         ) : null}
 
@@ -669,6 +672,8 @@ export default function CuartelesAdmin() {
                     onClick={() => {
                       setEditingId(null);
                       setForm(emptyForm);
+                      setMapPolygon(null);
+                      setMapCentroid(null);
                       setFieldErrors({});
                       setFormMode("none");
                       clearFormQueryState();
@@ -777,7 +782,7 @@ export default function CuartelesAdmin() {
                   error={fieldErrors.largo_hileras_m}
                 />
                 <AppInput
-                  label="Densidad de hileras"
+                  label="Densidad de plantación (plantas/ha)"
                   type="number"
                   step="0.01"
                   value={form.densidad_hileras}
@@ -835,6 +840,31 @@ export default function CuartelesAdmin() {
                 </AppSelect>
               </div>
             </AppCard>
+
+            {/* ── Editor de límites en mapa ─────────────────────────── */}
+            <AppCard as="div" tone="soft" padding="md" className="mt-4">
+              <div className="mb-3">
+                <div className="text-sm font-semibold text-[color:var(--text-ink)]">
+                  Límites del cuartel en mapa
+                  <span className="ml-2 rounded-full bg-[color:var(--surface-muted)] px-2 py-0.5 text-[11px] font-normal text-[color:var(--text-ink-muted)]">
+                    Opcional
+                  </span>
+                </div>
+                <p className="mt-0.5 text-xs text-[color:var(--text-ink-muted)]">
+                  Hacé click en el mapa satelital para trazar el polígono del cuartel. Los límites se guardan junto al resto de los datos.
+                </p>
+              </div>
+              <CuartelMapEditor
+                key={editingId ?? "new"}
+                initialPolygon={mapPolygon}
+                initialCentroid={mapCentroid}
+                onChange={(poly, centroid) => {
+                  setMapPolygon(poly);
+                  setMapCentroid(centroid);
+                }}
+              />
+            </AppCard>
+
             <div className="mt-4 flex flex-wrap gap-2">
               <AppButton
                 type="button"
@@ -851,6 +881,8 @@ export default function CuartelesAdmin() {
                 onClick={() => {
                   setEditingId(null);
                   setForm(emptyForm);
+                  setMapPolygon(null);
+                  setMapCentroid(null);
                   setFieldErrors({});
                   setFormMode("none");
                   clearFormQueryState();
@@ -860,7 +892,6 @@ export default function CuartelesAdmin() {
               </AppButton>
             </div>
             {error ? <NoticeBanner tone="danger" className="mt-4">{error}</NoticeBanner> : null}
-            {success ? <NoticeBanner tone="success" className="mt-4">{success}</NoticeBanner> : null}
           </AppCard>
         ) : null}
       </div>

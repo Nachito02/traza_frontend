@@ -3,12 +3,14 @@ import { Link } from "react-router-dom";
 import {
   AppButton,
   AppCard,
+  AppModal,
   GuidedState,
   NoticeBanner,
   SectionIntro,
 } from "../../components/ui";
-import { getMatchedCatalogTaskId } from "./tareas.helpers";
+import type { Tarea } from "../../features/encargos/api";
 import OrderRow from "./components/OrderRow";
+import TaskDetailModal from "./components/TaskDetailModal";
 import CreateOrderForm from "./components/CreateOrderForm";
 import { useTareasData } from "./useTareasData";
 
@@ -32,10 +34,6 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
     saving,
     error,
     deletingTaskId,
-    expandedTaskId,
-    setExpandedTaskId,
-    expandedTaskEntries,
-    expandedTaskEntriesLoading,
     fincas,
     cuartelOptions,
     assigneeOptions,
@@ -46,38 +44,37 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
     groupedProtocoloTaskOptions,
     requiresFincaTarget,
     selectedCatalogTask,
-    getEventoTipoForTask,
-    refreshTasks,
     onCreate,
     onDeleteTask,
     confirmDialog,
   } = useTareasData(mode);
 
   const [ordersView, setOrdersView] = useState<"pending" | "completed">("pending");
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [detailTask, setDetailTask] = useState<Tarea | null>(null);
 
   return (
-    <div className={isManagerMode ? "w-full" : "min-h-screen bg-secondary px-6 py-10"}>
+    <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-6xl space-y-6">
         <SectionIntro
+          eyebrow="Trabajo diario"
           title="Órdenes de trabajo"
           description={
             isManagerMode
               ? "Centro diario para crear, asignar y completar órdenes operativas."
               : "Vista operario: gestión de órdenes asignadas a tu usuario."
           }
-          actions={(
+          actions={canRenderManagerFlow ? (
             <AppButton
               type="button"
-              variant="secondary"
+              variant="primary"
               size="sm"
-              onClick={() => void refreshTasks()}
+              onClick={() => setShowCreateModal(true)}
             >
-              Refrescar
+              Crear orden de trabajo
             </AppButton>
-          )}
+          ) : undefined}
         />
-
 
         {!activeBodegaId ? (
           <GuidedState
@@ -89,68 +86,13 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
               </Link>
             )}
           />
-        ) : canRenderManagerFlow ? (
-          <AppCard
-            as="section"
-            tone="default"
-            padding={showCreateForm ? "lg" : "md"}
-            header={(
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold text-text">
-                    {showCreateForm ? "Nueva orden de trabajo" : "Crear orden"}
-                  </h2>
-                  <p className="mt-1 text-xs text-text-secondary">
-                    {showCreateForm
-                      ? `Usuario actual: ${user?.nombre ?? user?.email ?? "Usuario"}`
-                      : "Desplegá el formulario solo cuando necesites asignar un nuevo trabajo."}
-                  </p>
-                </div>
-                <AppButton
-                  type="button"
-                  variant={showCreateForm ? "secondary" : "primary"}
-                  size="sm"
-                  onClick={() => setShowCreateForm((current) => !current)}
-                >
-                  {showCreateForm ? "Cerrar formulario" : "Crear orden de trabajo"}
-                </AppButton>
-              </div>
-            )}
-          >
-            {showCreateForm ? (
-              <CreateOrderForm
-                managerScope={managerScope}
-                form={form}
-                onFormChange={(updates) => setForm((prev) => ({ ...prev, ...updates }))}
-                activeProtocolo={activeProtocolo}
-                protocolProcesses={protocolProcesses}
-                groupedProtocolProcesses={groupedProtocolProcesses}
-                scopedProtocoloTaskOptions={scopedProtocoloTaskOptions}
-                groupedProtocoloTaskOptions={groupedProtocoloTaskOptions}
-                requiresFincaTarget={requiresFincaTarget}
-                fincas={fincas}
-                cuartelOptions={cuartelOptions}
-                assigneeOptions={assigneeOptions}
-                selectedCatalogTask={selectedCatalogTask}
-                saving={saving}
-                onSubmit={() => void onCreate()}
-              />
-            ) : null}
-          </AppCard>
-        ) : isManagerMode ? (
-          <AppCard
-            as="section"
-            tone="default"
-            padding="lg"
-            header={<h2 className="text-lg font-semibold text-text">Sin permisos de encargado</h2>}
-          >
+        ) : isManagerMode && !canRenderManagerFlow ? (
+          <AppCard as="section" tone="default" padding="lg" header={<h2 className="text-lg font-semibold text-text">Sin permisos de encargado</h2>}>
             <p className="text-xs text-text-secondary">
               Para asignar tareas necesitás rol de encargado de finca o de bodega.
             </p>
           </AppCard>
-        ) : (
-         <></>
-        )}
+        ) : null}
 
         {error ? <NoticeBanner tone="danger">{error}</NoticeBanner> : null}
 
@@ -174,7 +116,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => { setOrdersView("pending"); setExpandedTaskId(null); }}
+                    onClick={() => { setOrdersView("pending"); }}
                     className={[
                       "inline-flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] border px-3 py-2 text-xs font-semibold shadow-[var(--shadow-inset-soft)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)]",
                       ordersView === "pending"
@@ -189,7 +131,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setOrdersView("completed"); setExpandedTaskId(null); }}
+                    onClick={() => { setOrdersView("completed"); }}
                     className={[
                       "inline-flex min-h-10 items-center gap-2 rounded-[var(--radius-md)] border px-3 py-2 text-xs font-semibold shadow-[var(--shadow-inset-soft)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)]",
                       ordersView === "completed"
@@ -229,15 +171,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                         key={taskId}
                         task={task}
                         variant="pending"
-                        isExpanded={expandedTaskId === taskId}
-                        taskEntries={expandedTaskEntries[taskId]}
-                        loadingEntries={expandedTaskEntriesLoading[taskId] ?? false}
-                        onToggleExpand={() => setExpandedTaskId(expandedTaskId === taskId ? null : taskId)}
-                        catalogTaskId={getMatchedCatalogTaskId(task.titulo, getEventoTipoForTask(task))}
-                        isFincaTask={Boolean(task.finca_id ?? task.finca?.finca_id)}
-                        canDelete={canRenderManagerFlow}
-                        isDeleting={deletingTaskId === taskId}
-                        onDelete={() => void onDeleteTask(task)}
+                        onOpenDetail={() => setDetailTask(task)}
                       />
                     );
                   })}
@@ -266,10 +200,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                         key={taskId}
                         task={task}
                         variant="completed"
-                        isExpanded={expandedTaskId === taskId}
-                        taskEntries={expandedTaskEntries[taskId]}
-                        loadingEntries={expandedTaskEntriesLoading[taskId] ?? false}
-                        onToggleExpand={() => setExpandedTaskId(expandedTaskId === taskId ? null : taskId)}
+                        onOpenDetail={() => setDetailTask(task)}
                       />
                     );
                   })}
@@ -280,6 +211,60 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
         ) : null}
 
       </div>
+      {/* ── Modal: Nueva orden de trabajo ──────────────────────────── */}
+      <AppModal
+        opened={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        title={(
+          <div className="flex w-full items-center justify-between">
+            <span>Nueva orden de trabajo</span>
+            <button
+              type="button"
+              aria-label="Cerrar"
+              onClick={() => setShowCreateModal(false)}
+              className="rounded-[var(--radius-md)] p-1.5 text-[color:var(--text-ink-muted)] transition-colors hover:bg-white/10 hover:text-[color:var(--text-ink)]"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        )}
+        description={`Usuario actual: ${user?.nombre ?? user?.email ?? "Usuario"}`}
+        size="lg"
+        showHeaderDivider
+      >
+        <CreateOrderForm
+          managerScope={managerScope}
+          form={form}
+          onFormChange={(updates) => setForm((prev) => ({ ...prev, ...updates }))}
+          activeProtocolo={activeProtocolo}
+          protocolProcesses={protocolProcesses}
+          groupedProtocolProcesses={groupedProtocolProcesses}
+          scopedProtocoloTaskOptions={scopedProtocoloTaskOptions}
+          groupedProtocoloTaskOptions={groupedProtocoloTaskOptions}
+          requiresFincaTarget={requiresFincaTarget}
+          fincas={fincas}
+          cuartelOptions={cuartelOptions}
+          assigneeOptions={assigneeOptions}
+          selectedCatalogTask={selectedCatalogTask}
+          saving={saving}
+          onSubmit={async () => {
+            await onCreate();
+            setShowCreateModal(false);
+          }}
+          onCancel={() => setShowCreateModal(false)}
+        />
+      </AppModal>
+
+      <TaskDetailModal
+        task={detailTask}
+        onClose={() => setDetailTask(null)}
+        canDelete={canRenderManagerFlow}
+        isDeleting={detailTask ? deletingTaskId === String(detailTask.tarea_id ?? detailTask.id ?? "") : false}
+        onDelete={() => { if (detailTask) void onDeleteTask(detailTask); }}
+      />
+
       {confirmDialog}
     </div>
   );

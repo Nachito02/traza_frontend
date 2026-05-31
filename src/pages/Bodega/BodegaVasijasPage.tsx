@@ -130,14 +130,6 @@ export default function BodegaVasijasPage() {
               <Link to="/bodega/vasijas/nueva">
                 <AppButton variant="primary" size="sm">Crear vasija</AppButton>
               </Link>
-              <AppButton
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => void reload()}
-              >
-                Actualizar listado
-              </AppButton>
                 </>
               )}
             />
@@ -165,16 +157,6 @@ export default function BodegaVasijasPage() {
                   <Link to="/bodega/vasijas/nueva">
                     <AppButton variant="primary" size="sm">Crear primera vasija</AppButton>
                   </Link>
-                )}
-                secondaryAction={(
-                  <AppButton
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => void reload()}
-                  >
-                    Actualizar listado
-                  </AppButton>
                 )}
               />
             ) : (

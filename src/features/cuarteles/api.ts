@@ -1,5 +1,12 @@
 import { apiClient } from "../../lib/api";
 
+export type GeoJSONPolygon = {
+  type: "Polygon";
+  coordinates: [number, number][][];
+};
+
+export type Centroide = { lat: number; lng: number };
+
 export type Cuartel = {
   cuartel_id?: string;
   id?: string;
@@ -16,6 +23,8 @@ export type Cuartel = {
   largo_hileras_m?: number | null;
   densidad_hileras?: number | null;
   distancia_plantacion?: string | null;
+  poligono?: GeoJSONPolygon | null;
+  centroide?: Centroide | null;
 };
 
 export type CreateCuartelPayload = {
@@ -32,6 +41,8 @@ export type CreateCuartelPayload = {
   largo_hileras_m?: number | null;
   densidad_hileras?: number | null;
   distancia_plantacion?: string | null;
+  poligono?: GeoJSONPolygon | null;
+  centroide?: Centroide | null;
 };
 
 export type UpdateCuartelPayload = {
@@ -47,6 +58,8 @@ export type UpdateCuartelPayload = {
   largo_hileras_m?: number | null;
   densidad_hileras?: number | null;
   distancia_plantacion?: string | null;
+  poligono?: GeoJSONPolygon | null;
+  centroide?: Centroide | null;
 };
 
 export async function createCuartel(payload: CreateCuartelPayload) {

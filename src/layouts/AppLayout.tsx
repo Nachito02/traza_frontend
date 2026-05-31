@@ -3,7 +3,6 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import Topbar from "../components/Topbar";
 import { useAuthStore } from "../store/authStore";
 import Aside from "../components/Aside";
-import CorchoBotLauncher from "../components/CorchoBotLauncher";
 
 const AppLayout = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -25,14 +24,12 @@ const AppLayout = () => {
   }
   return (
     <div className="min-h-screen bg-[color:var(--app-bg)] text-[color:var(--text-on-dark)]">
-      <div className="grid min-h-screen w-full md:grid-cols-[280px_1fr]">
+      <div className="grid min-h-screen w-full grid-cols-1 md:grid-cols-[280px_1fr]">
         <Aside className="hidden md:block" />
 
-        <main className="min-w-0 bg-[color:var(--app-bg)]">
+        <main className="min-w-0 w-full bg-[color:var(--app-bg)]">
           <Topbar onOpenMenu={() => setMobileMenuOpen(true)} />
-          <div className="px-4 pb-8 pt-4 md:px-6 md:pb-10 md:pt-5 xl:px-8">
-            <Outlet />
-          </div>
+          <Outlet />
         </main>
       </div>
 
@@ -52,7 +49,7 @@ const AppLayout = () => {
         <Aside className="h-full" onNavigate={() => setMobileMenuOpen(false)} />
       </div>
 
-      <CorchoBotLauncher />
+      {/* <CorchoBotLauncher /> */}
     </div>
   );
 };

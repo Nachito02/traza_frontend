@@ -11,8 +11,10 @@ import {
   AppButton,
   AppCard,
   AppInput,
+  AppModal,
   AppSelect,
   AppTextarea,
+  GuidedState,
   NoticeBanner,
   SectionIntro,
   useConfirmDialog,
@@ -84,9 +86,7 @@ export default function CortesProductoPage({
   const [searchParams, setSearchParams] = useSearchParams();
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const [activeSection, setActiveSection] = useState<"cortes" | "productos">(initialSection);
-  const [corteViewMode, setCorteViewMode] = useState<"list" | "form">(
-    hidePrimaryAction ? "form" : "list",
-  );
+  const [showCorteModal, setShowCorteModal] = useState(false);
 
   const [vasijaOptions, setVasijaOptions] = useState<SelectOption[]>([]);
   const [cortes, setCortes] = useState<ElaboracionEntity[]>([]);
@@ -185,9 +185,7 @@ export default function CortesProductoPage({
       }
       setForm(emptyCorteForm());
       setEditingId(null);
-      if (!hidePrimaryAction) {
-        setCorteViewMode("list");
-      }
+      setShowCorteModal(false);
       await loadData();
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
@@ -218,9 +216,7 @@ export default function CortesProductoPage({
       : [{ vasijaId: "", loteCosechaId: "", volumen_l: "", porcentaje: "" }];
 
     setEditingId(id);
-    if (!hidePrimaryAction) {
-      setCorteViewMode("form");
-    }
+    setShowCorteModal(true);
     setForm({
       fecha: typeof item.fecha === "string" ? item.fecha.slice(0, 10) : "",
       objetivo: String(item.objetivo ?? ""),
@@ -289,9 +285,9 @@ export default function CortesProductoPage({
           header={(
             <SectionIntro
               title="Cortes"
-              description="Validación aplicada: cada componente requiere vasijaId o loteCosechaId."
+              description="Registro de cortes de elaboración. Cada componente requiere vasija o lote de cosecha."
               actions={
-                !hidePrimaryAction && corteViewMode === "list" ? (
+                !hidePrimaryAction ? (
                   <AppButton
                     type="button"
                     variant="primary"
@@ -299,7 +295,7 @@ export default function CortesProductoPage({
                     onClick={() => {
                       setEditingId(null);
                       setForm(emptyCorteForm());
-                      setCorteViewMode("form");
+                      setShowCorteModal(true);
                     }}
                   >
                     Nuevo corte
@@ -309,197 +305,58 @@ export default function CortesProductoPage({
             />
           )}
         >
-
-          {hidePrimaryAction || corteViewMode === "form" ? (
-            <>
-              <div className="mt-3 grid gap-2 md:grid-cols-2">
-                <AppInput
-                  label="Fecha"
-                  type="date"
-                  value={form.fecha}
-                  onChange={(event) => setForm((prev) => ({ ...prev, fecha: event.target.value }))}
-                  uiSize="lg"
-                />
-                <AppInput
-                  label="Objetivo"
-                  type="text"
-                  placeholder="Objetivo"
-                  value={form.objetivo}
-                  onChange={(event) => setForm((prev) => ({ ...prev, objetivo: event.target.value }))}
-                  uiSize="lg"
-                />
-                <AppInput
-                  label="Campaña ID"
-                  type="text"
-                  placeholder="Campaña ID"
-                  value={form.campaniaId}
-                  onChange={(event) => setForm((prev) => ({ ...prev, campaniaId: event.target.value }))}
-                  uiSize="lg"
-                />
-                <AppInput
-                  label="Responsable User ID"
-                  type="text"
-                  placeholder="Responsable User ID"
-                  value={form.responsableUserId}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, responsableUserId: event.target.value }))
-                  }
-                  uiSize="lg"
-                />
-              </div>
-              <AppTextarea
-                label="Observaciones"
-                value={form.observaciones}
-                onChange={(event) => setForm((prev) => ({ ...prev, observaciones: event.target.value }))}
-                placeholder="Observaciones"
-                className="mt-2"
-                uiSize="lg"
+          {/* ── Lista de cortes ──────────────────────────────────── */}
+          <div className="mt-3 max-h-72 space-y-2 overflow-auto">
+            {loading ? (
+              <NoticeBanner>Cargando...</NoticeBanner>
+            ) : cortes.length === 0 ? (
+              <GuidedState
+                title="Sin cortes registrados"
+                description="Cuando cargues el primer corte, aparecerá acá para editarlo, revisarlo o continuar el flujo operativo."
               />
-
-              <div className="mt-3 space-y-2">
-                {form.componentes.map((componente, index) => (
-                  <AppCard key={`comp-${index}`} as="div" tone="soft" padding="sm">
-                  <div className="grid gap-2 md:grid-cols-2">
-                    <AppSelect
-                      label="Vasija"
-                      value={componente.vasijaId}
-                      onChange={(event) =>
-                        setForm((prev) => {
-                          const componentes = [...prev.componentes];
-                          componentes[index] = { ...componentes[index], vasijaId: event.target.value };
-                          return { ...prev, componentes };
-                        })
-                      }
-                    >
-                      <option value="">Vasija (opcional)</option>
-                      {vasijaOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </AppSelect>
-                    <AppInput
-                      label="Lote cosecha ID"
-                      type="text"
-                      placeholder="Lote cosecha ID (opcional)"
-                      value={componente.loteCosechaId}
-                      onChange={(event) =>
-                        setForm((prev) => {
-                          const componentes = [...prev.componentes];
-                          componentes[index] = {
-                            ...componentes[index],
-                            loteCosechaId: event.target.value,
-                          };
-                          return { ...prev, componentes };
-                        })
-                      }
-                      uiSize="lg"
-                    />
-                    <AppInput
-                      label="Volumen l"
-                      type="number"
-                      placeholder="Volumen l"
-                      value={componente.volumen_l}
-                      onChange={(event) =>
-                        setForm((prev) => {
-                          const componentes = [...prev.componentes];
-                          componentes[index] = { ...componentes[index], volumen_l: event.target.value };
-                          return { ...prev, componentes };
-                        })
-                      }
-                      uiSize="lg"
-                    />
-                    <AppInput
-                      label="Porcentaje"
-                      type="number"
-                      placeholder="Porcentaje"
-                      value={componente.porcentaje}
-                      onChange={(event) =>
-                        setForm((prev) => {
-                          const componentes = [...prev.componentes];
-                          componentes[index] = { ...componentes[index], porcentaje: event.target.value };
-                          return { ...prev, componentes };
-                        })
-                      }
-                      uiSize="lg"
-                    />
-                    <AppButton
-                      type="button"
-                      variant="danger"
-                      size="sm"
-                      onClick={() =>
-                        setForm((prev) => ({
-                          ...prev,
-                          componentes: prev.componentes.filter((_, rowIndex) => rowIndex !== index),
-                        }))
-                      }
-                    >
-                      Quitar componente
-                    </AppButton>
-                  </div>
-                  </AppCard>
-                ))}
-              </div>
-
-              {!hidePrimaryAction ? (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <AppButton
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() =>
-                      setForm((prev) => ({
-                        ...prev,
-                        componentes: [
-                          ...prev.componentes,
-                          { vasijaId: "", loteCosechaId: "", volumen_l: "", porcentaje: "" },
-                        ],
-                      }))
-                    }
+            ) : (
+              cortes.map((item, index) => {
+                const id = resolveCorteId(item) || `i-${index}`;
+                const shortId = id.slice(0, 8);
+                const fecha = typeof item.fecha === "string" ? item.fecha.slice(0, 10) : null;
+                const objetivo = typeof item.objetivo === "string" && item.objetivo ? item.objetivo : null;
+                const componentesRaw = Array.isArray(item.componentes)
+                  ? item.componentes
+                  : Array.isArray(item.corte_componentes)
+                    ? item.corte_componentes
+                    : [];
+                return (
+                  <div
+                    key={id}
+                    className="rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-4 py-3"
                   >
-                    Agregar componente
-                  </AppButton>
-                  <AppButton
-                    type="button"
-                    variant="primary"
-                    size="sm"
-                    loading={saving}
-                    onClick={() => void submitCorte()}
-                    disabled={saving}
-                  >
-                    {editingId ? "Guardar" : "Crear"}
-                  </AppButton>
-                  <AppButton
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => {
-                      setEditingId(null);
-                      setForm(emptyCorteForm());
-                      setCorteViewMode("list");
-                    }}
-                  >
-                    {editingId ? "Cancelar edición" : "Volver al listado"}
-                  </AppButton>
-                </div>
-              ) : null}
-            </>
-          ) : (
-            <div className="mt-3 max-h-72 space-y-2 overflow-auto">
-              {loading ? (
-                <NoticeBanner>Cargando...</NoticeBanner>
-              ) : cortes.length === 0 ? (
-                <NoticeBanner>Sin cortes.</NoticeBanner>
-              ) : (
-                cortes.map((item, index) => {
-                  const id = resolveCorteId(item) || `i-${index}`;
-                  return (
-                    <AppCard key={id} as="article" tone="soft" padding="sm">
-                      <div className="text-xs font-semibold text-[color:var(--accent-primary)]">{id}</div>
-                      <pre className="mt-1 max-h-20 overflow-auto rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] p-2 text-[11px] text-[color:var(--text-on-dark-muted)]">
-                        {JSON.stringify(item, null, 2)}
-                      </pre>
-                      <div className="mt-2 flex gap-2">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-semibold text-[color:var(--text-ink)]">
+                          Corte <span className="font-normal text-[color:var(--text-ink-muted)]">#{shortId}</span>
+                        </div>
+                        <div className="mt-1.5 flex flex-wrap gap-x-5 gap-y-1">
+                          {fecha ? (
+                            <span className="text-xs text-[color:var(--text-ink-muted)]">
+                              <span className="font-medium">Fecha:</span>{" "}
+                              <span className="text-[color:var(--text-ink)]">{fecha}</span>
+                            </span>
+                          ) : null}
+                          {objetivo ? (
+                            <span className="text-xs text-[color:var(--text-ink-muted)]">
+                              <span className="font-medium">Objetivo:</span>{" "}
+                              <span className="text-[color:var(--text-ink)]">{objetivo}</span>
+                            </span>
+                          ) : null}
+                          {componentesRaw.length > 0 ? (
+                            <span className="text-xs text-[color:var(--text-ink-muted)]">
+                              <span className="font-medium">Componentes:</span>{" "}
+                              <span className="text-[color:var(--text-ink)]">{componentesRaw.length}</span>
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
                         <AppButton
                           type="button"
                           variant="secondary"
@@ -517,17 +374,208 @@ export default function CortesProductoPage({
                           Eliminar
                         </AppButton>
                       </div>
-                    </AppCard>
-                  );
-                })
-              )}
-            </div>
-          )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
 
           {error ? <NoticeBanner tone="danger" className="mt-3">{error}</NoticeBanner> : null}
           {success ? <NoticeBanner tone="success" className="mt-3">{success}</NoticeBanner> : null}
         </AppCard>
       ) : null}
+
+      {/* ── Modal: formulario de corte ───────────────────────────── */}
+      <AppModal
+        opened={showCorteModal}
+        onClose={() => { setShowCorteModal(false); setEditingId(null); setForm(emptyCorteForm()); }}
+        title={(
+          <div className="flex w-full items-center justify-between">
+            <span>{editingId ? "Editar corte" : "Nuevo corte"}</span>
+            <button
+              type="button"
+              aria-label="Cerrar"
+              onClick={() => { setShowCorteModal(false); setEditingId(null); setForm(emptyCorteForm()); }}
+              className="rounded-[var(--radius-md)] p-1.5 text-[color:var(--text-ink-muted)] transition-colors hover:bg-white/10 hover:text-[color:var(--text-ink)]"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        )}
+        size="lg"
+        showHeaderDivider
+      >
+        <div className="grid gap-3 md:grid-cols-2">
+          <AppInput
+            label="Fecha"
+            type="date"
+            value={form.fecha}
+            onChange={(event) => setForm((prev) => ({ ...prev, fecha: event.target.value }))}
+            uiSize="lg"
+          />
+          <AppInput
+            label="Objetivo"
+            type="text"
+            placeholder="Opcional"
+            value={form.objetivo}
+            onChange={(event) => setForm((prev) => ({ ...prev, objetivo: event.target.value }))}
+            uiSize="lg"
+          />
+          <AppInput
+            label="Campaña ID"
+            type="text"
+            placeholder="Opcional"
+            value={form.campaniaId}
+            onChange={(event) => setForm((prev) => ({ ...prev, campaniaId: event.target.value }))}
+            uiSize="lg"
+          />
+          <AppInput
+            label="Responsable User ID"
+            type="text"
+            placeholder="Opcional"
+            value={form.responsableUserId}
+            onChange={(event) => setForm((prev) => ({ ...prev, responsableUserId: event.target.value }))}
+            uiSize="lg"
+          />
+        </div>
+        <AppTextarea
+          label="Observaciones"
+          value={form.observaciones}
+          onChange={(event) => setForm((prev) => ({ ...prev, observaciones: event.target.value }))}
+          placeholder="Opcional"
+          className="mt-3"
+          uiSize="lg"
+        />
+
+        {/* Componentes */}
+        <div className="mt-4 space-y-2">
+          <p className="text-xs font-semibold text-[color:var(--text-ink-muted)]">Componentes</p>
+          {form.componentes.map((componente, index) => (
+            <div
+              key={`comp-${index}`}
+              className="rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] p-3"
+            >
+              <div className="grid gap-2 md:grid-cols-2">
+                <AppSelect
+                  label="Vasija"
+                  value={componente.vasijaId}
+                  onChange={(event) =>
+                    setForm((prev) => {
+                      const componentes = [...prev.componentes];
+                      componentes[index] = { ...componentes[index], vasijaId: event.target.value };
+                      return { ...prev, componentes };
+                    })
+                  }
+                >
+                  <option value="">Seleccionar vasija (opcional)</option>
+                  {vasijaOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </AppSelect>
+                <AppInput
+                  label="Lote cosecha ID"
+                  type="text"
+                  placeholder="Opcional"
+                  value={componente.loteCosechaId}
+                  onChange={(event) =>
+                    setForm((prev) => {
+                      const componentes = [...prev.componentes];
+                      componentes[index] = { ...componentes[index], loteCosechaId: event.target.value };
+                      return { ...prev, componentes };
+                    })
+                  }
+                  uiSize="lg"
+                />
+                <AppInput
+                  label="Volumen (l)"
+                  type="number"
+                  placeholder="Opcional"
+                  value={componente.volumen_l}
+                  onChange={(event) =>
+                    setForm((prev) => {
+                      const componentes = [...prev.componentes];
+                      componentes[index] = { ...componentes[index], volumen_l: event.target.value };
+                      return { ...prev, componentes };
+                    })
+                  }
+                  uiSize="lg"
+                />
+                <AppInput
+                  label="Porcentaje"
+                  type="number"
+                  placeholder="Opcional"
+                  value={componente.porcentaje}
+                  onChange={(event) =>
+                    setForm((prev) => {
+                      const componentes = [...prev.componentes];
+                      componentes[index] = { ...componentes[index], porcentaje: event.target.value };
+                      return { ...prev, componentes };
+                    })
+                  }
+                  uiSize="lg"
+                />
+              </div>
+              {form.componentes.length > 1 ? (
+                <div className="mt-2">
+                  <AppButton
+                    type="button"
+                    variant="danger"
+                    size="sm"
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        componentes: prev.componentes.filter((_, i) => i !== index),
+                      }))
+                    }
+                  >
+                    Quitar componente
+                  </AppButton>
+                </div>
+              ) : null}
+            </div>
+          ))}
+          <AppButton
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() =>
+              setForm((prev) => ({
+                ...prev,
+                componentes: [
+                  ...prev.componentes,
+                  { vasijaId: "", loteCosechaId: "", volumen_l: "", porcentaje: "" },
+                ],
+              }))
+            }
+          >
+            + Agregar componente
+          </AppButton>
+        </div>
+
+        {error ? <NoticeBanner tone="danger" className="mt-3">{error}</NoticeBanner> : null}
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <AppButton
+            type="button"
+            variant="primary"
+            loading={saving}
+            disabled={saving}
+            onClick={() => void submitCorte()}
+          >
+            {editingId ? "Guardar" : "Crear"}
+          </AppButton>
+          <AppButton
+            type="button"
+            variant="ghost"
+            onClick={() => { setShowCorteModal(false); setEditingId(null); setForm(emptyCorteForm()); }}
+          >
+            Cancelar
+          </AppButton>
+        </div>
+      </AppModal>
 
       {activeSection === "productos" ? (
         <GenericCrudSection
@@ -535,7 +583,7 @@ export default function CortesProductoPage({
           description="Catálogo de productos finales para fraccionamiento."
           resource="productos"
           bodegaId={activeBodegaId}
-          separatedLayout={!hidePrimaryAction}
+          formInModal={!hidePrimaryAction}
           fields={[
             { name: "nombre_comercial", label: "Nombre comercial", type: "text", required: true },
             { name: "varietal", label: "Varietal", type: "text" },

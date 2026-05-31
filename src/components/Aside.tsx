@@ -5,10 +5,11 @@ import {
   ListTodo,
   Warehouse,
   ClipboardPenLine,
-  Bot,
-  ScrollText,
+  // Bot,
+  // ScrollText,
   TrendingUp,
   Settings2,
+  QrCode,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
@@ -68,7 +69,16 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
                 matchPrefix: "/operacion/",
               },
             ]
-          : []),
+          : access.canAccessOperacionFinca
+            ? [
+                {
+                  to: "/campo",
+                  label: "Mis tareas de campo",
+                  description: "Registrá avances y finalizá tareas",
+                  icon: <ClipboardPenLine />,
+                },
+              ]
+            : []),
         ...(access.canAccessBodega
           ? [
               {
@@ -100,18 +110,20 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
           description: "Cuarteles y vínculos",
           icon: <Map />,
         },
-        {
-          to: "/usuarios",
-          label: "Usuarios",
-          description: "Roles y permisos",
-          icon: <Users />,
-        },
-        {
-          to: "/integraciones",
-          label: "Bots",
-          description: "Delegaciones IA",
-          icon: <Bot />,
-        },
+        ...(access.canAccessBodega
+          ? [{
+              to: "/usuarios",
+              label: "Usuarios",
+              description: "Roles y permisos",
+              icon: <Users />,
+            }]
+          : []),
+        // {
+        //   to: "/integraciones",
+        //   label: "Bots",
+        //   description: "Delegaciones IA",
+        //   icon: <Bot />,
+        // },
       ],
     },
     {
@@ -123,16 +135,26 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
           description: "Datos base del sistema",
           icon: <Settings2 />,
         },
-        ...(access.isAdminSistema
+        ...(access.canAccessBodega
           ? [
               {
-                to: "/admin/protocolos",
-                label: "Protocolos",
-                description: "Etapas y procesos",
-                icon: <ScrollText />,
+                to: "/admin/qr-cuarteles",
+                label: "QR cuarteles",
+                description: "Trazabilidad pública",
+                icon: <QrCode />,
               },
             ]
           : []),
+        // ...(access.isAdminSistema
+        //   ? [
+        //       {
+        //         to: "/admin/protocolos",
+        //         label: "Protocolos",
+        //         description: "Etapas y procesos",
+        //         icon: <ScrollText />,
+        //       },
+        //     ]
+        //   : []),
       ],
     },
   ].filter((group) => group.links.length > 0);
@@ -167,7 +189,7 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
                   return [
                     "group block rounded-[var(--radius-lg)] border px-3 py-3 text-sm transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)]",
                     active
-                      ? "border-[color:var(--border-default)] bg-[linear-gradient(135deg,rgba(78,147,183,0.22),rgba(18,43,58,0.92))] text-[color:var(--text-on-dark)] shadow-[var(--shadow-soft)]"
+                      ? "border-[color:var(--border-default)] border-l-2 border-l-[color:var(--accent-primary)] bg-[linear-gradient(135deg,rgba(78,147,183,0.22),rgba(18,43,58,0.92))] text-[color:var(--text-on-dark)] shadow-[var(--shadow-soft)]"
                       : "border-transparent text-[color:var(--text-on-dark-muted)] hover:border-[color:var(--border-shell)] hover:bg-white/5 hover:text-[color:var(--text-on-dark)]",
                   ].join(" ");
                 }}

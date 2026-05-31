@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createFinca } from "../../features/fincas/api";
 import { upsertBodegaFincaVinculo } from "../../features/users/api";
@@ -12,6 +12,17 @@ import {
   NoticeBanner,
   SectionIntro,
 } from "../../components/ui";
+
+function OptLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      {children}
+      <span className="rounded-full bg-[color:var(--surface-soft)] px-1.5 py-0.5 text-[11px] font-normal text-[color:var(--text-ink-muted)]">
+        Opcional
+      </span>
+    </span>
+  );
+}
 
 const SetupFinca = () => {
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
@@ -93,6 +104,7 @@ const SetupFinca = () => {
       await loadFincas(selectedBodegaId);
       setCreatedFincaId(fincaId);
       setCreatedFincaNombre(fincaNombre || form.nombre_finca.trim());
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
       setError("No se pudo crear la finca.");
     } finally {
@@ -202,7 +214,7 @@ const SetupFinca = () => {
                   />
 
                   <AppInput
-                    label="RUT"
+                    label={<OptLabel>RUT</OptLabel>}
                     type="text"
                     uiSize="lg"
                     placeholder="RUT-123"
@@ -211,7 +223,7 @@ const SetupFinca = () => {
                   />
 
                   <AppInput
-                    label="Renspa"
+                    label={<OptLabel>Renspa</OptLabel>}
                     type="text"
                     uiSize="lg"
                     placeholder="RENSPA-456"
@@ -220,7 +232,7 @@ const SetupFinca = () => {
                   />
 
                   <AppInput
-                    label="Catastro"
+                    label={<OptLabel>Catastro</OptLabel>}
                     type="text"
                     uiSize="lg"
                     placeholder="CAT-789"
@@ -229,11 +241,11 @@ const SetupFinca = () => {
                   />
 
                   <AppInput
-                    label="Ubicación"
+                    label={<OptLabel>Dirección de referencia</OptLabel>}
                     type="text"
                     uiSize="lg"
                     className="md:col-span-2"
-                    placeholder="Luján de Cuyo, Mendoza"
+                    placeholder="Ej: Ruta 15 km 32, Luján de Cuyo, Mendoza"
                     value={form.ubicacion_texto}
                     onChange={(e) => onChange("ubicacion_texto", e.target.value)}
                   />

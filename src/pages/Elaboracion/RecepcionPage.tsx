@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   listElaboracionResource,
-  listLotesCosecha,
   type ElaboracionEntity,
-  type LoteCosechaOption,
 } from "../../features/elaboracion/api";
 import { fetchCuartelesByFinca, type Cuartel } from "../../features/cuarteles/api";
 import { useFincasStore } from "../../features/fincas/store";
@@ -138,7 +136,6 @@ export default function RecepcionPage({
   const [remitoOptions, setRemitoOptions] = useState<SelectOption[]>([]);
   const [recepcionOptions, setRecepcionOptions] = useState<SelectOption[]>([]);
   const [cuarteles, setCuarteles] = useState<Cuartel[]>([]);
-  const [lotesCosecha, setLotesCosecha] = useState<LoteCosechaOption[]>([]);
   const [recepcionDefaults, setRecepcionDefaults] = useState<Record<string, string | boolean>>({});
   const [analisisDefaults, setAnalisisDefaults] = useState<Record<string, string | boolean>>({});
   const [pendingNextStep, setPendingNextStep] = useState<PendingNextStep | null>(null);
@@ -167,10 +164,9 @@ export default function RecepcionPage({
       return;
     }
 
-    const [remitos, recepciones, lotes] = await Promise.all([
+    const [remitos, recepciones] = await Promise.all([
       listElaboracionResource("remitos-uva", { bodegaId: String(activeBodegaId) }),
       listElaboracionResource("recepciones-bodega", { bodegaId: String(activeBodegaId) }),
-      listLotesCosecha({ bodegaId: String(activeBodegaId) }),
     ]);
     setRemitoOptions(
       toOptions(
@@ -184,7 +180,6 @@ export default function RecepcionPage({
         .map(formatRecepcionOption)
         .filter((option): option is SelectOption => option !== null),
     );
-    setLotesCosecha(lotes);
   }, [activeBodegaId]);
 
   useEffect(() => {
@@ -259,25 +254,6 @@ export default function RecepcionPage({
     [cuarteles, fincas],
   );
 
-  const loteCosechaOptions = useMemo(
-    () =>
-      lotesCosecha.map((lote) => {
-        const fecha = new Date(lote.fecha_cosecha);
-        const fechaLabel = Number.isNaN(fecha.getTime())
-          ? lote.fecha_cosecha
-          : fecha.toLocaleDateString("es-AR");
-        const fincaLabel = lote.cuartel?.finca?.nombre_finca ?? "Finca";
-        const cuartelLabel = lote.cuartel?.codigo_cuartel ?? "Cuartel";
-        const cantidad = `${lote.cantidad} ${lote.unidad}`;
-
-        return {
-          value: lote.lote_cosecha_id,
-          label: `${fechaLabel} · ${fincaLabel} / ${cuartelLabel} · ${cantidad}`,
-          cuartelId: lote.cuartel_id,
-        };
-      }),
-    [lotesCosecha],
-  );
 
   const remitoFields = useMemo<CrudField[]>(
     () => [
@@ -288,7 +264,7 @@ export default function RecepcionPage({
         required: true,
         options: fincaOptions,
         sourceKey: "finca_id",
-        clearOnChange: ["cuartelId", "loteCosechaId"],
+        clearOnChange: ["cuartelId"],
       },
       {
         name: "cuartelId",
@@ -296,24 +272,10 @@ export default function RecepcionPage({
         type: "select",
         required: true,
         sourceKey: "cuartel_id",
-        clearOnChange: ["loteCosechaId"],
         getOptions: (values) => {
           const selectedFincaId = String(values.fincaId ?? "");
           if (!selectedFincaId) return cuartelOptions;
           return cuartelOptions.filter((option) => option.fincaId === selectedFincaId);
-        },
-      },
-      {
-        name: "loteCosechaId",
-        label: "Lote de cosecha",
-        type: "select",
-        required: true,
-        sourceKey: "lote_cosecha_id",
-        getOptions: (values) => {
-          const selectedFincaId = String(values.fincaId ?? "");
-          const selectedCuartelId = String(values.cuartelId ?? "");
-          if (!selectedFincaId || !selectedCuartelId) return [];
-          return loteCosechaOptions.filter((option) => option.cuartelId === selectedCuartelId);
         },
       },
       { name: "salida_finca", label: "Salida finca", type: "datetime-local", required: true },
@@ -322,7 +284,7 @@ export default function RecepcionPage({
       { name: "patente", label: "Patente", type: "text" },
       { name: "kg_declarados", label: "Kg declarados", type: "number" },
     ],
-    [cuartelOptions, fincaOptions, loteCosechaOptions],
+    [cuartelOptions, fincaOptions],
   );
 
   const recepcionFields = useMemo<CrudField[]>(
@@ -423,7 +385,6 @@ export default function RecepcionPage({
   const validateRemito = (values: Record<string, string | boolean>) => {
     const fincaId = String(values.fincaId ?? "");
     const cuartelId = String(values.cuartelId ?? "");
-    const loteCosechaId = String(values.loteCosechaId ?? "");
     const cuartel = cuartelOptions.find((option) => option.value === cuartelId);
     if (cuartel && fincaId && cuartel.fincaId !== fincaId) {
       const fieldErrors: Record<string, string> = {
@@ -434,15 +395,7 @@ export default function RecepcionPage({
       };
     }
 
-    const lote = loteCosechaOptions.find((option) => option.value === loteCosechaId);
-    if (lote && cuartelId && lote.cuartelId !== cuartelId) {
-      const fieldErrors: Record<string, string> = {
-        loteCosechaId: "El lote de cosecha seleccionado no corresponde al cuartel indicado.",
-      };
-      return {
-        fieldErrors,
-      };
-    }
+    // lote de cosecha es opcional — no se valida cruce con cuartel
 
     return null;
   };
@@ -475,7 +428,7 @@ export default function RecepcionPage({
           resource="remitos-uva"
           bodegaId={activeBodegaId}
           hidePrimaryAction={hidePrimaryAction}
-          separatedLayout={!hidePrimaryAction}
+          formInModal={!hidePrimaryAction}
           fields={remitoFields}
           validate={validateRemito}
           onCreated={handleRemitoCreated}
@@ -489,7 +442,7 @@ export default function RecepcionPage({
           resource="recepciones-bodega"
           bodegaId={activeBodegaId}
           hidePrimaryAction={hidePrimaryAction}
-          separatedLayout={!hidePrimaryAction}
+          formInModal={!hidePrimaryAction}
           fields={recepcionFields}
           defaultValues={recepcionDefaultValues ?? recepcionDefaults}
           onCreated={handleRecepcionCreated}
@@ -503,7 +456,7 @@ export default function RecepcionPage({
           resource="analisis-recepcion"
           bodegaId={activeBodegaId}
           hidePrimaryAction={hidePrimaryAction}
-          separatedLayout={!hidePrimaryAction}
+          formInModal={!hidePrimaryAction}
           fields={analisisFields}
           defaultValues={analisisDefaultValues ?? analisisDefaults}
         />

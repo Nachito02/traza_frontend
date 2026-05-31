@@ -25,11 +25,10 @@ import SetupHome from "./pages/Setup/SetupHome";
 import SetupFinca from "./pages/Setup/SetupFinca";
 import SetupCampania from "./pages/Setup/SetupCampania";
 import SetupCuarteles from "./pages/Setup/SetupCuarteles";
-import SetupProtocolos from "./pages/Setup/SetupProtocolos";
 import FincaDetail from "./pages/Fincas/FincaDetail";
 import Fincas from "./pages/Fincas/Fincas";
 import Usuarios from "./pages/Usuarios/Usuarios";
-import Integraciones from "./pages/Integraciones/Integraciones";
+// import Integraciones from "./pages/Integraciones/Integraciones";
 import Tareas from "./pages/Tareas/Tareas";
 import IngresoUvaFlowPage from "./pages/Elaboracion/IngresoUvaFlowPage";
 import VasijasProcesoPage from "./pages/Elaboracion/VasijasProcesoPage";
@@ -40,7 +39,9 @@ import CampoPage from "./pages/Elaboracion/CampoPage";
 import FincasAdmin from "./pages/Admin/FincasAdmin";
 import CuartelesAdmin from "./pages/Admin/CuartelesAdmin";
 import CampaniasAdmin from "./pages/Admin/CampaniasAdmin";
-import ProtocolosAdmin from "./pages/Admin/ProtocolosAdmin";
+// import ProtocolosAdmin from "./pages/Admin/ProtocolosAdmin";
+import QrCuartelesAdmin from "./pages/Admin/QrCuartelesAdmin";
+import TrazabilidadPublica from "./pages/Public/TrazabilidadPublica";
 import BodegaHome from "./pages/Bodega/BodegaHome";
 import BodegaVasijasPage from "./pages/Bodega/BodegaVasijasPage";
 import BodegaVasijaFormPage from "./pages/Bodega/BodegaVasijaFormPage";
@@ -159,6 +160,8 @@ export default function App() {
       <ScrollToTop />
       <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />
+      {/* Public — no auth required */}
+      <Route path="/trazabilidad/:cuartelId" element={<TrazabilidadPublica />} />
       <Route path="/login" element={<Login />} />
       <Route path="/registro" element={<Register />} />
       <Route path="/cambiar-password" element={<ChangePassword />} />
@@ -169,10 +172,11 @@ export default function App() {
         <Route path="/admin/fincas" element={<FincasAdmin />} />
         <Route path="/admin/cuarteles" element={<CuartelesAdmin />} />
         <Route path="/admin/campanias" element={<CampaniasAdmin />} />
-        <Route
+        <Route path="/admin/qr-cuarteles" element={access.canAccessBodega ? <QrCuartelesAdmin /> : <Navigate to="/dashboard" replace />} />
+        {/* <Route
           path="/admin/protocolos"
           element={access.isAdminSistema ? <ProtocolosAdmin /> : <Navigate to="/dashboard" replace />}
-        />
+        /> */}
         <Route path="/bodega" element={access.canAccessBodega ? <BodegaHome /> : <Navigate to="/fincas" replace />} />
         <Route path="/bodega/vasijas" element={access.canAccessBodega ? <BodegaVasijasPage /> : <Navigate to="/fincas" replace />} />
         <Route path="/bodega/vasijas/nueva" element={access.canAccessBodega ? <BodegaVasijaFormPage mode="create" /> : <Navigate to="/fincas" replace />} />
@@ -203,19 +207,23 @@ export default function App() {
           <Route path="trazabilidades" element={<Navigate to="/ordenes" replace />} />
           <Route path="trazabilidades/:id/plan" element={<Navigate to="/ordenes" replace />} />
         </Route>
+        <Route
+          path="/campo"
+          element={access.canAccessOperacionFinca ? <CampoPage standalone /> : <Navigate to="/dashboard" replace />}
+        />
         <Route path="/elaboracion" element={canUseOperacionBodega ? <Navigate to="/operacion/recepcion" replace /> : <Navigate to="/fincas" replace />} />
         <Route path="/elaboracion/*" element={<LegacyElaboracionRedirect />} />
         <Route path="/progreso" element={access.canAccessBodega ? <ProgresoPage /> : <Navigate to="/dashboard" replace />} />
         <Route path="/ordenes" element={<Tareas mode="manager" />} />
         <Route path="/tareas" element={<Tareas mode="operator" />} />
-        <Route path="/usuarios" element={<Usuarios />} />
-        <Route path="/integraciones" element={<Integraciones />} />
+        <Route path="/usuarios" element={access.canAccessBodega ? <Usuarios /> : <Navigate to="/dashboard" replace />} />
+        {/* <Route path="/integraciones" element={<Integraciones />} /> */}
         <Route path="/fincas/:id" element={<FincaDetail />} />
         <Route path="/setup" element={<SetupHome />} />
         <Route path="/setup/finca" element={<SetupFinca />} />
         <Route path="/setup/campania" element={<SetupCampania />} />
         <Route path="/setup/cuarteles" element={<SetupCuarteles />} />
-        <Route path="/setup/protocolos" element={<SetupProtocolos />} />
+        <Route path="/setup/protocolos" element={<Navigate to="/fincas" replace />} />
         <Route path="/trazabilidades" element={<Navigate to="/ordenes" replace />} />
         <Route path="/trazabilidades/nueva" element={<Navigate to="/ordenes" replace />} />
         <Route path="/trazabilidades/:id/plan" element={<Navigate to="/ordenes" replace />} />

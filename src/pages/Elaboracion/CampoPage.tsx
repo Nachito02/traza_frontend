@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   fetchTareasByBodega,
   fetchTareaAsignacionDetail,
   createTareaEntrada,
   finalizarTareaAsignacion,
+  uploadEntradaAdjunto,
+  patchTareaEntrada,
+  type AdjuntoRecord,
   type Tarea,
   type TareaEntradaDetail,
 } from "../../features/encargos/api";
@@ -14,6 +17,7 @@ import {
   AppButton,
   AppCard,
   AppInput,
+  AppModal,
   AppSelect,
   AppTextarea,
   MetricCard,
@@ -25,6 +29,16 @@ import { EVENTO_CONFIG, type EventoConfig } from "../Trazabilidad/eventoConfig";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
+function fileIcon(mimeType: string): string {
+  if (mimeType.startsWith("image/")) return "🖼️";
+  if (mimeType.startsWith("video/")) return "🎬";
+  if (mimeType === "application/pdf") return "📄";
+  if (mimeType.includes("word") || mimeType.includes("document")) return "📝";
+  if (mimeType.includes("excel") || mimeType.includes("spreadsheet") || mimeType === "text/csv") return "📊";
+  if (mimeType.includes("powerpoint") || mimeType.includes("presentation")) return "📋";
+  return "📎";
+}
+
 function normalizeStr(s: string) {
   return s
     .toLowerCase()
@@ -35,6 +49,12 @@ function normalizeStr(s: string) {
 }
 
 function getEventoConfigForTask(tarea: Tarea): EventoConfig | null {
+  // 1. Match directo por evento_tipo (plano o anidado en protocolo_proceso)
+  const eventoTipo = tarea.evento_tipo ?? tarea.protocolo_proceso?.evento_tipo;
+  if (eventoTipo && EVENTO_CONFIG[eventoTipo]) {
+    return EVENTO_CONFIG[eventoTipo];
+  }
+  // 2. Fallback: match fuzzy por título
   const titleNorm = normalizeStr(tarea.titulo ?? "");
   for (const [key, config] of Object.entries(EVENTO_CONFIG)) {
     const keyNorm = normalizeStr(key);
@@ -86,25 +106,25 @@ function estadoBadge(estado: string | undefined) {
   switch (normalizeEstado(estado)) {
     case "completado":
       return (
-        <span className="rounded-full border border-[color:var(--feedback-success-border)] bg-[color:var(--feedback-success-bg)] px-2 py-0.5 text-[10px] font-semibold text-[color:var(--feedback-success-text)]">
+        <span className="rounded-full border border-[color:var(--feedback-success-border)] bg-[color:var(--feedback-success-bg)] px-2 py-0.5 text-xs font-semibold text-[color:var(--feedback-success-text)]">
           Completado
         </span>
       );
     case "en_progreso":
       return (
-        <span className="rounded-full border border-[color:var(--feedback-warning-border)] bg-[color:var(--feedback-warning-bg)] px-2 py-0.5 text-[10px] font-semibold text-[color:var(--feedback-warning-text)]">
+        <span className="rounded-full border border-[color:var(--feedback-warning-border)] bg-[color:var(--feedback-warning-bg)] px-2 py-0.5 text-xs font-semibold text-[color:var(--feedback-warning-text)]">
           En progreso
         </span>
       );
     case "cancelado":
       return (
-        <span className="rounded-full border border-[color:var(--feedback-danger-border)] bg-[color:var(--feedback-danger-bg)] px-2 py-0.5 text-[10px] font-semibold text-[color:var(--feedback-danger-text)]">
+        <span className="rounded-full border border-[color:var(--feedback-danger-border)] bg-[color:var(--feedback-danger-bg)] px-2 py-0.5 text-xs font-semibold text-[color:var(--feedback-danger-text)]">
           Cancelado
         </span>
       );
     default:
       return (
-        <span className="rounded-full border border-[color:var(--feedback-warning-border)] bg-[color:var(--feedback-warning-bg)] px-2 py-0.5 text-[10px] font-semibold text-[color:var(--feedback-warning-text)]">
+        <span className="rounded-full border border-[color:var(--feedback-warning-border)] bg-[color:var(--feedback-warning-bg)] px-2 py-0.5 text-xs font-semibold text-[color:var(--feedback-warning-text)]">
           Pendiente
         </span>
       );
@@ -127,18 +147,22 @@ function EntradaDescripcion({ descripcion }: { descripcion: string }) {
   }
 
   if (!parsed) {
-    return <p className="mt-1 text-xs text-[color:var(--text-ink)]">{descripcion}</p>;
+    return <p className="mt-1 text-sm text-[color:var(--text-ink)]">{descripcion}</p>;
   }
 
   return (
     <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2">
       {Object.entries(parsed).map(([key, val]) => (
         <div key={key}>
-          <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[color:var(--text-ink-muted)]">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--text-ink-muted)]">
             {formatKey(key)}
           </p>
-          <p className="mt-0.5 text-xs font-medium text-[color:var(--text-ink)]">
-            {val === null || val === undefined ? "—" : typeof val === "boolean" ? (val ? "Sí" : "No") : String(val)}
+          <p className="mt-0.5 text-sm font-medium text-[color:var(--text-ink)]">
+            {val === null || val === undefined
+              ? "—"
+              : typeof val === "boolean"
+                ? val ? "Sí" : "No"
+                : String(val)}
           </p>
         </div>
       ))}
@@ -146,24 +170,285 @@ function EntradaDescripcion({ descripcion }: { descripcion: string }) {
   );
 }
 
-// ─── TareaRow ────────────────────────────────────────────────────────────────
+// ─── EntradaItem con edición completa ────────────────────────────────────────
 
-function TareaRow({
+function parseDraft(rawDesc: string): Record<string, string> {
+  try {
+    const parsed = JSON.parse(rawDesc) as unknown;
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return Object.fromEntries(
+        Object.entries(parsed as Record<string, unknown>).map(([k, v]) => [k, v == null ? "" : String(v)]),
+      );
+    }
+  } catch { /* texto plano */ }
+  return {};
+}
+
+function EntradaItem({
+  entrada,
+  index,
+  eventoConfig,
+  onUpdated,
+}: {
+  entrada: TareaEntradaDetail;
+  index: number;
+  eventoConfig: EventoConfig | null;
+  onUpdated: (updated: TareaEntradaDetail) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [editDraft, setEditDraft] = useState<Record<string, string>>({});
+  const [editFecha, setEditFecha] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const rawDesc = entrada.notas ?? entrada.descripcion ?? "";
+  const draft = parseDraft(rawDesc);
+  const parsedFields = Object.entries(draft).filter(([, v]) => v !== "").map(([k, v]) => {
+    const label = eventoConfig?.fields.find((f) => f.name === k)?.label ?? k.replace(/_/g, " ");
+    return [label, v] as [string, string];
+  });
+
+  const openEdit = () => {
+    const d = new Date(entrada.fecha);
+    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    setEditFecha(local);
+    setEditDraft({ ...draft });
+    setEditing(true);
+  };
+
+  const handleSave = async () => {
+    if (!entrada.entradaId) return;
+    setSaving(true);
+    try {
+      const newDesc = Object.keys(editDraft).length > 0 ? JSON.stringify(editDraft) : rawDesc;
+      const updated = await patchTareaEntrada(entrada.entradaId, {
+        fecha: new Date(editFecha).toISOString(),
+        descripcion: newDesc,
+      });
+      onUpdated(updated);
+      setEditing(false);
+    } catch {
+      // el usuario puede reintentar
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-3 py-2">
+      {/* Cabecera */}
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs text-[color:var(--text-ink-muted)]">
+          #{index + 1} · {new Date(entrada.fecha).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+          {entrada.creadoPor?.nombre ? ` · ${entrada.creadoPor.nombre}` : ""}
+        </p>
+        {!editing && (
+          <button
+            type="button"
+            onClick={openEdit}
+            className="shrink-0 text-[11px] text-[color:var(--text-ink-muted)] underline hover:text-[color:var(--text-ink)]"
+          >
+            Editar
+          </button>
+        )}
+      </div>
+
+      {/* Modo lectura */}
+      {!editing && (
+        <>
+          {parsedFields.length > 0 ? (
+            <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
+              {parsedFields.map(([label, value]) => (
+                <div key={label}>
+                  <span className="text-sm capitalize text-[color:var(--text-ink-muted)]">{label}: </span>
+                  <span className="text-sm font-medium text-[color:var(--text-ink)]">{value}</span>
+                </div>
+              ))}
+            </div>
+          ) : rawDesc ? (
+            <EntradaDescripcion descripcion={rawDesc} />
+          ) : null}
+        </>
+      )}
+
+      {/* Modo edición */}
+      {editing && (
+        <div className="mt-3 space-y-3">
+          {/* Fecha */}
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-[color:var(--text-ink-muted)]">Fecha</label>
+            <input
+              type="datetime-local"
+              value={editFecha}
+              onChange={(e) => setEditFecha(e.target.value)}
+              className="w-full rounded border border-[color:var(--border-default)] bg-[color:var(--surface-base)] px-2 py-1.5 text-sm text-[color:var(--text-ink)] focus:outline-none"
+            />
+          </div>
+
+          {/* Campos del evento */}
+          {eventoConfig ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {eventoConfig.fields
+                .filter((f) => f.type !== "user_select" && f.type !== "date")
+                .filter((f) => !f.showWhen || editDraft[f.showWhen.field] === f.showWhen.value)
+                .map((field) => {
+                  const value = editDraft[field.name] ?? field.defaultValue ?? "";
+                  if (field.type === "textarea") {
+                    return (
+                      <div key={field.name} className="sm:col-span-2">
+                        <label className="mb-1 block text-xs font-semibold text-[color:var(--text-ink-muted)]">{field.label}</label>
+                        <textarea
+                          value={value}
+                          onChange={(e) => setEditDraft((prev) => ({ ...prev, [field.name]: e.target.value }))}
+                          placeholder={field.placeholder}
+                          rows={3}
+                          className="w-full rounded border border-[color:var(--border-default)] bg-[color:var(--surface-base)] px-2 py-1.5 text-sm text-[color:var(--text-ink)] focus:outline-none"
+                        />
+                      </div>
+                    );
+                  }
+                  if (field.type === "select" && field.options) {
+                    return (
+                      <div key={field.name}>
+                        <label className="mb-1 block text-xs font-semibold text-[color:var(--text-ink-muted)]">{field.label}</label>
+                        <select
+                          value={value}
+                          onChange={(e) => setEditDraft((prev) => ({ ...prev, [field.name]: e.target.value }))}
+                          className="w-full rounded border border-[color:var(--border-default)] bg-[color:var(--surface-base)] px-2 py-1.5 text-sm text-[color:var(--text-ink)] focus:outline-none"
+                        >
+                          <option value="">Seleccionar...</option>
+                          {field.options.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={field.name}>
+                      <label className="mb-1 block text-xs font-semibold text-[color:var(--text-ink-muted)]">{field.label}</label>
+                      <input
+                        type={field.type === "number" ? "number" : "text"}
+                        value={value}
+                        step={field.step}
+                        placeholder={field.placeholder}
+                        onChange={(e) => setEditDraft((prev) => ({ ...prev, [field.name]: e.target.value }))}
+                        className="w-full rounded border border-[color:var(--border-default)] bg-[color:var(--surface-base)] px-2 py-1.5 text-sm text-[color:var(--text-ink)] focus:outline-none"
+                      />
+                    </div>
+                  );
+                })}
+            </div>
+          ) : (
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[color:var(--text-ink-muted)]">Notas</label>
+              <textarea
+                value={editDraft["_notas"] ?? rawDesc}
+                onChange={(e) => setEditDraft({ _notas: e.target.value })}
+                rows={3}
+                className="w-full rounded border border-[color:var(--border-default)] bg-[color:var(--surface-base)] px-2 py-1.5 text-sm text-[color:var(--text-ink)] focus:outline-none"
+              />
+            </div>
+          )}
+
+          {/* Acciones */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => void handleSave()}
+              className="rounded bg-[color:var(--feedback-success-bg)] px-3 py-1.5 text-xs font-semibold text-[color:var(--feedback-success-text)] disabled:opacity-50"
+            >
+              {saving ? "Guardando…" : "Guardar cambios"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="text-xs text-[color:var(--text-ink-muted)] underline"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Adjuntos */}
+      {!editing && Array.isArray(entrada.adjuntos) && entrada.adjuntos.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {(entrada.adjuntos as AdjuntoRecord[]).map((adj) =>
+            adj.tipo.startsWith("image/") ? (
+              <a key={adj.cid} href={adj.url} target="_blank" rel="noopener noreferrer"
+                className="block h-16 w-16 shrink-0 overflow-hidden rounded-[var(--radius-md)] border border-[color:var(--border-shell)] transition hover:border-[color:var(--accent-primary)]">
+                <img src={adj.url} alt={adj.nombre} className="h-full w-full object-cover" />
+              </a>
+            ) : (
+              <a key={adj.cid} href={adj.url} target="_blank" rel="noopener noreferrer"
+                className="flex h-16 w-16 shrink-0 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-1 text-center transition hover:border-[color:var(--accent-primary)]">
+                <span className="text-xl leading-none">{fileIcon(adj.tipo)}</span>
+                <span className="line-clamp-2 text-[9px] font-medium text-[color:var(--text-ink-muted)]">{adj.nombre}</span>
+              </a>
+            )
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Modal de detalle ────────────────────────────────────────────────────────
+
+function TareaDetalleModal({
   tarea,
+  opened,
+  onClose,
   onCompleted,
 }: {
   tarea: Tarea;
+  opened: boolean;
+  onClose: () => void;
   onCompleted?: () => void;
 }) {
   const { notifySuccess, notifyError } = useAppNotifications();
-  const [open, setOpen] = useState(false);
   const [entradas, setEntradas] = useState<TareaEntradaDetail[] | null>(null);
   const [loadingEntradas, setLoadingEntradas] = useState(false);
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
+  // Unified pending attachments — images get an objectURL preview, other files don't
+  const [pendingFiles, setPendingFiles] = useState<{ file: File; previewUrl: string | null }[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const fecha = fechaLabel(tarea);
+  const addPendingFiles = useCallback((files: File[]) => {
+    setPendingFiles((prev) => [
+      ...prev,
+      ...files.map((file) => ({
+        file,
+        previewUrl: file.type.startsWith("image/") ? URL.createObjectURL(file) : null,
+      })),
+    ]);
+  }, []);
+
+  const handlePickImages = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length) addPendingFiles(files);
+    e.target.value = "";
+  }, [addPendingFiles]);
+
+  const handlePickFiles = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length) addPendingFiles(files);
+    e.target.value = "";
+  }, [addPendingFiles]);
+
+  const removePendingFile = useCallback((idx: number) => {
+    setPendingFiles((prev) => {
+      const item = prev[idx];
+      if (item?.previewUrl) URL.revokeObjectURL(item.previewUrl);
+      return prev.filter((_, i) => i !== idx);
+    });
+  }, []);
+
   const asignacionId = tarea.tarea_asignacion?.[0]?.tarea_asignacion_id ?? null;
   const isCompleted = normalizeEstado(tarea.estado) === "completado";
   const eventoConfig = getEventoConfigForTask(tarea);
@@ -183,11 +468,13 @@ function TareaRow({
       .finally(() => setLoadingEntradas(false));
   };
 
-  function handleToggle() {
-    const willOpen = !open;
-    setOpen(willOpen);
-    if (willOpen && entradas === null) loadEntradas();
-  }
+  useEffect(() => {
+    if (opened && entradas === null) loadEntradas();
+    if (!opened) {
+      setDraft({});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opened]);
 
   const setDraftField = (field: string, value: string) =>
     setDraft((prev) => ({ ...prev, [field]: value }));
@@ -220,9 +507,28 @@ function TareaRow({
 
     setSaving(true);
     try {
-      await createTareaEntrada(asignacionId, { notas, descripcion });
-      notifySuccess({ title: "Registro guardado", message: "La entrada fue registrada correctamente." });
+      const entry = await createTareaEntrada(asignacionId, { notas, descripcion }) as { entradaId?: string };
       setDraft({});
+
+      // Upload pending files to the newly created entry
+      if (pendingFiles.length > 0 && entry?.entradaId) {
+        setUploadingFiles(true);
+        try {
+          await Promise.all(
+            pendingFiles.map(({ file }) => uploadEntradaAdjunto(entry.entradaId!, file)),
+          );
+          setPendingFiles((prev) => {
+            prev.forEach((p) => { if (p.previewUrl) URL.revokeObjectURL(p.previewUrl); });
+            return [];
+          });
+        } catch {
+          notifyError({ title: "Archivos no subidos", message: "El registro se guardó pero no se pudieron subir los archivos. Verificá la configuración del servidor IPFS." });
+        } finally {
+          setUploadingFiles(false);
+        }
+      }
+
+      notifySuccess({ title: "Registro guardado", message: "La entrada fue registrada correctamente." });
       loadEntradas();
     } catch (e) {
       notifyError({ title: "Error al registrar", message: getApiErrorMessage(e) });
@@ -237,7 +543,7 @@ function TareaRow({
     try {
       await finalizarTareaAsignacion(asignacionId);
       notifySuccess({ title: "Tarea completada", message: "La tarea fue marcada como completada." });
-      setOpen(false);
+      onClose();
       onCompleted?.();
     } catch (e) {
       notifyError({ title: "Error al finalizar", message: getApiErrorMessage(e) });
@@ -246,272 +552,378 @@ function TareaRow({
     }
   };
 
+  const fecha = fechaLabel(tarea);
+
   return (
-    <div className="overflow-hidden rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)]">
-      {/* Header */}
-      <button
-        type="button"
-        onClick={handleToggle}
-        className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition hover:bg-[color:var(--action-ghost-bg)]"
-      >
-        <div className="min-w-0">
-          <p className="truncate text-xs font-medium text-[color:var(--text-ink)]">{tarea.titulo}</p>
+    <AppModal
+      opened={opened}
+      onClose={onClose}
+      size="lg"
+      showHeaderDivider
+      title={
+        <span className="flex flex-wrap items-center gap-2">
+          {tarea.titulo}
+          {estadoBadge(tarea.estado)}
+        </span>
+      }
+      description={
+        <span className="flex flex-wrap gap-3 text-sm text-[color:var(--text-ink-muted)]">
           {tarea.cuartel?.codigo_cuartel && (
-            <p className="text-[10px] text-[color:var(--text-ink-muted)]">
-              Cuartel: {tarea.cuartel.codigo_cuartel}
-            </p>
+            <span>Cuartel: <strong className="text-[color:var(--text-ink)]">{tarea.cuartel.codigo_cuartel}</strong></span>
           )}
           {fecha && (
-            <p className={`text-[10px] ${fecha.overdue ? "font-semibold text-red-400" : "text-[color:var(--text-ink-muted)]"}`}>
+            <span className={fecha.overdue ? "font-semibold text-red-400" : ""}>
               {fecha.text}
-            </p>
+            </span>
           )}
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {estadoBadge(tarea.estado)}
-          <span className="text-[10px] text-[color:var(--text-ink-muted)]">{open ? "▲" : "▼"}</span>
-        </div>
-      </button>
-
-      {open && (
-        <div className="space-y-4 border-t border-[color:var(--border-default)]/50 px-3 py-3">
-
-          {/* Metadata */}
-          <div className="flex flex-wrap gap-1.5">
-            {tarea.prioridad && (
-              <span className="rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-2 py-0.5 text-[10px] capitalize text-[color:var(--text-ink-muted)]">
-                Prioridad: {tarea.prioridad}
-              </span>
-            )}
-            {eventoConfig && (
-              <span className="rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-2 py-0.5 text-[10px] text-[color:var(--accent-primary)]">
-                {eventoConfig.label}
-              </span>
-            )}
+        </span>
+      }
+      footer={
+        asignacionId && !isCompleted ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <AppButton
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => void handleRegister()}
+              disabled={saving || !hasDraftValues}
+              loading={saving}
+            >
+              {saving ? "Guardando…" : "Registrar avance"}
+            </AppButton>
+            <AppButton
+              type="button"
+              variant="primary"
+              size="sm"
+              onClick={() => void handleFinalize()}
+              disabled={finalizing || (entradas ?? []).length === 0}
+              loading={finalizing}
+              title={(entradas ?? []).length === 0 ? "Registrá al menos un avance antes de finalizar" : undefined}
+            >
+              {finalizing ? "Finalizando…" : "Finalizar tarea"}
+            </AppButton>
+            <AppButton type="button" variant="ghost" size="sm" onClick={onClose}>
+              Cerrar
+            </AppButton>
           </div>
-
-          {tarea.descripcion && (
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--text-ink-muted)]">
-                Descripción
-              </p>
-              <p className="mt-0.5 text-xs text-[color:var(--text-ink)]">{tarea.descripcion}</p>
-            </div>
+        ) : (
+          <AppButton type="button" variant="ghost" size="sm" onClick={onClose}>
+            Cerrar
+          </AppButton>
+        )
+      }
+    >
+      <div className="space-y-5">
+        {/* Metadata badges */}
+        <div className="flex flex-wrap gap-2">
+          {tarea.prioridad && (
+            <span className="rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-2 py-0.5 text-xs capitalize text-[color:var(--text-ink-muted)]">
+              Prioridad: {tarea.prioridad}
+            </span>
           )}
-
-          {tarea.imagen_url && (
-            <img
-              src={tarea.imagen_url}
-              alt="Evidencia"
-              className="max-h-48 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] object-cover"
-            />
+          {eventoConfig && (
+            <span className="rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-2 py-0.5 text-xs text-[color:var(--accent-primary)]">
+              {eventoConfig.label}
+            </span>
           )}
+        </div>
 
-          {/* Asignaciones */}
-          {(tarea.tarea_asignacion?.length ?? 0) > 0 && (
-            <div>
-              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--text-ink-muted)]">
-                Asignaciones
-              </p>
-              <div className="space-y-1.5">
-                {tarea.tarea_asignacion!.map((a) => (
-                  <div
-                    key={a.tarea_asignacion_id}
-                    className="space-y-1 rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-3 py-2 text-xs"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      {estadoBadge(a.estado)}
-                      <span className="text-[10px] text-[color:var(--text-ink-muted)]">
-                        Asignada el {new Date(a.assigned_at).toLocaleDateString("es-AR")}
-                      </span>
+        {/* Descripción */}
+        {tarea.descripcion && (
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--text-ink-muted)]">
+              Descripción
+            </p>
+            <p className="mt-1 text-sm text-[color:var(--text-ink)]">{tarea.descripcion}</p>
+          </div>
+        )}
+
+        {/* Imagen */}
+        {tarea.imagen_url && (
+          <img
+            src={tarea.imagen_url}
+            alt="Evidencia"
+            className="max-h-56 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] object-cover"
+          />
+        )}
+
+        {/* Asignaciones */}
+        {(tarea.tarea_asignacion?.length ?? 0) > 0 && (
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--text-ink-muted)]">
+              Asignaciones
+            </p>
+            <div className="space-y-2">
+              {tarea.tarea_asignacion!.map((a) => (
+                <div
+                  key={a.tarea_asignacion_id}
+                  className="space-y-1 rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-3 py-2"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {normalizeEstado(a.estado) !== "pendiente" && estadoBadge(a.estado)}
+                      {a.app_user?.nombre && (
+                        <span className="text-sm font-medium text-[color:var(--text-ink)]">
+                          {a.app_user.nombre}
+                        </span>
+                      )}
                     </div>
-                    {a.completed_at && (
-                      <p className="text-[10px] text-[color:var(--feedback-success-text)]">
-                        Completada el {new Date(a.completed_at).toLocaleString("es-AR")}
-                      </p>
-                    )}
-                    {a.observaciones && (
-                      <p className="border-t border-[color:var(--border-shell)]/50 pt-1 text-[color:var(--text-ink)]">
-                        {a.observaciones}
-                      </p>
-                    )}
+                    <span className="text-xs text-[color:var(--text-ink-muted)]">
+                      Asignada el {new Date(a.assigned_at).toLocaleDateString("es-AR")}
+                    </span>
                   </div>
-                ))}
-              </div>
+                  {a.completed_at && (
+                    <p className="text-xs text-[color:var(--feedback-success-text)]">
+                      Completada el {new Date(a.completed_at).toLocaleString("es-AR")}
+                    </p>
+                  )}
+                  {a.observaciones && (
+                    <p className="border-t border-[color:var(--border-shell)]/50 pt-1 text-sm text-[color:var(--text-ink)]">
+                      {a.observaciones}
+                    </p>
+                  )}
+                </div>
+              ))}
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Entradas ya guardadas */}
-          {loadingEntradas && (
-            <p className="text-[10px] text-[color:var(--text-ink-muted)]">Cargando registros…</p>
-          )}
-          {entradas && entradas.length > 0 && (
-            <div>
-              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--text-ink-muted)]">
-                Registros guardados ({entradas.length})
-              </p>
-              <div className="space-y-1.5">
-                {entradas.map((e, i) => {
-                  let parsedFields: [string, string][] | null = null;
-                  const rawDesc = e.notas ?? e.descripcion ?? "";
-                  try {
-                    const parsed = JSON.parse(rawDesc) as unknown;
-                    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-                      parsedFields = Object.entries(parsed as Record<string, unknown>)
-                        .filter(([, v]) => v !== null && v !== "")
-                        .map(([k, v]) => {
-                          const label = eventoConfig?.fields.find((f) => f.name === k)?.label ?? k.replace(/_/g, " ");
-                          return [label, String(v)];
-                        });
+        {/* Entradas guardadas */}
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--text-ink-muted)]">
+            Registros guardados {entradas !== null ? `(${entradas.length})` : ""}
+          </p>
+          {loadingEntradas ? (
+            <p className="text-sm text-[color:var(--text-ink-muted)]">Cargando registros…</p>
+          ) : entradas && entradas.length > 0 ? (
+            <div className="space-y-2">
+              {entradas.map((e, i) => (
+                  <EntradaItem
+                    key={e.entradaId ?? i}
+                    entrada={e}
+                    index={i}
+                    eventoConfig={eventoConfig}
+                    onUpdated={(updated) =>
+                      setEntradas((prev) =>
+                        prev ? prev.map((x) => (x.entradaId === updated.entradaId ? { ...x, ...updated } : x)) : prev,
+                      )
                     }
-                  } catch { /* texto plano */ }
-
-                  return (
-                    <div
-                      key={e.entradaId ?? i}
-                      className="rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-3 py-2 text-xs"
-                    >
-                      <p className="text-[10px] text-[color:var(--text-ink-muted)]">
-                        #{i + 1} · {new Date(e.fecha).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                        {e.creadoPor?.nombre ? ` · ${e.creadoPor.nombre}` : ""}
-                      </p>
-                      {parsedFields ? (
-                        <div className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                          {parsedFields.map(([label, value]) => (
-                            <div key={label}>
-                              <span className="capitalize text-[color:var(--text-ink-muted)]">{label}: </span>
-                              <span className="font-medium text-[color:var(--text-ink)]">{value}</span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : rawDesc ? (
-                        <EntradaDescripcion descripcion={rawDesc} />
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
+                  />
+              ))}
             </div>
-          )}
-          {entradas !== null && entradas.length === 0 && (
-            <p className="text-[10px] text-[color:var(--text-ink-muted)]">
+          ) : entradas !== null ? (
+            <p className="text-sm text-[color:var(--text-ink-muted)]">
               {(tarea.tarea_asignacion?.length ?? 0) === 0
                 ? "Sin asignaciones — la tarea todavía no fue tomada por ningún operario."
                 : isCompleted
                   ? "Completada sin datos de formulario guardados."
                   : "Sin registros guardados aún."}
             </p>
-          )}
+          ) : null}
+        </div>
 
-          {/* Formulario de registro */}
-          {asignacionId && !isCompleted && (
-            <div className="space-y-3 border-t border-[color:var(--border-default)]/50 pt-3">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--text-ink-muted)]">
-                Registrar avance{eventoConfig ? ` — ${eventoConfig.label}` : ""}
-              </p>
+        {/* Formulario de registro */}
+        {asignacionId && !isCompleted && (
+          <div className="space-y-3 border-t border-[color:var(--border-default)]/50 pt-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--text-ink-muted)]">
+              Registrar avance{eventoConfig ? ` — ${eventoConfig.label}` : ""}
+            </p>
 
-              {eventoConfig ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {eventoConfig.fields
-                    .filter((field) => field.type !== "user_select")
-                    .map((field) => {
-                      const value = draft[field.name] ?? field.defaultValue ?? "";
-                      if (field.type === "textarea") {
-                        return (
-                          <div key={field.name} className="sm:col-span-2">
-                            <AppTextarea
-                              label={field.label}
-                              value={value}
-                              onChange={(e) => setDraftField(field.name, e.target.value)}
-                              placeholder={field.placeholder}
-                              uiSize="lg"
-                            />
-                          </div>
-                        );
-                      }
-                      if (field.type === "select" && field.options) {
-                        return (
-                          <AppSelect
-                            key={field.name}
+            {eventoConfig ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {eventoConfig.fields
+                  .filter((field) => field.type !== "user_select")
+                  .filter((field) => !field.showWhen || draft[field.showWhen.field] === field.showWhen.value)
+                  .map((field) => {
+                    const value = draft[field.name] ?? field.defaultValue ?? "";
+                    if (field.type === "textarea") {
+                      return (
+                        <div key={field.name} className="sm:col-span-2">
+                          <AppTextarea
                             label={field.label}
                             value={value}
                             onChange={(e) => setDraftField(field.name, e.target.value)}
-                          >
-                            <option value="">Seleccionar...</option>
-                            {field.options.map((opt) => (
-                              <option key={opt.value} value={opt.value}>{opt.label}</option>
-                            ))}
-                          </AppSelect>
-                        );
-                      }
+                            placeholder={field.placeholder}
+                            uiSize="lg"
+                          />
+                        </div>
+                      );
+                    }
+                    if (field.type === "select" && field.options) {
                       return (
-                        <AppInput
+                        <AppSelect
                           key={field.name}
-                          label={`${field.label}${field.required ? " *" : ""}`}
-                          type={field.type === "date" ? "date" : field.type === "number" ? "number" : "text"}
+                          label={field.label}
                           value={value}
                           onChange={(e) => setDraftField(field.name, e.target.value)}
-                          placeholder={field.placeholder}
-                          step={field.step}
-                          uiSize="lg"
-                        />
+                        >
+                          <option value="">Seleccionar...</option>
+                          {field.options.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </AppSelect>
                       );
-                    })}
-                </div>
-              ) : (
-                <AppTextarea
-                  label="Notas del registro"
-                  value={draft["_notas"] ?? ""}
-                  onChange={(e) => setDraftField("_notas", e.target.value)}
-                  placeholder="Describí qué se hizo, mediciones, observaciones..."
-                  uiSize="lg"
-                />
-              )}
-
-              <div className="flex flex-wrap items-center gap-2">
-                <AppButton
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => void handleRegister()}
-                  disabled={saving || !hasDraftValues}
-                  loading={saving}
-                >
-                  {saving ? "Guardando…" : "Registrar"}
-                </AppButton>
-                <AppButton
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  onClick={() => void handleFinalize()}
-                  disabled={finalizing || (entradas ?? []).length === 0}
-                  loading={finalizing}
-                  title={(entradas ?? []).length === 0 ? "Registrá al menos un avance antes de finalizar" : undefined}
-                >
-                  {finalizing ? "Finalizando…" : "Finalizar tarea"}
-                </AppButton>
+                    }
+                    return (
+                      <AppInput
+                        key={field.name}
+                        label={`${field.label}${field.required ? " *" : ""}`}
+                        type={field.type === "date" ? "date" : field.type === "number" ? "number" : "text"}
+                        value={value}
+                        onChange={(e) => setDraftField(field.name, e.target.value)}
+                        placeholder={field.placeholder}
+                        step={field.step}
+                        uiSize="lg"
+                      />
+                    );
+                  })}
               </div>
-              {(entradas ?? []).length === 0 && (
-                <p className="text-[10px] text-[color:var(--text-ink-muted)]">
-                  Necesitás registrar al menos una entrada antes de poder finalizar la tarea.
-                </p>
+            ) : (
+              <AppTextarea
+                label="Notas del registro"
+                value={draft["_notas"] ?? ""}
+                onChange={(e) => setDraftField("_notas", e.target.value)}
+                placeholder="Describí qué se hizo, mediciones, observaciones..."
+                uiSize="lg"
+              />
+            )}
+
+            {/* ── Adjuntos picker ─────────────────────────────────────── */}
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--text-ink-muted)]">
+                Adjuntos <span className="font-normal normal-case">(fotos y archivos — opcional)</span>
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {/* Pending previews */}
+                {pendingFiles.map(({ file, previewUrl }, idx) => (
+                  <div key={idx} className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] overflow-hidden">
+                    {previewUrl ? (
+                      <img src={previewUrl} alt={file.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex flex-col items-center gap-0.5 px-1 text-center">
+                        <span className="text-xl leading-none">{fileIcon(file.type)}</span>
+                        <span className="line-clamp-2 text-[9px] font-medium text-[color:var(--text-ink-muted)]">{file.name}</span>
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removePendingFile(idx)}
+                      className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow hover:bg-red-600"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+
+                {/* Add photo button */}
+                <button
+                  type="button"
+                  onClick={() => imageInputRef.current?.click()}
+                  className="flex h-20 w-20 shrink-0 flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] border border-dashed border-[color:var(--border-default)] bg-[color:var(--surface-soft)] text-[color:var(--text-ink-muted)] transition hover:border-[color:var(--accent-primary)] hover:text-[color:var(--text-ink)]"
+                >
+                  <span className="text-2xl leading-none">📷</span>
+                  <span className="text-[10px] font-semibold">Foto</span>
+                </button>
+
+                {/* Add file button */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex h-20 w-20 shrink-0 flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] border border-dashed border-[color:var(--border-default)] bg-[color:var(--surface-soft)] text-[color:var(--text-ink-muted)] transition hover:border-[color:var(--accent-primary)] hover:text-[color:var(--text-ink)]"
+                >
+                  <span className="text-2xl leading-none">📎</span>
+                  <span className="text-[10px] font-semibold">Archivo</span>
+                </button>
+
+                {/* Hidden inputs */}
+                <input ref={imageInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePickImages} />
+                <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv" multiple className="hidden" onChange={handlePickFiles} />
+              </div>
+              {uploadingFiles && (
+                <p className="mt-2 text-xs text-[color:var(--text-ink-muted)]">Subiendo archivos a IPFS…</p>
               )}
             </div>
-          )}
 
-          <p className="border-t border-[color:var(--border-shell)]/50 pt-2 text-[10px] text-[color:var(--text-ink-muted)]">
-            Creada: {tarea.created_at ? new Date(tarea.created_at).toLocaleString("es-AR") : "—"}
-            {tarea.updated_at ? ` · Actualizada: ${new Date(tarea.updated_at).toLocaleString("es-AR")}` : ""}
-          </p>
+            {(entradas ?? []).length === 0 && (
+              <p className="text-xs text-[color:var(--text-ink-muted)]">
+                Necesitás registrar al menos una entrada antes de poder finalizar la tarea.
+              </p>
+            )}
+          </div>
+        )}
+
+        <p className="border-t border-[color:var(--border-shell)]/50 pt-3 text-xs text-[color:var(--text-ink-muted)]">
+          Creada: {tarea.created_at ? new Date(tarea.created_at).toLocaleString("es-AR") : "—"}
+          {tarea.updated_at ? ` · Actualizada: ${new Date(tarea.updated_at).toLocaleString("es-AR")}` : ""}
+        </p>
+      </div>
+    </AppModal>
+  );
+}
+
+// ─── TareaRow ────────────────────────────────────────────────────────────────
+
+function TareaRow({
+  tarea,
+  onCompleted,
+}: {
+  tarea: Tarea;
+  onCompleted?: () => void;
+}) {
+  const [modalOpen, setModalOpen] = useState(false);
+  const fecha = fechaLabel(tarea);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setModalOpen(true)}
+        className="flex w-full items-center justify-between gap-2 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-4 py-3 text-left transition hover:border-[color:var(--border-subtle)] hover:bg-[color:var(--surface-soft)]"
+      >
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium text-[color:var(--text-ink)]">{tarea.titulo}</p>
+          <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
+            {tarea.cuartel?.codigo_cuartel && (
+              <p className="text-xs text-[color:var(--text-ink-muted)]">
+                Cuartel: {tarea.cuartel.codigo_cuartel}
+              </p>
+            )}
+            {(tarea.tarea_asignacion ?? []).length > 0 && (
+              <p className="text-xs text-[color:var(--text-ink-muted)]">
+                Asignada a:{" "}
+                <span className="font-medium text-[color:var(--text-ink)]">
+                  {tarea.tarea_asignacion!
+                    .map((a) => a.app_user?.nombre ?? "Operario")
+                    .join(", ")}
+                </span>
+              </p>
+            )}
+            {fecha && (
+              <p className={`text-xs ${fecha.overdue ? "font-semibold text-red-400" : "text-[color:var(--text-ink-muted)]"}`}>
+                {fecha.text}
+              </p>
+            )}
+          </div>
         </div>
-      )}
-    </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {estadoBadge(tarea.estado)}
+          <span className="text-xs text-[color:var(--text-ink-muted)]">→</span>
+        </div>
+      </button>
+
+      <TareaDetalleModal
+        tarea={tarea}
+        opened={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onCompleted={onCompleted}
+      />
+    </>
   );
 }
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
-export default function CampoPage() {
+export default function CampoPage({ standalone = false }: { standalone?: boolean }) {
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const fincas = useFincasStore((state) => state.fincas);
   const loadFincas = useFincasStore((state) => state.loadFincas);
@@ -557,8 +969,7 @@ export default function CampoPage() {
         const finca = fincas.find(
           (f) => String(f.finca_id ?? f.id ?? "") === fincaId,
         );
-        const nombre =
-          finca?.nombre_finca ?? `Finca ${fincaId.slice(0, 6)}`;
+        const nombre = finca?.nombre_finca ?? `Finca ${fincaId.slice(0, 6)}`;
         map.set(fincaId, { fincaId, nombre, tareas: [tarea] });
       }
     }
@@ -584,18 +995,24 @@ export default function CampoPage() {
   }, [tareasDeCampo]);
 
   if (loading) {
-    return (
+    return standalone ? (
+      <div className="min-h-screen bg-secondary px-6 py-10">
+        <div className="mx-auto w-full max-w-6xl">
+          <NoticeBanner tone="info">Cargando operaciones de campo…</NoticeBanner>
+        </div>
+      </div>
+    ) : (
       <NoticeBanner tone="info">Cargando operaciones de campo…</NoticeBanner>
     );
   }
 
-  return (
+  const content = (
     <div className="space-y-6">
       <AppCard as="section" tone="default" padding="lg">
         <SectionIntro
           eyebrow="Operaciones de campo"
           title="Actividad por finca"
-          description="Tareas registradas en las fincas vinculadas a esta bodega. Expandí cada tarea para ver los datos registrados por el operario."
+          description="Tareas registradas en las fincas vinculadas a esta bodega. Hacé click en una tarea para ver el detalle y registrar avances."
         />
 
         {tareasDeCampo.length > 0 && (
@@ -648,4 +1065,16 @@ export default function CampoPage() {
       )}
     </div>
   );
+
+  if (standalone) {
+    return (
+      <div className="min-h-screen bg-secondary px-6 py-10">
+        <div className="mx-auto w-full max-w-6xl">
+          {content}
+        </div>
+      </div>
+    );
+  }
+
+  return content;
 }

@@ -211,8 +211,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
       const authTokens = data as AuthTokensResponse;
       storeAuthTokens(authTokens.access_token ?? null, authTokens.refresh_token ?? null);
-      const user = "user" in data ? data.user : data;
-      const resolvedUser = user?.id ? user : await fetchMe();
+      // Siempre fetchMe para garantizar que el user tenga fincas, roles y todos los campos
+      const resolvedUser = await fetchMe();
       const enrichedUser = await enrichUser(resolvedUser);
       const bodegas = await apiClient
         .get<Bodega[]>(ME_BODEGAS_PATH)

@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { createCuartel } from "../../features/cuarteles/api";
+import { createCuartel, type GeoJSONPolygon, type Centroide } from "../../features/cuarteles/api";
+import CuartelMapEditor from "../../components/CuartelMapEditor";
 import { useFincasStore } from "../../features/fincas/store";
 import { useAuthStore } from "../../store/authStore";
 import { getApiErrorMessage } from "../../lib/api";
@@ -25,6 +26,17 @@ import {
 
 function optionalNumber(value: string) {
   return value.trim() ? Number(value) : null;
+}
+
+function OptLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      {children}
+      <span className="rounded-full bg-[color:var(--surface-soft)] px-1.5 py-0.5 text-[11px] font-normal text-[color:var(--text-ink-muted)]">
+        Opcional
+      </span>
+    </span>
+  );
 }
 
 type CuartelForm = {
@@ -56,6 +68,8 @@ const SetupCuarteles = () => {
   const loadFincas = useFincasStore((state) => state.loadFincas);
   const [createdCodigo, setCreatedCodigo] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(true);
+  const [mapPolygon, setMapPolygon] = useState<GeoJSONPolygon | null>(null);
+  const [mapCentroid, setMapCentroid] = useState<Centroide | null>(null);
   const notifications = useAppNotifications();
 
   const [form, setForm] = useState<CuartelForm>({
@@ -152,7 +166,7 @@ const SetupCuarteles = () => {
     const numericFields: Array<{ key: keyof CuartelForm; label: string; value: string }> = [
       { key: "cantidad_hileras", label: "Cantidad de hileras", value: form.cantidad_hileras },
       { key: "largo_hileras_m", label: "Largo de hileras", value: form.largo_hileras_m },
-      { key: "densidad_hileras", label: "Densidad de hileras", value: form.densidad_hileras },
+      { key: "densidad_hileras", label: "Densidad de plantación", value: form.densidad_hileras },
     ];
     numericFields.forEach((field) => {
       if (!field.value.trim()) return;
@@ -195,9 +209,13 @@ const SetupCuarteles = () => {
         largo_hileras_m: optionalNumber(form.largo_hileras_m),
         densidad_hileras: optionalNumber(form.densidad_hileras),
         distancia_plantacion: form.distancia_plantacion.trim() || null,
+        poligono: mapPolygon,
+        centroide: mapCentroid,
       });
       sessionStorage.setItem("setupFincaId", form.fincaId);
       setCreatedCodigo(form.codigo_cuartel.trim());
+      setMapPolygon(null);
+      setMapCentroid(null);
       setShowForm(false);
       notifications.notifySuccess({
         title: "Cuartel creado",
@@ -233,6 +251,8 @@ const SetupCuarteles = () => {
     setCreatedCodigo(null);
     setError(null);
     setFieldErrors({});
+    setMapPolygon(null);
+    setMapCentroid(null);
     setShowForm(true);
   };
 
@@ -295,16 +315,9 @@ const SetupCuarteles = () => {
               <AppButton
                 type="button"
                 variant="secondary"
-                onClick={() => navigate("/setup/protocolos")}
-              >
-                Seguir con protocolo
-              </AppButton>
-              <AppButton
-                type="button"
-                variant="ghost"
                 onClick={() => navigate("/fincas")}
               >
-                Finalizar
+                Ir a fincas
               </AppButton>
             </div>
           </AppCard>
@@ -395,7 +408,7 @@ const SetupCuarteles = () => {
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <AppInput
-              label="Cantidad de hileras"
+              label={<OptLabel>Cantidad de hileras</OptLabel>}
               type="number"
               step="1"
               uiSize="lg"
@@ -405,7 +418,7 @@ const SetupCuarteles = () => {
               error={fieldErrors.cantidad_hileras}
             />
             <AppInput
-              label="Largo de hileras (m)"
+              label={<OptLabel>Largo de hileras (m)</OptLabel>}
               type="number"
               step="0.01"
               uiSize="lg"
@@ -415,7 +428,7 @@ const SetupCuarteles = () => {
               error={fieldErrors.largo_hileras_m}
             />
             <AppInput
-              label="Densidad de hileras"
+              label={<OptLabel>Densidad de plantación (plantas/ha)</OptLabel>}
               type="number"
               step="0.01"
               uiSize="lg"
@@ -425,7 +438,7 @@ const SetupCuarteles = () => {
               error={fieldErrors.densidad_hileras}
             />
             <AppInput
-              label="Distancia de plantación"
+              label={<OptLabel>Distancia de plantación</OptLabel>}
               type="text"
               uiSize="lg"
               placeholder="Ej. 2.5 x 1.2 m"
@@ -435,7 +448,7 @@ const SetupCuarteles = () => {
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <AppSelect
-              label="Sistema de riego"
+              label={<OptLabel>Sistema de riego</OptLabel>}
               uiSize="lg"
               value={form.sistema_riego}
               onChange={(e) => onChange("sistema_riego", e.target.value)}
@@ -448,7 +461,7 @@ const SetupCuarteles = () => {
               ))}
             </AppSelect>
             <AppSelect
-              label="Manejo de cultivo"
+              label={<OptLabel>Manejo de cultivo</OptLabel>}
               uiSize="lg"
               value={form.sistema_productivo}
               onChange={(e) => onChange("sistema_productivo", e.target.value)}
@@ -461,7 +474,7 @@ const SetupCuarteles = () => {
               ))}
             </AppSelect>
             <AppSelect
-              label="Sistema de conducción"
+              label={<OptLabel>Sistema de conducción</OptLabel>}
               uiSize="lg"
               value={form.sistema_conduccion}
               onChange={(e) => onChange("sistema_conduccion", e.target.value)}
@@ -475,6 +488,27 @@ const SetupCuarteles = () => {
             </AppSelect>
           </div>
 
+          {/* ── Editor de límites en mapa ───────────────────────── */}
+          <AppCard as="div" tone="soft" padding="md">
+            <div className="mb-3">
+              <div className="text-sm font-semibold text-[color:var(--text-ink)]">
+                Límites del cuartel en mapa
+                <span className="ml-2 rounded-full bg-[color:var(--surface-muted)] px-2 py-0.5 text-[11px] font-normal text-[color:var(--text-ink-muted)]">
+                  Opcional
+                </span>
+              </div>
+              <p className="mt-0.5 text-xs text-[color:var(--text-ink-muted)]">
+                Hacé click en el mapa satelital para trazar el polígono del cuartel.
+              </p>
+            </div>
+            <CuartelMapEditor
+              onChange={(poly, centroid) => {
+                setMapPolygon(poly);
+                setMapCentroid(centroid);
+              }}
+            />
+          </AppCard>
+
           {error ? <NoticeBanner tone="danger">{error}</NoticeBanner> : null}
           <div className="flex flex-wrap gap-3">
             <AppButton
@@ -485,13 +519,6 @@ const SetupCuarteles = () => {
               onClick={() => void handleSubmit()}
             >
               {saving ? "Guardando..." : "Crear cuartel"}
-            </AppButton>
-            <AppButton
-              type="button"
-              variant="secondary"
-              onClick={() => navigate("/fincas")}
-            >
-              Finalizar
             </AppButton>
           </div>
         </form>
