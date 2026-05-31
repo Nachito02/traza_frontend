@@ -241,11 +241,11 @@ const SetupFinca = () => {
                   />
 
                   <AppInput
-                    label={<OptLabel>Ubicación</OptLabel>}
+                    label={<OptLabel>Dirección de referencia</OptLabel>}
                     type="text"
                     uiSize="lg"
                     className="md:col-span-2"
-                    placeholder="Luján de Cuyo, Mendoza"
+                    placeholder="Ej: Ruta 15 km 32, Luján de Cuyo, Mendoza"
                     value={form.ubicacion_texto}
                     onChange={(e) => onChange("ubicacion_texto", e.target.value)}
                   />

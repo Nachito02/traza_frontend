@@ -183,7 +183,7 @@ export default function CuartelesAdmin() {
     const numericFields: Array<{ key: keyof FormState; label: string; value: string }> = [
       { key: "cantidad_hileras", label: "Cantidad de hileras", value: form.cantidad_hileras },
       { key: "largo_hileras_m", label: "Largo de hileras", value: form.largo_hileras_m },
-      { key: "densidad_hileras", label: "Densidad de hileras", value: form.densidad_hileras },
+      { key: "densidad_hileras", label: "Densidad de plantación", value: form.densidad_hileras },
     ];
 
     numericFields.forEach((field) => {
@@ -631,7 +631,7 @@ export default function CuartelesAdmin() {
                               </div>
                               <div>
                                 <span className="font-semibold text-[color:var(--text-ink)]">
-                                  Densidad de hileras:
+                                  Densidad de plantación:
                                 </span>{" "}
                                 {detail?.densidad_hileras ?? "-"}
                               </div>
@@ -782,7 +782,7 @@ export default function CuartelesAdmin() {
                   error={fieldErrors.largo_hileras_m}
                 />
                 <AppInput
-                  label="Densidad de hileras"
+                  label="Densidad de plantación (plantas/ha)"
                   type="number"
                   step="0.01"
                   value={form.densidad_hileras}

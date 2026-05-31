@@ -225,14 +225,6 @@ export default function CreateOrderForm({
         {/* ── Destino finca / cuartel (cuando aplica) ────────────────────── */}
         {requiresFincaTarget ? (
           <>
-            <div className="md:col-span-2 rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-4 py-3">
-              <p className="text-sm font-semibold text-[color:var(--text-on-dark)]">
-                Destino obligatorio de finca
-              </p>
-              <p className="mt-1 text-xs leading-relaxed text-[color:var(--text-on-dark-muted)]">
-                Esta orden necesita finca y cuartel para que el operario sepa exactamente dónde ejecutarla.
-              </p>
-            </div>
             <AppSelect
               label="Finca"
               value={form.fincaId}
