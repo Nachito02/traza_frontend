@@ -164,7 +164,6 @@ export default function RecepcionPage({
     if (!activeBodegaId) {
       setRemitoOptions([]);
       setRecepcionOptions([]);
-      setLotesCosecha([]);
       return;
     }
 
@@ -209,7 +208,6 @@ export default function RecepcionPage({
         // opciones quedan vacías, el usuario puede continuar sin filtrar por select
         setRemitoOptions([]);
         setRecepcionOptions([]);
-        setLotesCosecha([]);
       });
   }, [activeBodegaId, loadFincas, loadOperationalOptions]);
 
