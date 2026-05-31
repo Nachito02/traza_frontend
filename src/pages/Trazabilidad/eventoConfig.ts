@@ -10,6 +10,8 @@ export type FieldDef = {
   defaultValue?: string;
   options?: { value: string; label: string }[];
   optionsSource?: "bodegas";
+  /** Muestra este campo solo cuando otro campo tiene el valor indicado */
+  showWhen?: { field: string; value: string };
 };
 
 export type EventoConfig = {
@@ -51,10 +53,32 @@ export const EVENTO_CONFIG: Record<string, EventoConfig> = {
     label: "Riego",
     fields: [
       { name: "fecha", label: "Fecha", type: "date", required: true },
-      { name: "volumen", label: "Volumen", type: "number", required: true, step: "0.01" },
-      { name: "unidad", label: "Unidad", type: "text", required: true, defaultValue: "m3" },
-      { name: "sistema_riego", label: "Sistema de riego", type: "text", defaultValue: "goteo" },
-      { name: "tiempo_horas", label: "Tiempo (horas)", type: "number", required: true, step: "0.01" },
+      { name: "volumen", label: "Volumen aplicado", type: "number", required: true, step: "0.01" },
+      {
+        name: "unidad",
+        label: "Unidad",
+        type: "select",
+        required: true,
+        options: [
+          { value: "m3", label: "m³" },
+          { value: "mm", label: "mm" },
+          { value: "litros", label: "Litros" },
+        ],
+      },
+      { name: "tiempo_horas", label: "Tiempo de riego (horas)", type: "number", required: true, step: "0.01" },
+      {
+        name: "sistema_riego",
+        label: "Sistema de riego",
+        type: "select",
+        options: [
+          { value: "goteo", label: "Goteo" },
+          { value: "aspersion", label: "Aspersión" },
+          { value: "surco", label: "Surco" },
+          { value: "otro", label: "Otro" },
+        ],
+      },
+      { name: "jornales", label: "Jornales", type: "number", step: "0.01" },
+      { name: "responsable_user_id", label: "Responsable", type: "user_select" },
     ],
   },
   cosecha: {
@@ -62,8 +86,20 @@ export const EVENTO_CONFIG: Record<string, EventoConfig> = {
     fields: [
       { name: "fecha_cosecha", label: "Fecha de cosecha", type: "date", required: true },
       { name: "cantidad", label: "Cantidad", type: "number", required: true, step: "0.01" },
-      { name: "unidad", label: "Unidad", type: "text", required: true, defaultValue: "kg" },
+      {
+        name: "unidad",
+        label: "Unidad",
+        type: "select",
+        required: true,
+        options: [
+          { value: "kg", label: "Kg" },
+          { value: "quintales", label: "Quintales" },
+          { value: "tachos", label: "Tachos" },
+        ],
+      },
       { name: "destino", label: "Destino", type: "select", required: true, optionsSource: "bodegas" },
+      { name: "jornales", label: "Jornales", type: "number", step: "0.01" },
+      { name: "responsable_user_id", label: "Responsable", type: "user_select" },
     ],
   },
   fenologia: {
@@ -79,11 +115,23 @@ export const EVENTO_CONFIG: Record<string, EventoConfig> = {
     label: "Fertilización",
     fields: [
       { name: "fecha", label: "Fecha", type: "date", required: true },
-      { name: "dosis", label: "Dosis", type: "number", required: true },
-      { name: "unidad", label: "Unidad", type: "text", required: true },
+      { name: "producto_fuente", label: "Producto / fuente nutricional", type: "text", required: true, placeholder: "Ej: Urea, Nitrato de calcio, Guano..." },
+      { name: "dosis", label: "Dosis", type: "number", required: true, step: "0.01" },
+      {
+        name: "unidad",
+        label: "Unidad",
+        type: "select",
+        required: true,
+        options: [
+          { value: "kg/ha", label: "kg/ha" },
+          { value: "l/ha", label: "l/ha" },
+          { value: "kg", label: "kg" },
+          { value: "litros", label: "Litros" },
+        ],
+      },
       {
         name: "metodo",
-        label: "Método",
+        label: "Método de aplicación",
         type: "select",
         required: true,
         options: [
@@ -94,29 +142,69 @@ export const EVENTO_CONFIG: Record<string, EventoConfig> = {
           { value: "otro", label: "Otro" },
         ],
       },
-      { name: "cantidad_total", label: "Cantidad total", type: "number" },
-      { name: "insumo_id", label: "Insumo (ID)", type: "text" },
+      { name: "responsable_user_id", label: "Responsable", type: "user_select" },
     ],
   },
   labor_suelo: {
     label: "Labor de suelo",
     fields: [
       { name: "fecha", label: "Fecha", type: "date", required: true },
-      { name: "tipo_labor", label: "Tipo de labor", type: "text", required: true },
-      { name: "intensidad", label: "Intensidad", type: "text", required: true },
+      {
+        name: "tipo_labor",
+        label: "Tipo de labor",
+        type: "select",
+        required: true,
+        options: [
+          { value: "rastrear", label: "Rastrear" },
+          { value: "subsolar", label: "Subsolar" },
+          { value: "desmalezar", label: "Desmalezar" },
+          { value: "otro", label: "Otro" },
+        ],
+      },
+      {
+        name: "otro_labor",
+        label: "Especificar labor",
+        type: "text",
+        required: true,
+        placeholder: "Describí la labor realizada",
+        showWhen: { field: "tipo_labor", value: "otro" },
+      },
+      { name: "tractor", label: "Tractor", type: "text" },
+      { name: "combustible_litros", label: "Combustible (litros)", type: "number", step: "0.01" },
       { name: "horas", label: "Horas", type: "number", step: "0.01" },
-      { name: "hs_por_ha", label: "Hs por ha", type: "number", step: "0.01" },
-      { name: "total_horas_cuartel", label: "Total horas cuartel", type: "number", step: "0.01" },
+      { name: "jornales", label: "Jornales", type: "number", step: "0.01" },
+      { name: "observaciones", label: "Observaciones", type: "textarea" },
+      { name: "responsable_user_id", label: "Responsable", type: "user_select" },
     ],
   },
   canopia: {
     label: "Canopia",
     fields: [
       { name: "fecha", label: "Fecha", type: "date", required: true },
-      { name: "tipo_practica", label: "Tipo de práctica", type: "text", required: true },
-      { name: "intensidad", label: "Intensidad", type: "text" },
+      {
+        name: "tipo_practica",
+        label: "Tipo de práctica",
+        type: "select",
+        required: true,
+        options: [
+          { value: "poda", label: "Poda" },
+          { value: "desbrote", label: "Desbrote" },
+          { value: "despampanado", label: "Despampanado" },
+          { value: "raleo", label: "Raleo" },
+          { value: "otro", label: "Otro" },
+        ],
+      },
+      {
+        name: "otro_practica",
+        label: "Especificar práctica",
+        type: "text",
+        required: true,
+        placeholder: "Describí la práctica realizada",
+        showWhen: { field: "tipo_practica", value: "otro" },
+      },
       { name: "jornales", label: "Jornales", type: "number", step: "0.01" },
       { name: "observaciones", label: "Observaciones", type: "textarea" },
+      { name: "responsable_user_id", label: "Responsable", type: "user_select" },
     ],
   },
   aplicacion_fitosanitaria: {
@@ -151,12 +239,26 @@ export const EVENTO_CONFIG: Record<string, EventoConfig> = {
     label: "Enmienda",
     fields: [
       { name: "fecha", label: "Fecha", type: "date", required: true },
-      { name: "tipo", label: "Tipo (ej: cal, yeso)", type: "text", required: true },
-      { name: "dosis", label: "Dosis", type: "number", step: "0.01" },
+      {
+        name: "tipo",
+        label: "Tipo de enmienda",
+        type: "select",
+        required: true,
+        options: [
+          { value: "guano_gallina", label: "Guano de gallina" },
+          { value: "guano_cabra", label: "Guano de cabra" },
+          { value: "guano_caballo", label: "Guano de caballo" },
+          { value: "lombricompuesto", label: "Lombricompuesto" },
+          { value: "compost", label: "Compost" },
+          { value: "otro", label: "Otro (describir en observaciones)" },
+        ],
+      },
+      { name: "dosis", label: "Dosis", type: "number", required: true, step: "0.01" },
       {
         name: "unidad",
         label: "Unidad",
         type: "select",
+        required: true,
         options: [
           { value: "kg/ha", label: "kg/ha" },
           { value: "ton/ha", label: "ton/ha" },
@@ -164,6 +266,7 @@ export const EVENTO_CONFIG: Record<string, EventoConfig> = {
           { value: "litros", label: "litros" },
         ],
       },
+      { name: "observaciones", label: "Observaciones", type: "textarea" },
       { name: "responsable_user_id", label: "Responsable", type: "user_select", required: true },
     ],
   },
@@ -171,8 +274,22 @@ export const EVENTO_CONFIG: Record<string, EventoConfig> = {
     label: "Cobertura / Erosión",
     fields: [
       { name: "fecha", label: "Fecha", type: "date", required: true },
-      { name: "tipo_cobertura", label: "Tipo de cobertura (ej: mulch)", type: "text", required: true },
-      { name: "manejo", label: "Manejo / descripción", type: "textarea" },
+      {
+        name: "tipo_cobertura",
+        label: "Tipo de cobertura",
+        type: "select",
+        required: true,
+        options: [
+          { value: "vicia", label: "Verdeo — Vicia" },
+          { value: "cebada", label: "Verdeo — Cebada" },
+          { value: "centeno", label: "Verdeo — Centeno" },
+          { value: "mulch", label: "Mulch" },
+          { value: "otro", label: "Otro (describir en observaciones)" },
+        ],
+      },
+      { name: "dosis", label: "Dosis (kg/ha)", type: "number", step: "0.01" },
+      { name: "manejo", label: "Manejo aplicado", type: "textarea" },
+      { name: "observaciones", label: "Observaciones", type: "textarea" },
       { name: "responsable_user_id", label: "Responsable", type: "user_select", required: true },
     ],
   },
@@ -180,14 +297,9 @@ export const EVENTO_CONFIG: Record<string, EventoConfig> = {
     label: "Análisis de suelo",
     fields: [
       { name: "fecha", label: "Fecha", type: "date", required: true },
-      { name: "unidad_muestreada", label: "Unidad muestreada", type: "text", required: true },
-      { name: "laboratorio", label: "Laboratorio", type: "text" },
-      {
-        name: "parametros",
-        label: "Parámetros (JSON)",
-        type: "textarea",
-        placeholder: "{\"ph\": 6.8}",
-      },
+      { name: "unidad_muestreada", label: "Unidad muestreada", type: "text", required: true, placeholder: "Ej: Cuartel Norte, bloque A" },
+      { name: "laboratorio", label: "Origen / laboratorio", type: "text", placeholder: "Ej: Lab. Suelos Mendoza" },
+      { name: "parametros_analizados", label: "Parámetros analizados", type: "textarea", placeholder: "Ej: pH, materia orgánica, nitrógeno, fósforo, potasio..." },
     ],
   },
   precipitacion: {
@@ -366,10 +478,31 @@ export const EVENTO_CONFIG: Record<string, EventoConfig> = {
     label: "Sobrante de lavado",
     fields: [
       { name: "fecha", label: "Fecha", type: "date", required: true },
-      { name: "tipo_sobrante", label: "Tipo", type: "text", required: true },
-      { name: "volumen", label: "Volumen", type: "number", step: "0.01" },
-      { name: "disposicion", label: "Disposición", type: "text" },
-      { name: "responsable_user_id", label: "Responsable", type: "user_select" },
+      {
+        name: "tipo_sobrante",
+        label: "Tipo",
+        type: "select",
+        required: true,
+        options: [
+          { value: "sobrante_caldo", label: "Sobrante de caldo" },
+          { value: "lavado_pulverizadora", label: "Lavado de pulverizadora" },
+        ],
+      },
+      { name: "volumen", label: "Volumen (litros)", type: "number", required: true, step: "0.01" },
+      {
+        name: "disposicion",
+        label: "Forma de disposición",
+        type: "select",
+        required: true,
+        options: [
+          { value: "aplicado_campo", label: "Aplicado a campo" },
+          { value: "neutralizado", label: "Neutralizado" },
+          { value: "retencion", label: "Pileta de retención" },
+          { value: "otro", label: "Otro (describir en observaciones)" },
+        ],
+      },
+      { name: "observaciones", label: "Observaciones", type: "textarea" },
+      { name: "responsable_user_id", label: "Responsable", type: "user_select", required: true },
     ],
   },
 };

@@ -340,10 +340,10 @@ export default function FincasAdmin() {
                     uiSize="lg"
                   />
                 <AppInput
-                  label="Ubicación"
+                  label="Dirección de referencia"
                     value={form.ubicacion_texto}
                     onChange={(e) => setForm((p) => ({ ...p, ubicacion_texto: e.target.value }))}
-                    placeholder="Luján de Cuyo, Mendoza"
+                    placeholder="Ej: Ruta 15 km 32, Luján de Cuyo, Mendoza"
                     uiSize="lg"
                   />
                 <AppInput

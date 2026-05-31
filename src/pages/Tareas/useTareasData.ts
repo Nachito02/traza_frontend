@@ -243,7 +243,15 @@ export function useTareasData(mode: "manager" | "operator"): UseTareasDataReturn
         fincaId: form.fincaId || undefined,
         mode: forceMineMode ? "mine" : "scope",
       });
-      setTasks(dedupeTasksById(data ?? []).filter(isPendingTask));
+      setTasks(
+        dedupeTasksById(data ?? [])
+          .filter(isPendingTask)
+          .sort((a, b) => {
+            const aDate = a.fecha_fin ? new Date(a.fecha_fin).getTime() : Infinity;
+            const bDate = b.fecha_fin ? new Date(b.fecha_fin).getTime() : Infinity;
+            return aDate - bDate;
+          }),
+      );
     } catch (e) {
       setError(getApiErrorMessage(e));
     } finally {

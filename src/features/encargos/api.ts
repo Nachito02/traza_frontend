@@ -40,6 +40,7 @@ export type Tarea = {
   } | null;
   tarea_asignacion?: TareaAsignacion[];
   evento_tipo?: string | null;
+  protocolo_proceso?: { evento_tipo?: string | null } | null;
 };
 
 export type CreateTareaPayload = {
@@ -225,4 +226,15 @@ export async function fetchTareaAsignacionDetail(tareaAsignacionId: string): Pro
     `/tareas/me/asignaciones/${encodeURIComponent(tareaAsignacionId)}/entradas`,
   );
   return Array.isArray(response.data) ? response.data : [];
+}
+
+export async function patchTareaEntrada(
+  entradaId: string,
+  data: { fecha?: string; descripcion?: string },
+): Promise<TareaEntradaDetail> {
+  const response = await apiClient.patch<TareaEntradaDetail>(
+    `/tareas/entradas/${encodeURIComponent(entradaId)}`,
+    data,
+  );
+  return response.data;
 }

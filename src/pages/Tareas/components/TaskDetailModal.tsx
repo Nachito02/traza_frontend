@@ -5,11 +5,13 @@ import { resolveModuleAccess } from "../../../lib/permissions";
 import { useAuthStore } from "../../../store/authStore";
 import {
   fetchTareaAsignacionDetail,
+  patchTareaEntrada,
   type Tarea,
   type TareaEntradaDetail,
 } from "../../../features/encargos/api";
 import { OPERACION_TASK_ROUTES } from "../tareas.constants";
 import { getMatchedCatalogTaskId, normalizeTaskStatus } from "../tareas.helpers";
+import { EVENTO_CONFIG, type EventoConfig } from "../../Trazabilidad/eventoConfig";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -190,29 +192,253 @@ function AdjuntosContent({ adj }: { adj: AdjuntosPayload }) {
   );
 }
 
-function EntradaRow({ entrada }: { entrada: TareaEntradaDetail }) {
+// ─── Totales acumulados ───────────────────────────────────────────────────────
+
+const SUMABLE_FIELDS: Record<string, { key: string; label: string; unit?: string }[]> = {
+  riego:       [{ key: "volumen", label: "Volumen total" }, { key: "tiempo_horas", label: "Horas totales" }, { key: "jornales", label: "Jornales" }],
+  cosecha:     [{ key: "cantidad", label: "Cantidad total" }, { key: "jornales", label: "Jornales" }],
+  canopia:     [{ key: "jornales", label: "Jornales" }],
+  labor_suelo: [{ key: "horas", label: "Horas" }, { key: "combustible_litros", label: "Combustible (L)" }, { key: "jornales", label: "Jornales" }],
+  fertilizacion: [{ key: "cantidad_total", label: "Cantidad total" }],
+};
+
+function TotalesResumen({ entradas, eventoTipo }: { entradas: TareaEntradaDetail[]; eventoTipo: string | null }) {
+  if (entradas.length < 2 || !eventoTipo) return null;
+
+  const sumableFields = SUMABLE_FIELDS[eventoTipo] ?? [];
+  if (sumableFields.length === 0) return null;
+
+  // Leer draft desde descripcion (JSON) de cada entrada
+  const drafts: Record<string, number>[] = [];
+  for (const e of entradas) {
+    const raw = e.descripcion ?? e.notas ?? "";
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        const numericDraft: Record<string, number> = {};
+        for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+          const n = Number(v);
+          if (!isNaN(n) && n > 0) numericDraft[k] = n;
+        }
+        if (Object.keys(numericDraft).length > 0) drafts.push(numericDraft);
+      }
+    } catch { /* entrada sin JSON */ }
+  }
+
+  if (drafts.length < 2) return null;
+
+  const totals = sumableFields
+    .map(({ key, label }) => {
+      const sum = drafts.reduce((acc, d) => acc + (d[key] ?? 0), 0);
+      return sum > 0 ? { label, value: Number(sum.toFixed(2)) } : null;
+    })
+    .filter(Boolean) as { label: string; value: number }[];
+
+  if (totals.length === 0) return null;
+
+  return (
+    <div className="rounded-[var(--radius-md)] border border-[color:var(--feedback-success-border)] bg-[color:var(--feedback-success-bg)] px-4 py-3">
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[color:var(--feedback-success-text)]">
+        Totales acumulados ({drafts.length} registros)
+      </p>
+      <div className="flex flex-wrap gap-4">
+        {totals.map(({ label, value }) => (
+          <div key={label}>
+            <p className="text-xs text-[color:var(--feedback-success-text)] opacity-70">{label}</p>
+            <p className="text-sm font-semibold text-[color:var(--feedback-success-text)]">{value}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── EntradaRow con edición completa ─────────────────────────────────────────
+
+function parseDraftRecord(text: string | null): Record<string, string> {
+  if (!text) return {};
+  try {
+    const parsed = JSON.parse(text) as unknown;
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return Object.fromEntries(
+        Object.entries(parsed as Record<string, unknown>).map(([k, v]) => [k, v == null ? "" : String(v)]),
+      );
+    }
+  } catch { /* texto plano */ }
+  return {};
+}
+
+type EntradaRowProps = {
+  entrada: TareaEntradaDetail;
+  eventoConfig: EventoConfig | null;
+  onUpdated: (updated: TareaEntradaDetail) => void;
+};
+
+function EntradaRow({ entrada, eventoConfig, onUpdated }: EntradaRowProps) {
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editFecha, setEditFecha] = useState("");
+  const [editDraft, setEditDraft] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+
   const adj = entrada.adjuntos as AdjuntosPayload | null | undefined;
   const hasAdjuntos = adj != null && typeof adj === "object" && !Array.isArray(adj);
   const textContent = entrada.descripcion ?? entrada.notas ?? null;
   const hasContent = hasAdjuntos || Boolean(textContent);
 
+  const openEdit = () => {
+    const d = new Date(entrada.fecha);
+    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    setEditFecha(local);
+    setEditDraft(parseDraftRecord(textContent));
+    setEditing(true);
+    setOpen(false);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const newDesc = Object.keys(editDraft).length > 0 ? JSON.stringify(editDraft) : (textContent ?? "");
+      const updated = await patchTareaEntrada(entrada.entradaId, {
+        fecha: new Date(editFecha).toISOString(),
+        descripcion: newDesc,
+      });
+      onUpdated(updated);
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="overflow-hidden rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)]">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-[color:var(--action-ghost-bg)]"
-      >
-        <p className="text-sm text-[color:var(--text-ink-muted)]">
-          {new Date(entrada.fecha).toLocaleString("es-AR")}
-          {entrada.creadoPor?.nombre ? ` · ${entrada.creadoPor.nombre}` : ""}
-        </p>
-        <span className="shrink-0 text-sm text-[color:var(--text-ink-muted)]">
-          {open ? "▲" : hasContent ? "▼" : "—"}
-        </span>
-      </button>
-      {open && (
+      {/* Cabecera */}
+      <div className="flex w-full items-center justify-between gap-3 px-4 py-3">
+        <button type="button" onClick={() => setOpen((v) => !v)} className="flex-1 text-left">
+          <p className="text-sm text-[color:var(--text-ink-muted)]">
+            {new Date(entrada.fecha).toLocaleString("es-AR")}
+            {entrada.creadoPor?.nombre ? ` · ${entrada.creadoPor.nombre}` : ""}
+          </p>
+        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          {!editing && (
+            <button
+              type="button"
+              onClick={openEdit}
+              className="rounded px-2 py-0.5 text-xs text-[color:var(--accent-primary)] hover:bg-[color:var(--action-ghost-bg)]"
+            >
+              Editar
+            </button>
+          )}
+          <span className="cursor-pointer text-sm text-[color:var(--text-ink-muted)]" onClick={() => setOpen((v) => !v)} role="button">
+            {open ? "▲" : hasContent ? "▼" : "—"}
+          </span>
+        </div>
+      </div>
+
+      {/* Modo edición */}
+      {editing && (
+        <div className="space-y-3 border-t border-[color:var(--border-shell)]/50 px-4 py-3">
+          {/* Fecha */}
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-[color:var(--text-ink-muted)]">Fecha</label>
+            <input
+              type="datetime-local"
+              value={editFecha}
+              onChange={(e) => setEditFecha(e.target.value)}
+              className="rounded border border-[color:var(--border-default)] bg-[color:var(--surface-base)] px-2 py-1 text-sm text-[color:var(--text-ink)]"
+            />
+          </div>
+
+          {/* Campos del evento */}
+          {eventoConfig ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {eventoConfig.fields
+                .filter((f) => f.type !== "user_select" && f.type !== "date")
+                .filter((f) => !f.showWhen || editDraft[f.showWhen.field] === f.showWhen.value)
+                .map((field) => {
+                  const value = editDraft[field.name] ?? field.defaultValue ?? "";
+                  if (field.type === "textarea") {
+                    return (
+                      <div key={field.name} className="sm:col-span-2">
+                        <label className="mb-1 block text-xs font-semibold text-[color:var(--text-ink-muted)]">{field.label}</label>
+                        <textarea
+                          value={value}
+                          onChange={(e) => setEditDraft((p) => ({ ...p, [field.name]: e.target.value }))}
+                          placeholder={field.placeholder}
+                          rows={3}
+                          className="w-full rounded border border-[color:var(--border-default)] bg-[color:var(--surface-base)] px-2 py-1.5 text-sm text-[color:var(--text-ink)]"
+                        />
+                      </div>
+                    );
+                  }
+                  if (field.type === "select" && field.options) {
+                    return (
+                      <div key={field.name}>
+                        <label className="mb-1 block text-xs font-semibold text-[color:var(--text-ink-muted)]">{field.label}</label>
+                        <select
+                          value={value}
+                          onChange={(e) => setEditDraft((p) => ({ ...p, [field.name]: e.target.value }))}
+                          className="w-full rounded border border-[color:var(--border-default)] bg-[color:var(--surface-base)] px-2 py-1.5 text-sm text-[color:var(--text-ink)]"
+                        >
+                          <option value="">Seleccionar...</option>
+                          {field.options.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={field.name}>
+                      <label className="mb-1 block text-xs font-semibold text-[color:var(--text-ink-muted)]">{field.label}</label>
+                      <input
+                        type={field.type === "number" ? "number" : "text"}
+                        value={value}
+                        step={field.step}
+                        placeholder={field.placeholder}
+                        onChange={(e) => setEditDraft((p) => ({ ...p, [field.name]: e.target.value }))}
+                        className="w-full rounded border border-[color:var(--border-default)] bg-[color:var(--surface-base)] px-2 py-1.5 text-sm text-[color:var(--text-ink)]"
+                      />
+                    </div>
+                  );
+                })}
+            </div>
+          ) : (
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[color:var(--text-ink-muted)]">Notas</label>
+              <textarea
+                value={editDraft["_notas"] ?? (textContent ?? "")}
+                onChange={(e) => setEditDraft({ _notas: e.target.value })}
+                rows={3}
+                className="w-full rounded border border-[color:var(--border-default)] bg-[color:var(--surface-base)] px-2 py-1.5 text-sm text-[color:var(--text-ink)]"
+              />
+            </div>
+          )}
+
+          {/* Acciones */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => void handleSave()}
+              disabled={saving}
+              className="rounded bg-[color:var(--accent-primary)] px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+            >
+              {saving ? "Guardando…" : "Guardar cambios"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="rounded border border-[color:var(--border-shell)] px-3 py-1 text-xs text-[color:var(--text-ink-muted)]"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modo lectura */}
+      {open && !editing && (
         <div className="border-t border-[color:var(--border-shell)]/50 px-4 py-3">
           {hasAdjuntos ? (
             <AdjuntosContent adj={adj} />
@@ -221,9 +447,7 @@ function EntradaRow({ entrada }: { entrada: TareaEntradaDetail }) {
               try {
                 const parsed = JSON.parse(textContent) as unknown;
                 if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-                  const entries = Object.entries(parsed as Record<string, unknown>).filter(
-                    ([, v]) => v != null && v !== "",
-                  );
+                  const entries = Object.entries(parsed as Record<string, unknown>).filter(([, v]) => v != null && v !== "");
                   return (
                     <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                       {entries.map(([key, val]) => (
@@ -231,9 +455,7 @@ function EntradaRow({ entrada }: { entrada: TareaEntradaDetail }) {
                           <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--text-ink-muted)]">
                             {formatFieldKey(key)}
                           </p>
-                          <p className="mt-0.5 text-sm font-medium text-[color:var(--text-ink)]">
-                            {formatCampoValue(val)}
-                          </p>
+                          <p className="mt-0.5 text-sm font-medium text-[color:var(--text-ink)]">{formatCampoValue(val)}</p>
                         </div>
                       ))}
                     </div>
@@ -263,6 +485,12 @@ type TaskDetailModalProps = {
 
 export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, onDelete }: TaskDetailModalProps) {
   const [entradas, setEntradas] = useState<TareaEntradaDetail[] | null>(null);
+
+  const handleEntradaUpdated = (updated: TareaEntradaDetail) => {
+    setEntradas((prev) =>
+      prev ? prev.map((e) => (e.entradaId === updated.entradaId ? { ...e, ...updated } : e)) : prev,
+    );
+  };
   const [loadingEntradas, setLoadingEntradas] = useState(false);
   const user = useAuthStore((state) => state.user);
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
@@ -431,8 +659,20 @@ export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, 
               Registros guardados ({entradas.length})
             </p>
             <div className="space-y-2">
+              <TotalesResumen
+                entradas={entradas}
+                eventoTipo={task.evento_tipo ?? task.protocolo_proceso?.evento_tipo ?? null}
+              />
               {entradas.map((entrada) => (
-                <EntradaRow key={entrada.entradaId} entrada={entrada} />
+                <EntradaRow
+                  key={entrada.entradaId}
+                  entrada={entrada}
+                  eventoConfig={(() => {
+                    const et = task.evento_tipo ?? task.protocolo_proceso?.evento_tipo;
+                    return et ? (EVENTO_CONFIG[et] ?? null) : null;
+                  })()}
+                  onUpdated={handleEntradaUpdated}
+                />
               ))}
             </div>
           </div>

@@ -5,6 +5,7 @@ import {
   createTareaEntrada,
   finalizarTareaAsignacion,
   uploadEntradaAdjunto,
+  patchTareaEntrada,
   type AdjuntoRecord,
   type Tarea,
   type TareaEntradaDetail,
@@ -48,6 +49,12 @@ function normalizeStr(s: string) {
 }
 
 function getEventoConfigForTask(tarea: Tarea): EventoConfig | null {
+  // 1. Match directo por evento_tipo (plano o anidado en protocolo_proceso)
+  const eventoTipo = tarea.evento_tipo ?? tarea.protocolo_proceso?.evento_tipo;
+  if (eventoTipo && EVENTO_CONFIG[eventoTipo]) {
+    return EVENTO_CONFIG[eventoTipo];
+  }
+  // 2. Fallback: match fuzzy por título
   const titleNorm = normalizeStr(tarea.titulo ?? "");
   for (const [key, config] of Object.entries(EVENTO_CONFIG)) {
     const keyNorm = normalizeStr(key);
@@ -159,6 +166,230 @@ function EntradaDescripcion({ descripcion }: { descripcion: string }) {
           </p>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ─── EntradaItem con edición completa ────────────────────────────────────────
+
+function parseDraft(rawDesc: string): Record<string, string> {
+  try {
+    const parsed = JSON.parse(rawDesc) as unknown;
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return Object.fromEntries(
+        Object.entries(parsed as Record<string, unknown>).map(([k, v]) => [k, v == null ? "" : String(v)]),
+      );
+    }
+  } catch { /* texto plano */ }
+  return {};
+}
+
+function EntradaItem({
+  entrada,
+  index,
+  eventoConfig,
+  onUpdated,
+}: {
+  entrada: TareaEntradaDetail;
+  index: number;
+  eventoConfig: EventoConfig | null;
+  onUpdated: (updated: TareaEntradaDetail) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [editDraft, setEditDraft] = useState<Record<string, string>>({});
+  const [editFecha, setEditFecha] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const rawDesc = entrada.notas ?? entrada.descripcion ?? "";
+  const draft = parseDraft(rawDesc);
+  const parsedFields = Object.entries(draft).filter(([, v]) => v !== "").map(([k, v]) => {
+    const label = eventoConfig?.fields.find((f) => f.name === k)?.label ?? k.replace(/_/g, " ");
+    return [label, v] as [string, string];
+  });
+
+  const openEdit = () => {
+    const d = new Date(entrada.fecha);
+    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    setEditFecha(local);
+    setEditDraft({ ...draft });
+    setEditing(true);
+  };
+
+  const handleSave = async () => {
+    if (!entrada.entradaId) return;
+    setSaving(true);
+    try {
+      const newDesc = Object.keys(editDraft).length > 0 ? JSON.stringify(editDraft) : rawDesc;
+      const updated = await patchTareaEntrada(entrada.entradaId, {
+        fecha: new Date(editFecha).toISOString(),
+        descripcion: newDesc,
+      });
+      onUpdated(updated);
+      setEditing(false);
+    } catch {
+      // el usuario puede reintentar
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-3 py-2">
+      {/* Cabecera */}
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs text-[color:var(--text-ink-muted)]">
+          #{index + 1} · {new Date(entrada.fecha).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+          {entrada.creadoPor?.nombre ? ` · ${entrada.creadoPor.nombre}` : ""}
+        </p>
+        {!editing && (
+          <button
+            type="button"
+            onClick={openEdit}
+            className="shrink-0 text-[11px] text-[color:var(--text-ink-muted)] underline hover:text-[color:var(--text-ink)]"
+          >
+            Editar
+          </button>
+        )}
+      </div>
+
+      {/* Modo lectura */}
+      {!editing && (
+        <>
+          {parsedFields.length > 0 ? (
+            <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
+              {parsedFields.map(([label, value]) => (
+                <div key={label}>
+                  <span className="text-sm capitalize text-[color:var(--text-ink-muted)]">{label}: </span>
+                  <span className="text-sm font-medium text-[color:var(--text-ink)]">{value}</span>
+                </div>
+              ))}
+            </div>
+          ) : rawDesc ? (
+            <EntradaDescripcion descripcion={rawDesc} />
+          ) : null}
+        </>
+      )}
+
+      {/* Modo edición */}
+      {editing && (
+        <div className="mt-3 space-y-3">
+          {/* Fecha */}
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-[color:var(--text-ink-muted)]">Fecha</label>
+            <input
+              type="datetime-local"
+              value={editFecha}
+              onChange={(e) => setEditFecha(e.target.value)}
+              className="w-full rounded border border-[color:var(--border-default)] bg-[color:var(--surface-base)] px-2 py-1.5 text-sm text-[color:var(--text-ink)] focus:outline-none"
+            />
+          </div>
+
+          {/* Campos del evento */}
+          {eventoConfig ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {eventoConfig.fields
+                .filter((f) => f.type !== "user_select" && f.type !== "date")
+                .filter((f) => !f.showWhen || editDraft[f.showWhen.field] === f.showWhen.value)
+                .map((field) => {
+                  const value = editDraft[field.name] ?? field.defaultValue ?? "";
+                  if (field.type === "textarea") {
+                    return (
+                      <div key={field.name} className="sm:col-span-2">
+                        <label className="mb-1 block text-xs font-semibold text-[color:var(--text-ink-muted)]">{field.label}</label>
+                        <textarea
+                          value={value}
+                          onChange={(e) => setEditDraft((prev) => ({ ...prev, [field.name]: e.target.value }))}
+                          placeholder={field.placeholder}
+                          rows={3}
+                          className="w-full rounded border border-[color:var(--border-default)] bg-[color:var(--surface-base)] px-2 py-1.5 text-sm text-[color:var(--text-ink)] focus:outline-none"
+                        />
+                      </div>
+                    );
+                  }
+                  if (field.type === "select" && field.options) {
+                    return (
+                      <div key={field.name}>
+                        <label className="mb-1 block text-xs font-semibold text-[color:var(--text-ink-muted)]">{field.label}</label>
+                        <select
+                          value={value}
+                          onChange={(e) => setEditDraft((prev) => ({ ...prev, [field.name]: e.target.value }))}
+                          className="w-full rounded border border-[color:var(--border-default)] bg-[color:var(--surface-base)] px-2 py-1.5 text-sm text-[color:var(--text-ink)] focus:outline-none"
+                        >
+                          <option value="">Seleccionar...</option>
+                          {field.options.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={field.name}>
+                      <label className="mb-1 block text-xs font-semibold text-[color:var(--text-ink-muted)]">{field.label}</label>
+                      <input
+                        type={field.type === "number" ? "number" : "text"}
+                        value={value}
+                        step={field.step}
+                        placeholder={field.placeholder}
+                        onChange={(e) => setEditDraft((prev) => ({ ...prev, [field.name]: e.target.value }))}
+                        className="w-full rounded border border-[color:var(--border-default)] bg-[color:var(--surface-base)] px-2 py-1.5 text-sm text-[color:var(--text-ink)] focus:outline-none"
+                      />
+                    </div>
+                  );
+                })}
+            </div>
+          ) : (
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-[color:var(--text-ink-muted)]">Notas</label>
+              <textarea
+                value={editDraft["_notas"] ?? rawDesc}
+                onChange={(e) => setEditDraft({ _notas: e.target.value })}
+                rows={3}
+                className="w-full rounded border border-[color:var(--border-default)] bg-[color:var(--surface-base)] px-2 py-1.5 text-sm text-[color:var(--text-ink)] focus:outline-none"
+              />
+            </div>
+          )}
+
+          {/* Acciones */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => void handleSave()}
+              className="rounded bg-[color:var(--feedback-success-bg)] px-3 py-1.5 text-xs font-semibold text-[color:var(--feedback-success-text)] disabled:opacity-50"
+            >
+              {saving ? "Guardando…" : "Guardar cambios"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="text-xs text-[color:var(--text-ink-muted)] underline"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Adjuntos */}
+      {!editing && Array.isArray(entrada.adjuntos) && entrada.adjuntos.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {(entrada.adjuntos as AdjuntoRecord[]).map((adj) =>
+            adj.tipo.startsWith("image/") ? (
+              <a key={adj.cid} href={adj.url} target="_blank" rel="noopener noreferrer"
+                className="block h-16 w-16 shrink-0 overflow-hidden rounded-[var(--radius-md)] border border-[color:var(--border-shell)] transition hover:border-[color:var(--accent-primary)]">
+                <img src={adj.url} alt={adj.nombre} className="h-full w-full object-cover" />
+              </a>
+            ) : (
+              <a key={adj.cid} href={adj.url} target="_blank" rel="noopener noreferrer"
+                className="flex h-16 w-16 shrink-0 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-1 text-center transition hover:border-[color:var(--accent-primary)]">
+                <span className="text-xl leading-none">{fileIcon(adj.tipo)}</span>
+                <span className="line-clamp-2 text-[9px] font-medium text-[color:var(--text-ink-muted)]">{adj.nombre}</span>
+              </a>
+            )
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -466,74 +697,19 @@ function TareaDetalleModal({
             <p className="text-sm text-[color:var(--text-ink-muted)]">Cargando registros…</p>
           ) : entradas && entradas.length > 0 ? (
             <div className="space-y-2">
-              {entradas.map((e, i) => {
-                let parsedFields: [string, string][] | null = null;
-                const rawDesc = e.notas ?? e.descripcion ?? "";
-                try {
-                  const parsed = JSON.parse(rawDesc) as unknown;
-                  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-                    parsedFields = Object.entries(parsed as Record<string, unknown>)
-                      .filter(([, v]) => v !== null && v !== "")
-                      .map(([k, v]) => {
-                        const label = eventoConfig?.fields.find((f) => f.name === k)?.label ?? k.replace(/_/g, " ");
-                        return [label, String(v)];
-                      });
-                  }
-                } catch { /* texto plano */ }
-
-                return (
-                  <div
+              {entradas.map((e, i) => (
+                  <EntradaItem
                     key={e.entradaId ?? i}
-                    className="rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-3 py-2"
-                  >
-                    <p className="text-xs text-[color:var(--text-ink-muted)]">
-                      #{i + 1} · {new Date(e.fecha).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                      {e.creadoPor?.nombre ? ` · ${e.creadoPor.nombre}` : ""}
-                    </p>
-                    {parsedFields ? (
-                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
-                        {parsedFields.map(([label, value]) => (
-                          <div key={label}>
-                            <span className="text-sm capitalize text-[color:var(--text-ink-muted)]">{label}: </span>
-                            <span className="text-sm font-medium text-[color:var(--text-ink)]">{value}</span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : rawDesc ? (
-                      <EntradaDescripcion descripcion={rawDesc} />
-                    ) : null}
-                    {/* Adjuntos (images + files from IPFS) */}
-                    {Array.isArray(e.adjuntos) && e.adjuntos.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {(e.adjuntos as AdjuntoRecord[]).map((adj) =>
-                          adj.tipo.startsWith("image/") ? (
-                            <a
-                              key={adj.cid}
-                              href={adj.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="block h-16 w-16 shrink-0 overflow-hidden rounded-[var(--radius-md)] border border-[color:var(--border-shell)] transition hover:border-[color:var(--accent-primary)]"
-                            >
-                              <img src={adj.url} alt={adj.nombre} className="h-full w-full object-cover" />
-                            </a>
-                          ) : (
-                            <a
-                              key={adj.cid}
-                              href={adj.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex h-16 w-16 shrink-0 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-1 text-center transition hover:border-[color:var(--accent-primary)]"
-                            >
-                              <span className="text-xl leading-none">{fileIcon(adj.tipo)}</span>
-                              <span className="line-clamp-2 text-[9px] font-medium text-[color:var(--text-ink-muted)]">{adj.nombre}</span>
-                            </a>
-                          )
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                    entrada={e}
+                    index={i}
+                    eventoConfig={eventoConfig}
+                    onUpdated={(updated) =>
+                      setEntradas((prev) =>
+                        prev ? prev.map((x) => (x.entradaId === updated.entradaId ? { ...x, ...updated } : x)) : prev,
+                      )
+                    }
+                  />
+              ))}
             </div>
           ) : entradas !== null ? (
             <p className="text-sm text-[color:var(--text-ink-muted)]">
@@ -557,6 +733,7 @@ function TareaDetalleModal({
               <div className="grid gap-3 sm:grid-cols-2">
                 {eventoConfig.fields
                   .filter((field) => field.type !== "user_select")
+                  .filter((field) => !field.showWhen || draft[field.showWhen.field] === field.showWhen.value)
                   .map((field) => {
                     const value = draft[field.name] ?? field.defaultValue ?? "";
                     if (field.type === "textarea") {

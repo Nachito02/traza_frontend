@@ -243,7 +243,7 @@ const SetupCampania = () => {
               label="Nombre de la campaña"
                 type="text"
                 uiSize="lg"
-                placeholder="Campaña 2025"
+                placeholder="Ej: Campaña 2025/2026"
                 value={form.nombre}
                 onChange={(e) => onChange("nombre", e.target.value)}
             />

@@ -4,6 +4,23 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { getMapboxToken } from "../lib/mapbox";
 import type { GeoJSONPolygon, Centroide } from "../features/cuarteles/api";
 
+// ── Geocoding ──────────────────────────────────────────────────────────────
+
+async function geocodeAddress(
+  query: string,
+  token: string,
+): Promise<{ center: [number, number]; placeName: string } | null> {
+  const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&language=es&limit=1`;
+  const res = await fetch(url);
+  if (!res.ok) return null;
+  const data = (await res.json()) as {
+    features?: { center: [number, number]; place_name: string }[];
+  };
+  const first = data.features?.[0];
+  if (!first) return null;
+  return { center: first.center, placeName: first.place_name };
+}
+
 // ── Tipos internos ─────────────────────────────────────────────────────────
 
 type LngLat = [number, number]; // [longitude, latitude]
@@ -77,6 +94,33 @@ const CuartelMapEditor = ({ initialPolygon, initialCentroid, onChange }: Props) 
   const [points, setPoints] = useState<LngLat[]>(() =>
     initialPointsFromPolygon(initialPolygon),
   );
+
+  // ── Geocoder state ───────────────────────────────────────────────────────
+  const [geoQuery, setGeoQuery] = useState("");
+  const [geoSearching, setGeoSearching] = useState(false);
+  const [geoError, setGeoError] = useState<string | null>(null);
+  const [geoResult, setGeoResult] = useState<string | null>(null);
+
+  const handleGeoSearch = useCallback(async () => {
+    const token = getMapboxToken();
+    if (!token || !geoQuery.trim()) return;
+    setGeoSearching(true);
+    setGeoError(null);
+    setGeoResult(null);
+    try {
+      const result = await geocodeAddress(geoQuery.trim(), token);
+      if (!result) {
+        setGeoError("No se encontró esa dirección. Probá con más detalle (localidad, provincia).");
+        return;
+      }
+      mapRef.current?.flyTo({ center: result.center, zoom: 15, duration: 1400 });
+      setGeoResult(result.placeName);
+    } catch {
+      setGeoError("Error al buscar la dirección.");
+    } finally {
+      setGeoSearching(false);
+    }
+  }, [geoQuery]);
 
   // Ref para evitar stale closure en el click handler del mapa
   const pointsRef = useRef<LngLat[]>(points);
@@ -235,6 +279,32 @@ const CuartelMapEditor = ({ initialPolygon, initialCentroid, onChange }: Props) 
 
   return (
     <div className="space-y-2">
+      {/* Buscador de dirección */}
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={geoQuery}
+          onChange={(e) => { setGeoQuery(e.target.value); setGeoError(null); setGeoResult(null); }}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void handleGeoSearch(); } }}
+          placeholder="Buscá una dirección para navegar el mapa…"
+          className="flex-1 rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-[color:var(--surface-base)] px-3 py-2 text-sm text-[color:var(--text-ink)] placeholder:text-[color:var(--text-ink-muted)] focus:border-[color:var(--brand-primary)] focus:outline-none"
+        />
+        <button
+          type="button"
+          disabled={geoSearching || !geoQuery.trim()}
+          onClick={() => void handleGeoSearch()}
+          className="rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-[color:var(--surface-base)] px-3 py-2 text-sm font-semibold text-[color:var(--text-ink)] transition-all hover:bg-[color:var(--surface-soft)] disabled:opacity-50"
+        >
+          {geoSearching ? "…" : "Buscar"}
+        </button>
+      </div>
+      {geoResult ? (
+        <p className="text-xs text-[color:var(--feedback-success-text)]">📍 {geoResult}</p>
+      ) : null}
+      {geoError ? (
+        <p className="text-xs text-[color:var(--feedback-danger-text)]">{geoError}</p>
+      ) : null}
+
       {/* Mapa */}
       <div
         ref={containerRef}
