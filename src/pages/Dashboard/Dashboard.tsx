@@ -22,6 +22,7 @@ import { resolveModuleAccess } from "../../lib/permissions";
 import { useAuthStore } from "../../store/authStore";
 import OrderRow from "../Tareas/components/OrderRow";
 import TaskDetailModal from "../Tareas/components/TaskDetailModal";
+import { isCompletedTask } from "../Tareas/tareas.helpers";
 import { useDashboardData } from "./useDashboardData";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -330,7 +331,7 @@ const Dashboard = () => {
                     <OrderRow
                       key={String(task.tarea_id ?? task.id ?? "")}
                       task={task}
-                      variant="pending"
+                      variant={isCompletedTask(task) ? "completed" : "pending"}
                       onOpenDetail={() => setSelectedTask(task)}
                     />
                   ))}
