@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   fetchTareasByBodega,
+  fetchPendientesByScope,
   fetchTareaAsignacionDetail,
   createTareaEntrada,
   finalizarTareaAsignacion,
@@ -958,8 +959,26 @@ export default function CampoPage({ standalone = false }: { standalone?: boolean
   const loadTareas = () => {
     if (!activeBodegaId) { setLoading(false); return; }
     setLoading(true);
-    fetchTareasByBodega(String(activeBodegaId))
-      .then((data) => setTareas(data))
+    const bodegaIdStr = String(activeBodegaId);
+    // Fetch en paralelo:
+    // - fetchTareasByBodega: todas las tareas de la bodega (requiere rol manager; retorna [] en silencio si el usuario no tiene acceso)
+    // - fetchPendientesByScope "mine": tareas propias pendientes (funciona para cualquier rol)
+    // Se mergean y deduplicán para que operario_campo vea al menos sus propias asignaciones de campo
+    Promise.all([
+      fetchTareasByBodega(bodegaIdStr),
+      fetchPendientesByScope({ bodegaId: bodegaIdStr, mode: "mine" }),
+    ])
+      .then(([all, mine]) => {
+        const seen = new Set<string>();
+        const merged: Tarea[] = [];
+        for (const t of [...all, ...mine]) {
+          const key = String(t.tarea_id ?? t.id ?? "");
+          if (!key || seen.has(key)) continue;
+          seen.add(key);
+          merged.push(t);
+        }
+        setTareas(merged);
+      })
       .catch(() => setTareas([]))
       .finally(() => setLoading(false));
   };
