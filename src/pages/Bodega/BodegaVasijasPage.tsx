@@ -197,9 +197,7 @@ export default function BodegaVasijasPage() {
                         {codigo}
                       </div>
                       <div className="mt-1 text-xs text-[color:var(--text-ink-muted)]">{tipo}</div>
-                      <div className="mt-2 text-[11px] text-[color:var(--accent-primary)]/80">
-                        Gestioná la vasija y su información base
-                      </div>
+                      
                       <div className="mt-3 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-2 text-xs text-[color:var(--text-on-dark-muted)]">
                         <div className="grid gap-1">
                           <div>
@@ -225,14 +223,38 @@ export default function BodegaVasijasPage() {
                       <div className="mt-3 flex flex-wrap gap-2">
                         <AppButton
                           type="button"
+                          variant="primary"
+                          size="sm"
+                          onClick={() =>
+                            navigate(`/bodega/vasijas/${encodeURIComponent(id)}`)
+                          }
+                          disabled={!id}
+                        >
+                          Ver movimientos
+                        </AppButton>
+                        <AppButton
+                          type="button"
                           variant="secondary"
+                          size="sm"
+                          onClick={() =>
+                            navigate(
+                              `/operacion/vasijas?section=operaciones&vasijaId=${encodeURIComponent(id)}`,
+                            )
+                          }
+                          disabled={!id}
+                        >
+                          Gestionar
+                        </AppButton>
+                        <AppButton
+                          type="button"
+                          variant="ghost"
                           size="sm"
                           onClick={() =>
                             navigate(`/bodega/vasijas/${encodeURIComponent(id)}/editar`)
                           }
                           disabled={!id}
                         >
-                          Editar vasija
+                          Editar
                         </AppButton>
                         <AppButton
                           type="button"
@@ -242,7 +264,7 @@ export default function BodegaVasijasPage() {
                           loading={deletingId === id}
                           onClick={() => void onDelete(item)}
                         >
-                          {deletingId === id ? "Eliminando..." : "Eliminar vasija"}
+                          {deletingId === id ? "Eliminando..." : "Eliminar"}
                         </AppButton>
                       </div>
                     </AppCard>

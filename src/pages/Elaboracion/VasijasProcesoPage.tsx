@@ -47,6 +47,9 @@ export default function VasijasProcesoPage({
   const [vasijaOptionsVersion, setVasijaOptionsVersion] = useState(0);
   const [bodegaUsers, setBodegaUsers] = useState<AuthUser[]>([]);
 
+  // vasijaId en el query param pre-selecciona la vasija al llegar desde /bodega/vasijas
+  const preselectedVasijaId = searchParams.get("vasijaId") ?? "";
+
   useEffect(() => {
     if (hideSectionSelector) {
       setActiveSection(initialSection);
@@ -168,6 +171,7 @@ export default function VasijasProcesoPage({
           bodegaId={activeBodegaId}
           hidePrimaryAction={hidePrimaryAction}
           formInModal={!hidePrimaryAction}
+          defaultValues={preselectedVasijaId ? { vasijaOrigenId: preselectedVasijaId } : undefined}
           fields={[
             {
               name: "vasijaOrigenId",

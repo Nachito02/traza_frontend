@@ -45,6 +45,7 @@ import TrazabilidadPublica from "./pages/Public/TrazabilidadPublica";
 import BodegaHome from "./pages/Bodega/BodegaHome";
 import BodegaVasijasPage from "./pages/Bodega/BodegaVasijasPage";
 import BodegaVasijaFormPage from "./pages/Bodega/BodegaVasijaFormPage";
+import BodegaVasijaDetailPage from "./pages/Bodega/BodegaVasijaDetailPage";
 import OperacionLayout from "./pages/Operacion/OperacionLayout";
 import ProgresoPage from "./pages/Operacion/ProgresoPage";
 import { fetchProtocolos } from "./features/protocolos/api";
@@ -181,6 +182,7 @@ export default function App() {
         <Route path="/bodega/vasijas" element={access.canAccessBodega ? <BodegaVasijasPage /> : <Navigate to="/fincas" replace />} />
         <Route path="/bodega/vasijas/nueva" element={access.canAccessBodega ? <BodegaVasijaFormPage mode="create" /> : <Navigate to="/fincas" replace />} />
         <Route path="/bodega/vasijas/:id/editar" element={access.canAccessBodega ? <BodegaVasijaFormPage mode="edit" /> : <Navigate to="/fincas" replace />} />
+        <Route path="/bodega/vasijas/:id" element={access.canAccessBodega ? <BodegaVasijaDetailPage /> : <Navigate to="/fincas" replace />} />
         <Route path="/bodega/recepcion" element={canUseOperacionBodega ? <Navigate to="/operacion/recepcion" replace /> : <Navigate to="/fincas" replace />} />
         <Route path="/bodega/ciu-qc" element={canUseOperacionBodega ? <Navigate to="/operacion/recepcion?paso=ciu" replace /> : <Navigate to="/fincas" replace />} />
         <Route path="/bodega/vasijas-proceso" element={canUseOperacionBodega ? <Navigate to="/operacion/vasijas" replace /> : <Navigate to="/fincas" replace />} />

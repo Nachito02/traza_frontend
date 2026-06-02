@@ -561,10 +561,22 @@ function TareaDetalleModal({
       size="lg"
       showHeaderDivider
       title={
-        <span className="flex flex-wrap items-center gap-2">
-          {tarea.titulo}
-          {estadoBadge(tarea.estado)}
-        </span>
+        <div className="flex w-full items-center justify-between">
+          <span className="flex min-w-0 flex-wrap items-center gap-2">
+            <span className="truncate">{tarea.titulo}</span>
+            {estadoBadge(tarea.estado)}
+          </span>
+          <button
+            type="button"
+            aria-label="Cerrar"
+            onClick={onClose}
+            className="ml-3 shrink-0 rounded-[var(--radius-md)] p-1.5 text-[color:var(--text-ink-muted)] transition-colors hover:bg-[color:var(--surface-soft)] hover:text-[color:var(--text-ink)]"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
       }
       description={
         <span className="flex flex-wrap gap-3 text-sm text-[color:var(--text-ink-muted)]">
@@ -602,15 +614,8 @@ function TareaDetalleModal({
             >
               {finalizing ? "Finalizando…" : "Finalizar tarea"}
             </AppButton>
-            <AppButton type="button" variant="ghost" size="sm" onClick={onClose}>
-              Cerrar
-            </AppButton>
           </div>
-        ) : (
-          <AppButton type="button" variant="ghost" size="sm" onClick={onClose}>
-            Cerrar
-          </AppButton>
-        )
+        ) : undefined
       }
     >
       <div className="space-y-5">

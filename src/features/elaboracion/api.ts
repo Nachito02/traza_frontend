@@ -111,6 +111,16 @@ export async function listLotesCosecha(
   return response.data ?? [];
 }
 
+export async function getElaboracionResource(
+  resource: ElaboracionResourceKey,
+  id: string,
+) {
+  const response = await apiClient.get<ElaboracionEntity>(
+    `/elaboracion/${resource}/${encodeURIComponent(id)}`,
+  );
+  return response.data;
+}
+
 export async function createElaboracionResource(
   resource: ElaboracionResourceKey,
   payload: Record<string, unknown>,
