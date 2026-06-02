@@ -25,6 +25,7 @@ export function useDashboardData(
   activeBodegaId: number | string | null | undefined,
   fincas: Finca[],
   isManager = false,
+  refreshKey = 0,
 ): UseDashboardDataResult {
   const [cuartelesCount, setCuartelesCount] = useState(0);
   const [vasijasCount, setVasijasCount] = useState(0);
@@ -98,7 +99,7 @@ export function useDashboardData(
       mounted = false;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeBodegaId, fincas, isManager]);
+  }, [activeBodegaId, fincas, isManager, refreshKey]);
 
   return {
     cuartelesCount,

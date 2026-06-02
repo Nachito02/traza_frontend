@@ -92,6 +92,11 @@ export async function deleteTarea(tareaId: string) {
   return response.data;
 }
 
+export async function completarTarea(tareaId: string) {
+  const response = await apiClient.patch(`/tareas/${encodeURIComponent(tareaId)}/completar`);
+  return response.data;
+}
+
 export async function updateTareaAsignacionEstado(
   tareaAsignacionId: string,
   estado: "en_progreso" | "completado" | "cancelado",

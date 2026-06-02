@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppButton, AppModal } from "../../../components/ui";
 import { resolveModuleAccess } from "../../../lib/permissions";
 import { useAuthStore } from "../../../store/authStore";
 import {
+  completarTarea,
   fetchTareaAsignacionDetail,
   patchTareaEntrada,
   type Tarea,
@@ -481,10 +482,14 @@ type TaskDetailModalProps = {
   canDelete?: boolean;
   isDeleting?: boolean;
   onDelete?: () => void;
+  onCompleted?: () => void;
 };
 
-export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, onDelete }: TaskDetailModalProps) {
+export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, onDelete, onCompleted }: TaskDetailModalProps) {
   const [entradas, setEntradas] = useState<TareaEntradaDetail[] | null>(null);
+  const [completing, setCompleting] = useState(false);
+  const onCompletedRef = useRef(onCompleted);
+  onCompletedRef.current = onCompleted;
 
   const handleEntradaUpdated = (updated: TareaEntradaDetail) => {
     setEntradas((prev) =>
@@ -514,6 +519,21 @@ export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, 
   }, [task]);
 
   if (!task) return null;
+
+  const handleCompletar = async () => {
+    const tareaId = String(task.tarea_id ?? task.id ?? "");
+    if (!tareaId) return;
+    setCompleting(true);
+    try {
+      await completarTarea(tareaId);
+      onClose();
+      onCompletedRef.current?.();
+    } catch {
+      // silencioso — el backend retorna el error en la respuesta
+    } finally {
+      setCompleting(false);
+    }
+  };
 
   const hasCompletedAssignment =
     task.tarea_asignacion?.some((a) => normalizeTaskStatus(a.estado) === "completado") ?? false;
@@ -702,18 +722,32 @@ export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, 
           >
             {isFincaTask ? "Ir a Operación Campo →" : "Ir a Registro Operativo →"}
           </Link>
-          {canDelete && (
-            <AppButton
-              type="button"
-              variant="danger"
-              size="sm"
-              onClick={onDelete}
-              disabled={isDeleting}
-              loading={isDeleting}
-            >
-              {isDeleting ? "Eliminando…" : "Eliminar orden"}
-            </AppButton>
-          )}
+          <div className="flex flex-wrap gap-2">
+            {normalizeTaskStatus(effectiveEstado) !== "completado" && access.canAccessBodega && (
+              <AppButton
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() => void handleCompletar()}
+                disabled={completing}
+                loading={completing}
+              >
+                {completing ? "Completando…" : "Completar tarea"}
+              </AppButton>
+            )}
+            {canDelete && (
+              <AppButton
+                type="button"
+                variant="danger"
+                size="sm"
+                onClick={onDelete}
+                disabled={isDeleting}
+                loading={isDeleting}
+              >
+                {isDeleting ? "Eliminando…" : "Eliminar orden"}
+              </AppButton>
+            )}
+          </div>
         </div>
       </div>
     </AppModal>

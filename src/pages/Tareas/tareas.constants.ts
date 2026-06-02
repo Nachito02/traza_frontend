@@ -88,7 +88,7 @@ export const OPERACION_TASK_ROUTES: Record<string, string> = {
 /** Clave de localStorage para recordar el scope preferido (finca / bodega). */
 export const OPERACION_SCOPE_STORAGE_KEY = "operacion_scope";
 
-/** Tipos de evento que pertenecen al ámbito de producción de finca. */
+/** Tipos de evento que exigen finca + cuartel (actividad puntual sobre un cuartel). */
 export const FINCA_PRODUCCION_EVENT_TYPES = new Set([
   "riego",
   "cosecha",
@@ -101,6 +101,25 @@ export const FINCA_PRODUCCION_EVENT_TYPES = new Set([
   "monitoreo_plaga",
   "analisis_suelo",
   "precipitacion",
+]);
+
+/** Tipos de evento que exigen al menos una finca (el cuartel es opcional). */
+export const FINCA_REQUERIDA_EVENT_TYPES = new Set([
+  "enmienda",
+  "inventario_insumos",
+  "energia",
+  "cobertura_erosion",
+  "limpieza_cosecha",
+  "mantenimiento",
+  "residuo",
+  "sanitizacion_banos",
+  "sobrante_lavado",
+  "origen_unidad_productiva",
+  "entrega_epp",
+  "accidente",
+  "capacitacion",
+  "no_conforme",
+  "reclamo",
 ]);
 
 /** Tipos de evento que solo aplican en el flujo de setup inicial. */

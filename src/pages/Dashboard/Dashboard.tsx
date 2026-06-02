@@ -165,9 +165,10 @@ const Dashboard = () => {
   }, [activeBodegaId, loadFincas]);
 
   const isManager = access.isAdminSistema || (access.canAccessBodega && !access.isFincaOnly);
+  const [dashboardRefreshKey, setDashboardRefreshKey] = useState(0);
 
   const { cuartelesCount, vasijasCount, tareasCount, tasks, trazabilidades, campanias, loading, error } =
-    useDashboardData(activeBodegaId, fincas, isManager);
+    useDashboardData(activeBodegaId, fincas, isManager, dashboardRefreshKey);
 
   const [selectedTask, setSelectedTask] = useState<Tarea | null>(null);
 
@@ -351,6 +352,7 @@ const Dashboard = () => {
               <TaskDetailModal
                 task={selectedTask}
                 onClose={() => setSelectedTask(null)}
+                onCompleted={() => setDashboardRefreshKey((k) => k + 1)}
               />
             )}
 

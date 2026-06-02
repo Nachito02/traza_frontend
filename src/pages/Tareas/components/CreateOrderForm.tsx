@@ -74,7 +74,8 @@ type CreateOrderFormProps = {
   groupedProtocoloTaskOptions: GroupedProtocoloTaskOption[];
 
   // Destino de finca
-  requiresFincaTarget: boolean;
+  requiresFinca: boolean;
+  requiresCuartel: boolean;
   fincas: Finca[];
   cuartelOptions: Cuartel[];
 
@@ -103,7 +104,8 @@ export default function CreateOrderForm({
   groupedProtocolProcesses,
   scopedProtocoloTaskOptions,
   groupedProtocoloTaskOptions,
-  requiresFincaTarget,
+  requiresFinca,
+  requiresCuartel,
   fincas,
   cuartelOptions,
   assigneeOptions,
@@ -127,10 +129,10 @@ export default function CreateOrderForm({
     if (managerScope === "finca" && !form.tareaProtocolo) {
       errors.tareaProtocolo = "Seleccioná una tarea del protocolo.";
     }
-    if (requiresFincaTarget && !form.fincaId) {
+    if (requiresFinca && !form.fincaId) {
       errors.fincaId = "Seleccioná una finca.";
     }
-    if (requiresFincaTarget && form.fincaId && !form.cuartelId) {
+    if (requiresCuartel && form.fincaId && !form.cuartelId) {
       errors.cuartelId = "Seleccioná un cuartel.";
     }
 
@@ -223,7 +225,7 @@ export default function CreateOrderForm({
         </AppSelect>
 
         {/* ── Destino finca / cuartel (cuando aplica) ────────────────────── */}
-        {requiresFincaTarget ? (
+        {requiresFinca ? (
           <>
             <AppSelect
               label="Finca"
@@ -246,7 +248,7 @@ export default function CreateOrderForm({
               })}
             </AppSelect>
             <AppSelect
-              label="Cuartel"
+              label={requiresCuartel ? "Cuartel" : "Cuartel (opcional)"}
               value={form.cuartelId}
               error={fieldErrors.cuartelId}
               onChange={(e) => {
@@ -255,7 +257,9 @@ export default function CreateOrderForm({
               }}
               disabled={!form.fincaId}
             >
-              <option value="">Seleccionar cuartel</option>
+              <option value="">
+                {requiresCuartel ? "Seleccionar cuartel" : "Sin cuartel específico"}
+              </option>
               {cuartelOptions.map((cuartel) => {
                 const id = String(cuartel.cuartel_id ?? cuartel.id ?? "");
                 return (

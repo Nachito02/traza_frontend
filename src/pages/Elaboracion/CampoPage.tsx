@@ -1097,8 +1097,9 @@ export default function CampoPage({ standalone = false }: { standalone?: boolean
 
       {tareasDeCampo.length === 0 ? (
         <NoticeBanner tone="info">
-          No hay tareas de campo registradas para las fincas vinculadas a esta bodega.
-          Las tareas aparecen cuando los operarios reciben órdenes de trabajo asociadas a una finca.
+          No hay tareas de campo para las fincas de esta bodega.
+          Esta sección muestra únicamente órdenes de trabajo asociadas a una finca y cuartel (riego, cosecha, fenología, etc.).
+          Las tareas de bodega (recepción, CIU, vasijas) se gestionan desde las secciones de operación correspondientes.
         </NoticeBanner>
       ) : (
         (() => {

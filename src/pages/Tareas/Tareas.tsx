@@ -56,10 +56,13 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
     groupedProtocolProcesses,
     scopedProtocoloTaskOptions,
     groupedProtocoloTaskOptions,
-    requiresFincaTarget,
+    requiresFinca,
+    requiresCuartel,
     selectedCatalogTask,
     onCreate,
     onDeleteTask,
+    refreshTasks,
+    refreshCompletedTasks,
     confirmDialog,
   } = useTareasData(mode);
 
@@ -246,7 +249,8 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
           groupedProtocolProcesses={groupedProtocolProcesses}
           scopedProtocoloTaskOptions={scopedProtocoloTaskOptions}
           groupedProtocoloTaskOptions={groupedProtocoloTaskOptions}
-          requiresFincaTarget={requiresFincaTarget}
+          requiresFinca={requiresFinca}
+          requiresCuartel={requiresCuartel}
           fincas={fincas}
           cuartelOptions={cuartelOptions}
           assigneeOptions={assigneeOptions}
@@ -265,7 +269,12 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
         onClose={() => setDetailTask(null)}
         canDelete={canRenderManagerFlow}
         isDeleting={detailTask ? deletingTaskId === String(detailTask.tarea_id ?? detailTask.id ?? "") : false}
-        onDelete={() => { if (detailTask) void onDeleteTask(detailTask); }}
+        onDelete={async () => {
+          if (!detailTask) return;
+          const ok = await onDeleteTask(detailTask);
+          if (ok) setDetailTask(null);
+        }}
+        onCompleted={() => { void refreshTasks(); void refreshCompletedTasks(); }}
       />
 
       {confirmDialog}

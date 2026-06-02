@@ -28,6 +28,7 @@ import {
   BODEGA_MANAGER_ROLES,
   FINCA_MANAGER_ROLES,
   FINCA_PRODUCCION_EVENT_TYPES,
+  FINCA_REQUERIDA_EVENT_TYPES,
   GLOBAL_MANAGER_ROLES,
   OPERACION_CATEGORY_OPTIONS,
   OPERACION_SCOPE_STORAGE_KEY,
@@ -108,7 +109,10 @@ export type UseTareasDataReturn = {
   groupedProtocolProcesses: GroupedProtocolProcess[];
   scopedProtocoloTaskOptions: ProtocoloTaskOption[];
   groupedProtocoloTaskOptions: GroupedProtocoloTaskOption[];
-  requiresFincaTarget: boolean;
+  /** La tarea exige al menos una finca asignada. */
+  requiresFinca: boolean;
+  /** La tarea exige finca + cuartel (implica requiresFinca). */
+  requiresCuartel: boolean;
   selectedCatalogTask: OperacionTaskTemplate | null;
   getEventoTipoForTask: (task: Tarea) => string | null;
 
@@ -116,7 +120,7 @@ export type UseTareasDataReturn = {
   refreshTasks: () => Promise<void>;
   refreshCompletedTasks: () => Promise<void>;
   onCreate: () => Promise<void>;
-  onDeleteTask: (task: Tarea) => Promise<void>;
+  onDeleteTask: (task: Tarea) => Promise<boolean>;
 
   // Confirm dialog
   confirmDialog: React.ReactElement;
@@ -498,13 +502,21 @@ export function useTareasData(mode: "manager" | "operator"): UseTareasDataReturn
     [form.selectedProcesoId, protocolProcesses],
   );
 
-  const requiresFincaTarget = useMemo(() => {
+  const requiresCuartel = useMemo(() => {
     if (managerScope === "finca") return true;
     if (!selectedProtocolProcess?.evento_tipo) return false;
     return FINCA_PRODUCCION_EVENT_TYPES.has(
       selectedProtocolProcess.evento_tipo.toLowerCase().trim(),
     );
   }, [managerScope, selectedProtocolProcess]);
+
+  const requiresFinca = useMemo(() => {
+    if (requiresCuartel) return true;
+    if (!selectedProtocolProcess?.evento_tipo) return false;
+    return FINCA_REQUERIDA_EVENT_TYPES.has(
+      selectedProtocolProcess.evento_tipo.toLowerCase().trim(),
+    );
+  }, [requiresCuartel, selectedProtocolProcess]);
 
   const groupedProtocolProcesses = useMemo<GroupedProtocolProcess[]>(() => {
     const groups = new Map<string, GroupedProtocolProcess>();
@@ -587,8 +599,11 @@ export function useTareasData(mode: "manager" | "operator"): UseTareasDataReturn
     if (managerScope === "finca" && !form.tareaProtocolo) {
       setError("Seleccioná una tarea del protocolo."); return;
     }
-    if (requiresFincaTarget && (!form.fincaId || !form.cuartelId)) {
-      setError("Seleccioná finca y cuartel para indicar dónde se debe ejecutar la orden."); return;
+    if (requiresFinca && !form.fincaId) {
+      setError("Seleccioná una finca para indicar dónde se debe ejecutar la orden."); return;
+    }
+    if (requiresCuartel && !form.cuartelId) {
+      setError("Seleccioná un cuartel para indicar dónde se debe ejecutar la orden."); return;
     }
     const procesoId =
       managerScope === "bodega" && activeProtocolo
@@ -606,8 +621,8 @@ export function useTareasData(mode: "manager" | "operator"): UseTareasDataReturn
       const created = await createTarea({
         bodegaId: String(activeBodegaId),
         procesoId,
-        fincaId: requiresFincaTarget ? form.fincaId : undefined,
-        cuartelId: requiresFincaTarget ? form.cuartelId : undefined,
+        fincaId: requiresFinca ? form.fincaId || undefined : undefined,
+        cuartelId: requiresFinca ? form.cuartelId || undefined : undefined,
         descripcion: form.descripcion.trim() || undefined,
         fechaFin: form.fechaFin || undefined,
         prioridad: form.prioridad,
@@ -639,8 +654,8 @@ export function useTareasData(mode: "manager" | "operator"): UseTareasDataReturn
 
       setForm((prev) => ({
         ...INITIAL_FORM,
-        fincaId: requiresFincaTarget ? prev.fincaId : "",
-        cuartelId: requiresFincaTarget ? prev.cuartelId : "",
+        fincaId: requiresFinca ? prev.fincaId : "",
+        cuartelId: requiresCuartel ? prev.cuartelId : "",
       }));
       await refreshTasks();
       await refreshCompletedTasks();
@@ -651,11 +666,11 @@ export function useTareasData(mode: "manager" | "operator"): UseTareasDataReturn
     }
   };
 
-  const onDeleteTask = async (task: Tarea) => {
+  const onDeleteTask = async (task: Tarea): Promise<boolean> => {
     const tareaId = String(task.tarea_id ?? task.id ?? "");
-    if (!tareaId) { setError("No se pudo determinar el ID de la tarea."); return; }
+    if (!tareaId) { setError("No se pudo determinar el ID de la tarea."); return false; }
     const ok = await confirm(`¿Eliminar/cancelar la tarea "${task.titulo}"?`);
-    if (!ok) return;
+    if (!ok) return false;
     setDeletingTaskId(tareaId);
     setError(null);
     try {
@@ -663,8 +678,10 @@ export function useTareasData(mode: "manager" | "operator"): UseTareasDataReturn
       notifySuccess({ title: "Orden eliminada", message: "La orden de trabajo fue eliminada correctamente." });
       await refreshTasks();
       await refreshCompletedTasks();
+      return true;
     } catch (e) {
       setError(getApiErrorMessage(e));
+      return false;
     } finally {
       setDeletingTaskId(null);
     }
@@ -694,7 +711,8 @@ export function useTareasData(mode: "manager" | "operator"): UseTareasDataReturn
     groupedProtocolProcesses,
     scopedProtocoloTaskOptions,
     groupedProtocoloTaskOptions,
-    requiresFincaTarget,
+    requiresFinca,
+    requiresCuartel,
     selectedCatalogTask,
     getEventoTipoForTask,
     refreshTasks,
