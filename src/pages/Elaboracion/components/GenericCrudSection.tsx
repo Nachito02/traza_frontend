@@ -41,6 +41,12 @@ export type CrudField = {
   getOptions?: (values: Record<string, string | boolean>) => SelectOption[];
   sourceKey?: string;
   clearOnChange?: string[];
+  /**
+   * Cuando se define, el campo es de solo lectura y su valor se calcula a partir
+   * de los demás valores del formulario. No se envía en el payload (lo calcula el
+   * backend), solo se muestra para feedback en vivo.
+   */
+  computed?: (values: Record<string, string | boolean>) => string;
 };
 
 type GenericCrudSectionProps = {
@@ -242,6 +248,40 @@ function formatRelatedFieldValue(
     return label || formatItemFieldValue(item[sourceKey]);
   }
 
+  if (resource === "operaciones-vasija") {
+    if (sourceKey === "vasija_origen_id") {
+      const vasija = getNestedRecord(item, "vasija_origen");
+      return formatItemFieldValue(vasija?.codigo ?? item[sourceKey]);
+    }
+    if (sourceKey === "vasija_destino_id") {
+      const vasija = getNestedRecord(item, "vasija_destino");
+      return formatItemFieldValue(vasija?.codigo ?? item[sourceKey]);
+    }
+    if (sourceKey === "recepcion_bodega_id") {
+      const recepcion = getNestedRecord(item, "recepcion_bodega");
+      const fecha = formatDateTimeValue(recepcion?.fecha_hora);
+      const kilos = recepcion?.kg_pesados !== undefined && recepcion?.kg_pesados !== null
+        ? `${recepcion.kg_pesados} kg`
+        : null;
+      const label = [fecha, kilos].filter(Boolean).join(" · ");
+      return label || formatItemFieldValue(item[sourceKey]);
+    }
+    if (sourceKey === "enologo_user_id") {
+      return formatItemFieldValue(item.enologo_nombre ?? item[sourceKey]);
+    }
+    if (sourceKey === "user_id") {
+      return formatItemFieldValue(item.actor_nombre ?? item[sourceKey]);
+    }
+  }
+
+  if (
+    (resource === "existencias-vasija" || resource === "controles-fermentacion") &&
+    sourceKey === "vasija_id"
+  ) {
+    const vasija = getNestedRecord(item, "vasija");
+    return formatItemFieldValue(vasija?.codigo ?? item[sourceKey]);
+  }
+
   if (resource === "analisis-recepcion" && sourceKey === "recepcion_bodega_id") {
     const recepcion = getNestedRecord(item, "recepcion_bodega");
     const fecha = formatDateTimeValue(recepcion?.fecha_hora);
@@ -364,6 +404,7 @@ export default function GenericCrudSection({
 
     const nextFieldErrors: FieldErrors = {};
     for (const field of fields) {
+      if (field.computed) continue;
       if (!field.required) continue;
       const currentValue = values[field.name];
       if (field.type === "checkbox") continue;
@@ -408,6 +449,7 @@ export default function GenericCrudSection({
     }
 
     for (const field of fields) {
+      if (field.computed) continue;
       const value = values[field.name];
       if (field.type === "checkbox") {
         payload[field.name] = Boolean(value);
@@ -702,7 +744,16 @@ export default function GenericCrudSection({
       <div className="mt-3 grid gap-3 md:grid-cols-2">
         {fields.map((field) => (
           <div key={field.name}>
-            {field.type === "textarea" ? (
+            {field.computed ? (
+              <AppInput
+                label={field.label}
+                type="text"
+                value={field.computed(values)}
+                readOnly
+                disabled
+                uiSize="lg"
+              />
+            ) : field.type === "textarea" ? (
               <AppTextarea
                 label={field.label}
                 error={fieldErrors[field.name]}

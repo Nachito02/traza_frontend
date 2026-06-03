@@ -27,16 +27,63 @@ function toOptions(items: ElaboracionEntity[], idKeys: string[], labelKeys: stri
     .filter((option): option is SelectOption => option !== null);
 }
 
+function formatRecepcionOption(item: ElaboracionEntity): SelectOption | null {
+  const id = item.recepcion_bodega_id ?? item.id_recepcion ?? item.recepcion_id ?? item.id;
+  if (typeof id !== "string" && typeof id !== "number") return null;
+
+  const fecha = typeof item.fecha_hora === "string" ? new Date(item.fecha_hora) : null;
+  const fechaLabel = fecha && !Number.isNaN(fecha.getTime())
+    ? fecha.toLocaleString("es-AR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "Sin fecha";
+
+  const remito = item.remito_uva && typeof item.remito_uva === "object"
+    ? (item.remito_uva as Record<string, unknown>)
+    : {};
+  const finca = remito.finca && typeof remito.finca === "object"
+    ? (remito.finca as Record<string, unknown>)
+    : {};
+  const cuartel = remito.cuartel && typeof remito.cuartel === "object"
+    ? (remito.cuartel as Record<string, unknown>)
+    : {};
+
+  const fincaLabel = typeof finca.nombre_finca === "string" ? finca.nombre_finca : null;
+  const cuartelLabel = typeof cuartel.codigo_cuartel === "string" ? cuartel.codigo_cuartel : null;
+  const kg = typeof item.kg_pesados === "string" || typeof item.kg_pesados === "number"
+    ? `${item.kg_pesados} kg`
+    : null;
+
+  return {
+    value: String(id),
+    label: [
+      fechaLabel,
+      [fincaLabel, cuartelLabel].filter(Boolean).join(" / "),
+      kg,
+    ].filter(Boolean).join(" · "),
+  };
+}
+
 type VasijasProcesoPageProps = {
   initialSection?: "vasijas" | "operaciones" | "existencias" | "fermentacion";
   hideSectionSelector?: boolean;
   hidePrimaryAction?: boolean;
+  /** Valores por defecto para el formulario de Operaciones Vasija (ej. ingreso desde recepción). */
+  operacionDefaultValues?: Record<string, string | boolean>;
+  /** Renderiza el formulario de Operaciones inline (no en modal). Útil en el flujo guiado. */
+  inlineOperacionForm?: boolean;
 };
 
 export default function VasijasProcesoPage({
   initialSection = "vasijas",
   hideSectionSelector = false,
   hidePrimaryAction = false,
+  operacionDefaultValues,
+  inlineOperacionForm = false,
 }: VasijasProcesoPageProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
@@ -44,11 +91,26 @@ export default function VasijasProcesoPage({
     "vasijas" | "operaciones" | "existencias" | "fermentacion"
   >(initialSection);
   const [vasijaOptions, setVasijaOptions] = useState<SelectOption[]>([]);
+  const [recepcionOptions, setRecepcionOptions] = useState<SelectOption[]>([]);
   const [vasijaOptionsVersion, setVasijaOptionsVersion] = useState(0);
   const [bodegaUsers, setBodegaUsers] = useState<AuthUser[]>([]);
 
   // vasijaId en el query param pre-selecciona la vasija al llegar desde /bodega/vasijas
   const preselectedVasijaId = searchParams.get("vasijaId") ?? "";
+  // recepcionId / tipo en el query param pre-cargan un ingreso a vasija desde la recepción
+  const preselectedRecepcionId = searchParams.get("recepcionId") ?? "";
+  const preselectedTipo = searchParams.get("tipo") ?? "";
+
+  const operacionDefaults = useMemo<Record<string, string | boolean> | undefined>(() => {
+    const defaults: Record<string, string | boolean> = { ...(operacionDefaultValues ?? {}) };
+    if (preselectedVasijaId) defaults.vasijaOrigenId = preselectedVasijaId;
+    if (preselectedRecepcionId) {
+      defaults.recepcionBodegaId = preselectedRecepcionId;
+      if (!defaults.tipo) defaults.tipo = "ingreso";
+    }
+    if (preselectedTipo) defaults.tipo = preselectedTipo;
+    return Object.keys(defaults).length > 0 ? defaults : undefined;
+  }, [operacionDefaultValues, preselectedVasijaId, preselectedRecepcionId, preselectedTipo]);
 
   useEffect(() => {
     if (hideSectionSelector) {
@@ -73,6 +135,15 @@ export default function VasijasProcesoPage({
     listElaboracionResource("vasijas", { bodegaId: String(activeBodegaId) }).then((vasijas) => {
       setVasijaOptions(toOptions(vasijas, ["id_vasija", "vasija_id", "id"], ["codigo", "tipo", "id_vasija"]));
     });
+    listElaboracionResource("recepciones-bodega", { bodegaId: String(activeBodegaId) })
+      .then((recepciones) => {
+        setRecepcionOptions(
+          recepciones
+            .map(formatRecepcionOption)
+            .filter((option): option is SelectOption => option !== null),
+        );
+      })
+      .catch(() => setRecepcionOptions([]));
     // vasijaOptionsVersion se incrementa cada vez que se crea una vasija nueva,
     // asegurando que los selects en otras secciones reflejen el estado actual.
     fetchAuthUsers()
@@ -170,20 +241,42 @@ export default function VasijasProcesoPage({
           resource="operaciones-vasija"
           bodegaId={activeBodegaId}
           hidePrimaryAction={hidePrimaryAction}
-          formInModal={!hidePrimaryAction}
-          defaultValues={preselectedVasijaId ? { vasijaOrigenId: preselectedVasijaId } : undefined}
+          formInModal={inlineOperacionForm ? false : !hidePrimaryAction}
+          autoOpenForm={!inlineOperacionForm}
+          defaultValues={operacionDefaults}
           fields={[
-            {
-              name: "vasijaOrigenId",
-              label: "Vasija origen",
-              type: "select",
-              options: vasijaOptions,
-              sourceKey: "vasija_origen_id",
-            },
+            // El vínculo a recepción (ingreso de uva) solo aplica cuando venís del flujo
+            // guiado de ingreso o llegás con ?recepcionId=. En un movimiento normal entre
+            // vasijas el líquido ya está en una vasija y no corresponde una recepción.
+            ...(inlineOperacionForm || preselectedRecepcionId
+              ? [
+                  {
+                    name: "recepcionBodegaId",
+                    label: "Recepción (ingreso de uva)",
+                    type: "select" as const,
+                    options: recepcionOptions,
+                    sourceKey: "recepcion_bodega_id",
+                  },
+                ]
+              : []),
+            // En un ingreso desde recepción la uva entra a UNA vasija: solo destino.
+            // En un movimiento normal entre vasijas se muestran origen y destino.
+            ...(inlineOperacionForm || preselectedRecepcionId
+              ? []
+              : [
+                  {
+                    name: "vasijaOrigenId",
+                    label: "Vasija origen",
+                    type: "select" as const,
+                    options: vasijaOptions,
+                    sourceKey: "vasija_origen_id",
+                  },
+                ]),
             {
               name: "vasijaDestinoId",
-              label: "Vasija destino",
+              label: inlineOperacionForm || preselectedRecepcionId ? "Vasija" : "Vasija destino",
               type: "select",
+              required: Boolean(inlineOperacionForm || preselectedRecepcionId),
               options: vasijaOptions,
               sourceKey: "vasija_destino_id",
             },

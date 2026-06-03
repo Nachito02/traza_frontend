@@ -4,6 +4,7 @@ import { AppButton, AppCard, AppModal, NoticeBanner, SectionIntro } from "../../
 import type { ElaboracionEntity } from "../../features/elaboracion/api";
 import CiuQcPage from "./CiuQcPage";
 import RecepcionPage from "./RecepcionPage";
+import VasijasProcesoPage from "./VasijasProcesoPage";
 import SectionSelector from "./components/SectionSelector";
 
 type IngresoUvaStep = "remito" | "recepcion" | "analisis" | "ciu" | "vasija";
@@ -48,6 +49,8 @@ export default function IngresoUvaFlowPage() {
   // Si el usuario navega manualmente por los tabs para consultar registros, no se abre.
   const [autoOpenStep, setAutoOpenStep] = useState<IngresoUvaStep | null>(null);
   const activeStep = getStepFromParams(searchParams.get("paso") ?? searchParams.get("section"));
+  // La recepción activa del flujo viaja en los defaults de análisis (recepcionBodegaId).
+  const currentRecepcionId = String(analisisDefaults.recepcionBodegaId ?? "");
 
   const goToStep = (step: IngresoUvaStep) => {
     setSearchParams((prev) => {
@@ -170,27 +173,26 @@ export default function IngresoUvaFlowPage() {
       ) : null}
 
       {activeStep === "vasija" ? (
-        <AppCard
-          as="section"
-          tone="default"
-          padding="lg"
-          header={(
-            <SectionIntro
-              title="Ingreso a vasija"
-              description="Registrá la operación de vasija asociada a la recepción para que el inventario refleje el destino operativo de la uva."
-            />
-          )}
-        >
-         
-          <div className="mt-4 flex flex-wrap gap-2">
+        <div className="space-y-3">
+          <VasijasProcesoPage
+            initialSection="operaciones"
+            hideSectionSelector
+            inlineOperacionForm
+            operacionDefaultValues={{
+              ...(currentRecepcionId ? { recepcionBodegaId: currentRecepcionId } : {}),
+              tipo: "ingreso",
+            }}
+          />
+
+          <div className="flex flex-wrap gap-2">
             <Link to="/operacion/vasijas">
-              <AppButton variant="primary">Abrir vasijas y proceso</AppButton>
+              <AppButton variant="secondary">Abrir vasijas y proceso</AppButton>
             </Link>
-            <AppButton type="button" variant="secondary" onClick={() => goToStep("remito")}>
+            <AppButton type="button" variant="ghost" onClick={() => goToStep("remito")}>
               Registrar otro ingreso
             </AppButton>
           </div>
-        </AppCard>
+        </div>
       ) : null}
 
       <AppModal

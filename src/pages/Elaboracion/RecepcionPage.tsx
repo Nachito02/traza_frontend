@@ -314,7 +314,49 @@ export default function RecepcionPage({
       { name: "llegada_bodega", label: "Llegada bodega", type: "datetime-local", required: true },
       { name: "transportista", label: "Transportista", type: "text" },
       { name: "patente", label: "Patente", type: "text" },
-      { name: "kg_declarados", label: "Kg declarados", type: "number" },
+      { name: "kg_declarados", label: "Kg declarados o tachos", type: "number" },
+      { name: "kg_bruto", label: "Kg brutos", type: "number" },
+      { name: "kg_tara", label: "Kg tara (peso del camión)", type: "number" },
+      {
+        name: "kg_neto",
+        label: "Kg neto (bruto − tara)",
+        type: "number",
+        computed: (values) => {
+          const bruto = Number(values.kg_bruto);
+          const tara = Number(values.kg_tara);
+          if (
+            !String(values.kg_bruto ?? "").trim() ||
+            !String(values.kg_tara ?? "").trim() ||
+            Number.isNaN(bruto) ||
+            Number.isNaN(tara)
+          ) {
+            return "";
+          }
+          return String(bruto - tara);
+        },
+      },
+      {
+        name: "tipo_cosecha",
+        label: "Tipo de cosecha",
+        type: "select",
+        options: [
+          { value: "manual", label: "Manual" },
+          { value: "mecanica", label: "Mecánica" },
+        ],
+      },
+      {
+        name: "variedad_pureza",
+        label: "Variedad",
+        type: "select",
+        options: [
+          { value: "pura", label: "Pura" },
+          { value: "mezclada", label: "Mezclada" },
+        ],
+      },
+      { name: "variedad_pureza_pct", label: "% de la variedad", type: "number" },
+      { name: "sanidad_escala", label: "Sanidad (1-10)", type: "number" },
+      { name: "presencia_hojas_escala", label: "Presencia de hojas (1-10)", type: "number" },
+      { name: "observaciones", label: "Observaciones", type: "textarea" },
     ],
     [cuartelOptions, fincaOptions],
   );
@@ -331,7 +373,6 @@ export default function RecepcionPage({
       },
       { name: "fecha_hora", label: "Fecha y hora", type: "datetime-local", required: true },
       { name: "kg_pesados", label: "Kg pesados", type: "number" },
-      { name: "clasificacion", label: "Clasificación", type: "text" },
       { name: "observaciones", label: "Observaciones", type: "textarea" },
     ],
     [remitoOptions],
@@ -347,10 +388,10 @@ export default function RecepcionPage({
         options: recepcionOptions,
         sourceKey: "recepcion_bodega_id",
       },
-      { name: "brix", label: "Brix", type: "number" },
+      { name: "brix", label: "Grados Brix", type: "number" },
       { name: "ph", label: "pH", type: "number" },
-      { name: "acidez", label: "Acidez", type: "number" },
-      { name: "temperatura_uva", label: "Temp. uva", type: "number" },
+      { name: "acidez", label: "Acidez (g/l)", type: "number" },
+      { name: "temperatura_uva", label: "Temp. uva °C", type: "number" },
       { name: "sanidad", label: "Sanidad", type: "text" },
       { name: "observaciones", label: "Observaciones", type: "textarea" },
     ],
