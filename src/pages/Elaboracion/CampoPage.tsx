@@ -27,6 +27,7 @@ import {
   useAppNotifications,
 } from "../../components/ui";
 import { EVENTO_CONFIG, type EventoConfig } from "../Trazabilidad/eventoConfig";
+import CostosActividadPanel from "../Costos/CostosActividadPanel";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -409,6 +410,7 @@ function TareaDetalleModal({
   onCompleted?: () => void;
 }) {
   const { notifySuccess, notifyError } = useAppNotifications();
+  const modalBodegaId = useAuthStore((state) => state.activeBodegaId);
   const [entradas, setEntradas] = useState<TareaEntradaDetail[] | null>(null);
   const [loadingEntradas, setLoadingEntradas] = useState(false);
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -858,6 +860,15 @@ function TareaDetalleModal({
           </div>
         )}
 
+        {tarea.tarea_id && asignacionId && !isCompleted && (
+          <div className="border-t border-[color:var(--border-shell)]/50 pt-4">
+            <CostosActividadPanel
+              tareaId={tarea.tarea_id}
+              bodegaId={tarea.bodega_id ?? modalBodegaId}
+            />
+          </div>
+        )}
+
         <p className="border-t border-[color:var(--border-shell)]/50 pt-3 text-xs text-[color:var(--text-ink-muted)]">
           Creada: {tarea.created_at ? new Date(tarea.created_at).toLocaleString("es-AR") : "—"}
           {tarea.updated_at ? ` · Actualizada: ${new Date(tarea.updated_at).toLocaleString("es-AR")}` : ""}
@@ -927,6 +938,61 @@ function TareaRow({
   );
 }
 
+// ─── FincaGroupCard (colapsable) ─────────────────────────────────────────────
+
+function FincaGroupCard({
+  nombre,
+  tareas,
+  defaultOpen,
+  onCompleted,
+}: {
+  nombre: string;
+  tareas: Tarea[];
+  defaultOpen: boolean;
+  onCompleted?: () => void;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const pendientes = tareas.filter(
+    (t) => normalizeEstado(t.estado) !== "completado" && normalizeEstado(t.estado) !== "cancelado",
+  ).length;
+
+  return (
+    <AppCard as="section" tone="default" padding="lg">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between gap-3 text-left"
+      >
+        <div className="min-w-0">
+          <p className="truncate text-base font-semibold text-[color:var(--text-ink)]">{nombre}</p>
+          <p className="text-xs text-[color:var(--text-ink-muted)]">
+            {tareas.length} tarea{tareas.length !== 1 ? "s" : ""}
+            {pendientes > 0 ? ` · ${pendientes} pendiente${pendientes !== 1 ? "s" : ""}` : ""}
+          </p>
+        </div>
+        <span
+          className={`shrink-0 text-[color:var(--text-ink-muted)] transition-transform ${open ? "rotate-90" : ""}`}
+          aria-hidden="true"
+        >
+          ▸
+        </span>
+      </button>
+
+      {open && (
+        <div className="mt-4 space-y-2">
+          {tareas.map((tarea) => (
+            <TareaRow
+              key={String(tarea.tarea_id ?? tarea.id ?? "")}
+              tarea={tarea}
+              onCompleted={onCompleted}
+            />
+          ))}
+        </div>
+      )}
+    </AppCard>
+  );
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 type SortDir = "desc" | "asc";
@@ -954,7 +1020,9 @@ export default function CampoPage({ standalone = false }: { standalone?: boolean
   const [tareas, setTareas] = useState<Tarea[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("todos");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("pendientes");
+  const [fincaFilter, setFincaFilter] = useState<string>("todas");
+  const [query, setQuery] = useState("");
 
   const loadTareas = () => {
     if (!activeBodegaId) { setLoading(false); return; }
@@ -1070,25 +1138,48 @@ export default function CampoPage({ standalone = false }: { standalone?: boolean
 
         {tareasDeCampo.length > 0 && (
           <div className="mt-5 flex flex-wrap items-end gap-3">
-            <div className="w-44">
+            <div className="min-w-52 flex-1">
+              <AppInput
+                label="Buscar tarea"
+                type="search"
+                placeholder="Título o cuartel…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+            <div className="w-48">
               <AppSelect
-                label="Ordenar por fecha"
-                value={sortDir}
-                onChange={(e) => setSortDir(e.target.value as SortDir)}
+                label="Finca"
+                value={fincaFilter}
+                onChange={(e) => setFincaFilter(e.target.value)}
               >
-                <option value="desc">Más recientes primero</option>
-                <option value="asc">Más antiguas primero</option>
+                <option value="todas">Todas las fincas</option>
+                {porFinca.map((g) => (
+                  <option key={g.fincaId} value={g.fincaId}>
+                    {g.nombre}
+                  </option>
+                ))}
               </AppSelect>
             </div>
-            <div className="w-44">
+            <div className="w-40">
               <AppSelect
                 label="Estado"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
               >
-                <option value="todos">Todas</option>
                 <option value="pendientes">Pendientes</option>
                 <option value="completadas">Completadas</option>
+                <option value="todos">Todas</option>
+              </AppSelect>
+            </div>
+            <div className="w-40">
+              <AppSelect
+                label="Ordenar por fecha"
+                value={sortDir}
+                onChange={(e) => setSortDir(e.target.value as SortDir)}
+              >
+                <option value="desc">Más recientes</option>
+                <option value="asc">Más antiguas</option>
               </AppSelect>
             </div>
           </div>
@@ -1103,13 +1194,21 @@ export default function CampoPage({ standalone = false }: { standalone?: boolean
         </NoticeBanner>
       ) : (
         (() => {
+          const needle = query.trim().toLowerCase();
           const gruposVisibles = porFinca
+            .filter((grupo) => fincaFilter === "todas" || grupo.fincaId === fincaFilter)
             .map((grupo) => {
               const tareasFiltradas = grupo.tareas
                 .filter((t) => {
-                  if (statusFilter === "todos") return true;
-                  const completada = normalizeEstado(t.estado) === "completado";
-                  return statusFilter === "completadas" ? completada : !completada;
+                  if (statusFilter !== "todos") {
+                    const completada = normalizeEstado(t.estado) === "completado";
+                    if (statusFilter === "completadas" ? !completada : completada) return false;
+                  }
+                  if (needle) {
+                    const haystack = `${t.titulo ?? ""} ${t.cuartel?.codigo_cuartel ?? ""}`.toLowerCase();
+                    if (!haystack.includes(needle)) return false;
+                  }
+                  return true;
                 })
                 .slice()
                 .sort((a, b) => {
@@ -1124,34 +1223,23 @@ export default function CampoPage({ standalone = false }: { standalone?: boolean
           if (gruposVisibles.length === 0) {
             return (
               <NoticeBanner tone="info">
-                No hay tareas que coincidan con el filtro seleccionado.
+                No hay tareas que coincidan con los filtros seleccionados.
               </NoticeBanner>
             );
           }
 
+          // Con una sola finca visible la abrimos; con varias, expandimos solo las
+          // que tienen tareas para no saturar la vista.
+          const expandirTodas = gruposVisibles.length <= 3;
+
           return gruposVisibles.map((grupo) => (
-            <AppCard
+            <FincaGroupCard
               key={grupo.fincaId}
-              as="section"
-              tone="default"
-              padding="lg"
-              header={(
-                <SectionIntro
-                  title={grupo.nombre}
-                  description={`${grupo.tareas.length} tarea${grupo.tareas.length !== 1 ? "s" : ""} registrada${grupo.tareas.length !== 1 ? "s" : ""}`}
-                />
-              )}
-            >
-              <div className="space-y-2">
-                {grupo.tareas.map((tarea) => (
-                  <TareaRow
-                    key={String(tarea.tarea_id ?? tarea.id ?? "")}
-                    tarea={tarea}
-                    onCompleted={loadTareas}
-                  />
-                ))}
-              </div>
-            </AppCard>
+              nombre={grupo.nombre}
+              tareas={grupo.tareas}
+              defaultOpen={expandirTodas}
+              onCompleted={loadTareas}
+            />
           ));
         })()
       )}

@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRAZA · Diagrama de flujo de la app</title>
+<style>
+  :root{
+    --bg:#070f2e; --panel:#0c1846; --panel2:#10204f; --line:#24376f;
+    --ink:#eaf0ff; --muted:#9fb2da; --accent:#00d47a; --wine:#5b78ff;
+    --c-comp:#7c9cff; --c-ep:#00d47a; --c-svc:#f6c453; --c-tbl:#ff8db4; --c-fx:#c08bff;
+    --chip:#16265c;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(ellipse 90% 50% at 15% -10%,rgba(48,75,209,.25),transparent 60%),var(--bg);
+       color:var(--ink);font-family:"Work Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.5}
+  header{padding:34px 28px 18px;border-bottom:1px solid var(--line);position:sticky;top:0;
+         background:rgba(7,15,46,.92);backdrop-filter:blur(8px);z-index:10}
+  h1{margin:0;font-size:26px;letter-spacing:.5px}
+  h1 span{color:var(--accent)}
+  .sub{color:var(--muted);font-size:14px;margin-top:4px}
+  .wrap{max-width:1220px;margin:0 auto;padding:0 20px 80px}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;align-items:center}
+  input[type=search]{background:var(--panel);border:1px solid var(--line);color:var(--ink);
+       padding:9px 13px;border-radius:8px;min-width:240px;font-size:14px}
+  .btn{background:var(--chip);border:1px solid var(--line);color:var(--muted);padding:7px 12px;
+       border-radius:999px;font-size:12.5px;cursor:pointer}
+  .btn:hover{color:var(--ink);border-color:var(--accent)}
+
+  /* legend */
+  .legend{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:26px 0 10px}
+  .legend div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px 13px;font-size:13px}
+  .legend b{display:block;font-size:11px;letter-spacing:.6px;text-transform:uppercase;margin-bottom:3px}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle}
+
+  /* architecture overview */
+  .arch{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;margin:22px 0 8px}
+  .arch h2{margin:0 0 14px;font-size:16px}
+  .tiers{display:flex;flex-direction:column;gap:12px}
+  .tier{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .tier .lbl{width:140px;flex:none;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+  .node{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 11px;font-size:12.5px}
+  .node.fx{border-color:var(--c-fx);color:#e3d0ff}
+  .arrow{color:var(--muted);text-align:center;font-size:18px}
+
+  /* module cards */
+  h2.section{margin:40px 0 6px;font-size:15px;letter-spacing:.7px;text-transform:uppercase;color:var(--accent)}
+  .mod{background:var(--panel);border:1px solid var(--line);border-radius:14px;margin:16px 0;overflow:hidden}
+  .mod>summary{list-style:none;cursor:pointer;padding:16px 20px;display:flex;align-items:center;gap:12px}
+  .mod>summary::-webkit-details-marker{display:none}
+  .mod>summary:hover{background:var(--panel2)}
+  .mname{font-size:17px;font-weight:600}
+  .mbase{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;color:var(--accent);
+          background:var(--chip);padding:2px 9px;border-radius:6px}
+  .mdesc{color:var(--muted);font-size:13px;margin-left:auto;text-align:right;max-width:46%}
+  .caret{transition:transform .2s;color:var(--muted)}
+  .mod[open] .caret{transform:rotate(90deg)}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{position:sticky;text-align:left;padding:9px 14px;font-size:10.5px;letter-spacing:.7px;
+           text-transform:uppercase;color:var(--muted);border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--panel2)}
+  td{padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+  .verb{font-weight:700;font-size:11px;padding:1px 6px;border-radius:5px;margin-right:6px}
+  .GET{background:#0e3a2a;color:#5ff0b0}
+  .POST{background:#10306b;color:#8fb0ff}
+  .PATCH{background:#4a3a08;color:#f6c453}
+  .PUT{background:#3a2a55;color:#cda6ff}
+  .DELETE{background:#4a1414;color:#ff9b9b}
+  .tbl-chip{display:inline-block;background:#3a1530;color:var(--c-tbl);border:1px solid #5e2147;
+            padding:1px 7px;border-radius:6px;font-size:11px;margin:2px 3px 0 0;font-family:ui-monospace,monospace}
+  .fx-chip{display:inline-block;background:#2a1a45;color:#dcc4ff;border:1px solid #4a2f7a;
+           padding:1px 7px;border-radius:6px;font-size:11px;margin:2px 3px 0 0}
+  .none{color:#5d6b94;font-size:12px}
+  .comp{color:var(--c-comp)}
+  td.svc{color:var(--c-svc);font-family:ui-monospace,monospace;font-size:12px}
+  footer{color:var(--muted);font-size:12px;text-align:center;padding:30px;border-top:1px solid var(--line);margin-top:40px}
+  .hidden{display:none !important}
+  code{background:var(--chip);padding:1px 5px;border-radius:4px;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>TRAZA<span>IA</span> · Diagrama de flujo de la aplicación</h1>
+  <div class="sub">Para cada acción: <b>componente</b> → <b>endpoint</b> → <b>service / use-case</b> → <b>tabla</b> → <b>side effects</b>. Backend Express + Prisma · Frontend React/TS.</div>
+  <div class="controls">
+    <input id="q" type="search" placeholder="Filtrar por endpoint, tabla, componente…">
+    <button class="btn" onclick="setAll(true)">Expandir todo</button>
+    <button class="btn" onclick="setAll(false)">Colapsar todo</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="legend">
+    <div><b><span class="dot" style="background:var(--c-comp)"></span>1 · Componente</b>Página/UI del frontend que dispara la acción.</div>
+    <div><b><span class="dot" style="background:var(--c-ep)"></span>2 · Endpoint</b>Ruta HTTP montada bajo <code>/api</code>.</div>
+    <div><b><span class="dot" style="background:var(--c-svc)"></span>3 · Service</b>Función de negocio (use-case).</div>
+    <div><b><span class="dot" style="background:var(--c-tbl)"></span>4 · Tabla</b>Modelo Prisma que escribe/lee.</div>
+    <div><b><span class="dot" style="background:var(--c-fx)"></span>5 · Side effects</b>Efectos externos / en cascada.</div>
+  </div>
+
+  <!-- ARCHITECTURE OVERVIEW -->
+  <div class="arch">
+    <h2>Vista general de capas</h2>
+    <div class="tiers">
+      <div class="tier"><div class="lbl">Clientes</div>
+        <div class="node">React SPA (Vite)</div>
+        <div class="node">Agente WhatsApp (bot)</div>
+        <div class="node">Agente IA</div>
+        <div class="node">Público (QR sin login)</div>
+      </div>
+      <div class="arrow">▼ HTTP / JWT</div>
+      <div class="tier"><div class="lbl">API Express</div>
+        <div class="node">authMiddleware</div>
+        <div class="node">15 routers → <code>/api/*</code></div>
+        <div class="node">controllers</div>
+      </div>
+      <div class="arrow">▼</div>
+      <div class="tier"><div class="lbl">Use-cases</div>
+        <div class="node">*.service.ts (lógica + validación de scope/bodega)</div>
+      </div>
+      <div class="arrow">▼ Prisma (PrismaPg)</div>
+      <div class="tier"><div class="lbl">Datos</div>
+        <div class="node">PostgreSQL</div>
+      </div>
+      <div class="tier"><div class="lbl">Side effects</div>
+        <div class="node fx">📎 IPFS / Kubo (adjuntos)</div>
+        <div class="node fx">📱 WhatsApp (vía agente)</div>
+        <div class="node fx">📋 bot_action_log (auditoría)</div>
+        <div class="node fx">🔗 QR / trazabilidad pública</div>
+        <div class="node fx">🔄 cascadas de estado</div>
+        <div class="node fx">🔐 JWT access/refresh</div>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="section">⬢ Núcleo · Identidad y organización</h2>
+
+  <!-- AUTH -->
+  <details class="mod" open>
+    <summary><span class="caret">▶</span><span class="mname">Auth</span><span class="mbase">/api/auth</span>
+      <span class="mdesc">Login, registro, sesión, gestión de usuarios y roles.</span></summary>
+    <table><thead><tr><th>Componente</th><th>Endpoint</th><th>Service</th><th>Tablas</th><th>Side effects</th></tr></thead><tbody>
+      <tr><td class="comp">Login.tsx</td><td><span class="verb POST">POST</span><span class="mono">/login</span></td><td class="svc">login()</td><td><span class="tbl-chip">app_user</span><span class="tbl-chip">refresh_token</span></td><td><span class="fx-chip">🔐 emite JWT + refresh</span><span class="fx-chip">bcrypt verify</span></td></tr>
+      <tr><td class="comp">Register.tsx</td><td><span class="verb POST">POST</span><span class="mono">/register</span></td><td class="svc">register()</td><td><span class="tbl-chip">app_user</span><span class="tbl-chip">user_bodega_rol</span></td><td><span class="fx-chip">bcrypt hash</span><span class="fx-chip">🔐 emite JWT</span></td></tr>
+      <tr><td class="comp">ChangePassword.tsx</td><td><span class="verb POST">POST</span><span class="mono">/change-password</span></td><td class="svc">changePassword()</td><td><span class="tbl-chip">app_user</span></td><td><span class="fx-chip">bcrypt hash</span></td></tr>
+      <tr><td class="comp">authStore / interceptor</td><td><span class="verb POST">POST</span><span class="mono">/refresh</span> · <span class="mono">/logout</span></td><td class="svc">refreshToken() · logout()</td><td><span class="tbl-chip">refresh_token</span></td><td><span class="fx-chip">🔐 rota/revoca tokens</span></td></tr>
+      <tr><td class="comp">ContextSelector · AppLayout</td><td><span class="verb GET">GET</span><span class="mono">/me</span> · <span class="mono">/me/bodegas</span> · <span class="mono">/me/roles</span></td><td class="svc">getMe() · listMyBodegas() · getMyRoles()</td><td><span class="none">solo lectura</span></td><td><span class="none">—</span></td></tr>
+      <tr><td class="comp">Usuarios.tsx</td><td><span class="verb GET">GET</span><span class="mono">/users</span> · <span class="verb POST">POST</span><span class="mono">/users</span> · <span class="verb PATCH">PATCH</span>/<span class="verb DELETE">DELETE</span> <span class="mono">/users/:id</span></td><td class="svc">listUsers · createUser · updateUser · deleteUser</td><td><span class="tbl-chip">app_user</span></td><td><span class="none">—</span></td></tr>
+      <tr><td class="comp">Usuarios.tsx (roles)</td><td><span class="verb PATCH">PATCH</span><span class="mono">/users/:id/bodegas/…/role</span> · <span class="mono">/fincas/:id/roles</span> · <span class="mono">/global-role</span></td><td class="svc">setBodegaRole · setFincaRoles · setGlobalRole</td><td><span class="tbl-chip">user_bodega_rol</span><span class="tbl-chip">user_finca_rol</span></td><td><span class="fx-chip">🔄 recalcula permisos de scope</span></td></tr>
+    </tbody></table>
+  </details>
+
+  <!-- BODEGA -->
+  <details class="mod">
+    <summary><span class="caret">▶</span><span class="mname">Bodega</span><span class="mbase">/api/bodegas</span>
+      <span class="mdesc">Alta de bodega, vínculo bodega↔finca, productores de la bodega.</span></summary>
+    <table><thead><tr><th>Componente</th><th>Endpoint</th><th>Service</th><th>Tablas</th><th>Side effects</th></tr></thead><tbody>
+      <tr><td class="comp">SetupHome / BodegaHome</td><td><span class="verb POST">POST</span><span class="mono">/</span></td><td class="svc">createBodega()</td><td><span class="tbl-chip">bodega</span></td><td><span class="none">—</span></td></tr>
+      <tr><td class="comp">Fincas.tsx</td><td><span class="verb GET">GET</span><span class="mono">/:id/fincas</span> · <span class="mono">/:id/fincas/vinculos</span></td><td class="svc">listBodegaFincas()</td><td><span class="none">solo lectura</span></td><td><span class="none">—</span></td></tr>
+      <tr><td class="comp">Fincas.tsx (vincular)</td><td><span class="verb PUT">PUT</span><span class="mono">/:id/fincas/:fincaId/vinculo</span></td><td class="svc">setBodegaFincaVinculo()</td><td><span class="tbl-chip">bodega_finca_vinculo</span></td><td><span class="none">—</span></td></tr>
+      <tr><td class="comp">BodegaHome (productores)</td><td><span class="verb GET">GET</span>/<span class="verb POST">POST</span><span class="mono">/:id/productores</span></td><td class="svc">listProductores · addProductor</td><td><span class="tbl-chip">productor</span></td><td><span class="none">—</span></td></tr>
+    </tbody></table>
+  </details>
+
+  <!-- FINCAS -->
+  <details class="mod">
+    <summary><span class="caret">▶</span><span class="mname">Fincas</span><span class="mbase">/api/fincas</span>
+      <span class="mdesc">CRUD de fincas (campos/establecimientos).</span></summary>
+    <table><thead><tr><th>Componente</th><th>Endpoint</th><th>Service</th><th>Tablas</th><th>Side effects</th></tr></thead><tbody>
+      <tr><td class="comp">Fincas · FincasAdmin · SetupFinca</td><td><span class="verb GET">GET</span><span class="mono">/</span> · <span class="mono">/bodega/:id</span> · <span class="mono">/:id</span></td><td class="svc">listFincas · getFinca</td><td><span class="none">solo lectura</span></td><td><span class="none">—</span></td></tr>
+      <tr><td class="comp">FincasAdmin · SetupFinca</td><td><span class="verb POST">POST</span><span class="mono">/</span> · <span class="verb PATCH">PATCH</span>/<span class="verb DELETE">DELETE</span><span class="mono">/:id</span></td><td class="svc">createFinca · updateFinca · deleteFinca</td><td><span class="tbl-chip">finca</span></td><td><span class="fx-chip">🔄 ON DELETE RESTRICT (cuarteles/remitos)</span></td></tr>
+    </tbody></table>
+  </details>
+
+  <!-- CUARTELES -->
+  <details class="mod">
+    <summary><span class="caret">▶</span><span class="mname">Cuarteles</span><span class="mbase">/api/cuarteles</span>
+      <span class="mdesc">CRUD de cuarteles (parcelas) + QR por cuartel.</span></summary>
+    <table><thead><tr><th>Componente</th><th>Endpoint</th><th>Service</th><th>Tablas</th><th>Side effects</th></tr></thead><tbody>
+      <tr><td class="comp">CuartelesAdmin · SetupCuarteles</td><td><span class="verb GET">GET</span><span class="mono">/finca/:fincaId</span> · <span class="mono">/:id</span></td><td class="svc">listCuartelesByFinca · getCuartel</td><td><span class="none">solo lectura</span></td><td><span class="none">—</span></td></tr>
+      <tr><td class="comp">CuartelesAdmin · QrCuartelesAdmin</td><td><span class="verb POST">POST</span><span class="mono">/</span> · <span class="verb PATCH">PATCH</span>/<span class="verb DELETE">DELETE</span><span class="mono">/:id</span></td><td class="svc">createCuartel · updateCuartel · deleteCuartel</td><td><span class="tbl-chip">cuartel</span></td><td><span class="fx-chip">🔗 genera código QR público</span></td></tr>
+    </tbody></table>
+  </details>
+
+  <!-- CAMPANIAS -->
+  <details class="mod">
+    <summary><span class="caret">▶</span><span class="mname">Campañas</span><span class="mbase">/api/campanias</span>
+      <span class="mdesc">CRUD de campañas (temporadas productivas).</span></summary>
+    <table><thead><tr><th>Componente</th><th>Endpoint</th><th>Service</th><th>Tablas</th><th>Side effects</th></tr></thead><tbody>
+      <tr><td class="comp">CampaniasAdmin · SetupCampania</td><td><span class="verb GET">GET</span><span class="mono">/</span> · <span class="mono">/:id</span> · <span class="verb POST">POST</span><span class="mono">/</span> · <span class="verb PATCH">PATCH</span>/<span class="verb DELETE">DELETE</span><span class="mono">/:id</span></td><td class="svc">list/get/create/update/deleteCampania</td><td><span class="tbl-chip">campania</span></td><td><span class="none">—</span></td></tr>
+    </tbody></table>
+  </details>
+
+  <!-- PROTOCOLOS -->
+  <details class="mod">
+    <summary><span class="caret">▶</span><span class="mname">Protocolos</span><span class="mbase">/api/protocolos</span>
+      <span class="mdesc">Plantillas de proceso: protocolo → etapas → procesos.</span></summary>
+    <table><thead><tr><th>Componente</th><th>Endpoint</th><th>Service</th><th>Tablas</th><th>Side effects</th></tr></thead><tbody>
+      <tr><td class="comp">ProtocolosAdmin</td><td><span class="verb GET">GET</span><span class="mono">/</span> · <span class="mono">/expanded</span> · <span class="mono">/:id</span> · <span class="mono">/:id/plantilla</span></td><td class="svc">list · listExpanded · getProtocolo · getPlantilla</td><td><span class="none">solo lectura</span></td><td><span class="none">—</span></td></tr>
+      <tr><td class="comp">ProtocolosAdmin</td><td><span class="verb POST">POST</span><span class="mono">/</span> · <span class="verb PUT">PUT</span>/<span class="verb DELETE">DELETE</span><span class="mono">/:id</span></td><td class="svc">create · update · deleteProtocolo</td><td><span class="tbl-chip">protocolo</span></td><td><span class="none">—</span></td></tr>
+      <tr><td class="comp">ProtocolosAdmin (etapas)</td><td><span class="verb POST">POST</span><span class="mono">/:id/etapas</span> · <span class="verb PUT">PUT</span>/<span class="verb DELETE">DELETE</span><span class="mono">/etapas/:id</span></td><td class="svc">addEtapa · updateEtapa · deleteEtapa</td><td><span class="tbl-chip">protocolo_etapa</span></td><td><span class="none">—</span></td></tr>
+      <tr><td class="comp">ProtocolosAdmin (procesos)</td><td><span class="verb POST">POST</span><span class="mono">/etapas/:id/procesos</span> · <span class="verb PUT">PUT</span>/<span class="verb DELETE">DELETE</span><span class="mono">/procesos/:id</span></td><td class="svc">addProceso · updateProceso · deleteProceso</td><td><span class="tbl-chip">protocolo_proceso</span></td><td><span class="none">—</span></td></tr>
+    </tbody></table>
+  </details>
+
+  <!-- PRODUCTORES / PERSONAS -->
+  <details class="mod">
+    <summary><span class="caret">▶</span><span class="mname">Productores & Operarios</span><span class="mbase">/api/productores · /api/operarios</span>
+      <span class="mdesc">Productores de uva y altas de operarios (con WhatsApp).</span></summary>
+    <table><thead><tr><th>Componente</th><th>Endpoint</th><th>Service</th><th>Tablas</th><th>Side effects</th></tr></thead><tbody>
+      <tr><td class="comp">Productores</td><td><span class="verb GET">GET</span>/<span class="verb POST">POST</span><span class="mono">/productores</span> · <span class="verb PATCH">PATCH</span>/<span class="verb DELETE">DELETE</span><span class="mono">/:id</span></td><td class="svc">list/create/update/deleteProductor</td><td><span class="tbl-chip">productor</span></td><td><span class="none">—</span></td></tr>
+      <tr><td class="comp">Usuarios.tsx (operarios)</td><td><span class="verb GET">GET</span>/<span class="verb POST">POST</span><span class="mono">/operarios/bodega/:id</span> · <span class="verb DELETE">DELETE</span><span class="mono">/:userId</span></td><td class="svc">listPersonas · createPersona · deletePersona</td><td><span class="tbl-chip">app_user</span></td><td><span class="fx-chip">📱 registra whatsapp_e164 (único)</span></td></tr>
+    </tbody></table>
+  </details>
+
+  <h2 class="section">⬢ Operación · Órdenes de trabajo</h2>
+
+  <!-- TAREAS -->
+  <details class="mod" open>
+    <summary><span class="caret">▶</span><span class="mname">Tareas / Órdenes</span><span class="mbase">/api/tareas</span>
+      <span class="mdesc">Crear órdenes, asignar, cargar registros (entradas+adjuntos) y finalizar.</span></summary>
+    <table><thead><tr><th>Componente</th><th>Endpoint</th><th>Service</th><th>Tablas</th><th>Side effects</th></tr></thead><tbody>
+      <tr><td class="comp">Tareas (manager) · CreateOrderForm</td><td><span class="verb POST">POST</span><span class="mono">/</span></td><td class="svc">createTarea()</td><td><span class="tbl-chip">tarea</span></td><td><span class="fx-chip">🔄 regla: requiere al menos finca</span></td></tr>
+      <tr><td class="comp">Tareas (manager)</td><td><span class="verb POST">POST</span><span class="mono">/:id/asignaciones</span> · <span class="verb POST">POST</span>/<span class="verb PATCH">PATCH</span><span class="mono">/:id/asignar</span></td><td class="svc">addTareaAsignaciones · assignTarea</td><td><span class="tbl-chip">tarea_asignacion</span></td><td><span class="fx-chip">📱 habilita la tarea al operario/bot</span></td></tr>
+      <tr><td class="comp">Tareas (operator) · /tareas</td><td><span class="verb GET">GET</span><span class="mono">/me/asignaciones</span> · <span class="mono">/mis-pendientes</span> · <span class="mono">/me/can-manage</span></td><td class="svc">listMyTareas · listMyPendientes · canManage</td><td><span class="none">solo lectura</span></td><td><span class="none">—</span></td></tr>
+      <tr><td class="comp">CampoPage (cargar avance)</td><td><span class="verb PATCH">PATCH</span><span class="mono">/me/asignaciones/:id/estado</span></td><td class="svc">updateTareaAsignacionEstado()</td><td><span class="tbl-chip">tarea_asignacion</span><span class="tbl-chip">tarea</span></td><td><span class="fx-chip">🔄 si TODAS completan → tarea = completado</span></td></tr>
+      <tr><td class="comp">CampoPage (registro)</td><td><span class="verb POST">POST</span><span class="mono">/me/asignaciones/:id/entradas</span></td><td class="svc">addTareaEntrada()</td><td><span class="tbl-chip">tarea_entrada</span></td><td><span class="none">—</span></td></tr>
+      <tr><td class="comp">CampoPage (foto)</td><td><span class="verb POST">POST</span><span class="mono">/entradas/:id/adjuntos</span></td><td class="svc">appendAdjunto() · (controller sube a IPFS)</td><td><span class="tbl-chip">tarea_entrada</span></td><td><span class="fx-chip">📎 sube archivo a IPFS/Kubo → cid+url</span></td></tr>
+      <tr><td class="comp">CampoPage (finalizar)</td><td><span class="verb POST">POST</span><span class="mono">/me/asignaciones/:id/finalizar</span></td><td class="svc">finalizarTareaAsignacion()</td><td><span class="tbl-chip">tarea_asignacion</span><span class="tbl-chip">tarea</span></td><td><span class="fx-chip">🔄 marca completado_at + tarea = completado</span></td></tr>
+      <tr><td class="comp">Tareas (manager)</td><td><span class="verb PATCH">PATCH</span><span class="mono">/:id/completar</span> · <span class="mono">/:id/cancelar</span></td><td class="svc">completarTarea · cancelTarea</td><td><span class="tbl-chip">tarea</span><span class="tbl-chip">tarea_asignacion</span></td><td><span class="fx-chip">🔄 cierra todas las asignaciones</span></td></tr>
+      <tr><td class="comp">Edición de fecha</td><td><span class="verb GET">GET</span>/<span class="verb PATCH">PATCH</span><span class="mono">/entradas/:id</span></td><td class="svc">listTareaEntradas · editTareaEntrada</td><td><span class="tbl-chip">tarea_entrada</span></td><td><span class="none">—</span></td></tr>
+    </tbody></table>
+  </details>
+
+  <h2 class="section">⬢ Elaboración · Bodega (vino)</h2>
+
+  <!-- ELABORACION -->
+  <details class="mod" open>
+    <summary><span class="caret">▶</span><span class="mname">Elaboración</span><span class="mbase">/api/elaboracion</span>
+      <span class="mdesc">Ingreso de uva, vasijas, fermentación, cortes, fraccionamiento y despacho.</span></summary>
+    <table><thead><tr><th>Componente</th><th>Endpoint</th><th>Service</th><th>Tablas</th><th>Side effects</th></tr></thead><tbody>
+      <tr><td class="comp">IngresoUvaFlowPage › Remito</td><td><span class="verb POST">POST</span><span class="mono">/remitos-uva</span> · <span class="verb PATCH">PATCH</span>/<span class="verb DELETE">DELETE</span><span class="mono">/:id</span></td><td class="svc">create/update/deleteRemitoUva()</td><td><span class="tbl-chip">remito_uva</span></td><td><span class="fx-chip">🔄 kg_neto = bruto − tara (calculado)</span></td></tr>
+      <tr><td class="comp">IngresoUvaFlowPage › Recepción</td><td><span class="verb POST">POST</span><span class="mono">/recepciones-bodega</span></td><td class="svc">createRecepcionBodega()</td><td><span class="tbl-chip">recepcion_bodega</span></td><td><span class="none">—</span></td></tr>
+      <tr><td class="comp">IngresoUvaFlowPage › Análisis</td><td><span class="verb POST">POST</span><span class="mono">/analisis-recepcion</span></td><td class="svc">createAnalisisRecepcion()</td><td><span class="tbl-chip">analisis_recepcion</span></td><td><span class="none">—</span></td></tr>
+      <tr><td class="comp">IngresoUvaFlowPage › CIU</td><td><span class="verb POST">POST</span><span class="mono">/cius</span> · <span class="verb PATCH">PATCH</span>/<span class="verb DELETE">DELETE</span><span class="mono">/:id</span></td><td class="svc">create/update/deleteCiu()</td><td><span class="tbl-chip">ciu</span></td><td><span class="fx-chip">🔄 1 CIU ↔ 1 recepción (único)</span></td></tr>
+      <tr><td class="comp">IngresoUvaFlowPage › QC</td><td><span class="verb POST">POST</span><span class="mono">/qc-ingreso-uva</span></td><td class="svc">createQcIngresoUva()</td><td><span class="tbl-chip">qc_ingreso_uva</span></td><td><span class="none">—</span></td></tr>
+      <tr><td class="comp">IngresoUvaFlowPage › Vasija · VasijasProcesoPage</td><td><span class="verb POST">POST</span><span class="mono">/operaciones-vasija</span></td><td class="svc">createOperacionVasija()</td><td><span class="tbl-chip">operacion_vasija</span><span class="tbl-chip">orden_enologo</span></td><td><span class="fx-chip">🔄 registra movimiento uva→vasija</span></td></tr>
+      <tr><td class="comp">BodegaVasijas* · VasijasProcesoPage</td><td><span class="verb GET">GET</span>/<span class="verb POST">POST</span><span class="mono">/vasijas</span> · <span class="verb PATCH">PATCH</span>/<span class="verb DELETE">DELETE</span><span class="mono">/:id</span></td><td class="svc">create/update/deleteVasija()</td><td><span class="tbl-chip">vasija</span></td><td><span class="none">—</span></td></tr>
+      <tr><td class="comp">VasijasProcesoPage (existencias / fermentación)</td><td><span class="verb GET">GET</span><span class="mono">/existencias-vasija</span> · <span class="mono">/controles-fermentacion</span></td><td class="svc">existenciaVasija · controlFermentacion (CRUD)</td><td><span class="tbl-chip">existencia_vasija</span><span class="tbl-chip">control_fermentacion</span></td><td><span class="none">—</span></td></tr>
+      <tr><td class="comp">CortesProductoPage</td><td><span class="verb GET">GET</span>/<span class="verb POST">POST</span><span class="mono">/cortes</span> · <span class="mono">/productos</span></td><td class="svc">create/update/deleteCorte · …Producto</td><td><span class="tbl-chip">corte</span><span class="tbl-chip">producto</span></td><td><span class="none">—</span></td></tr>
+      <tr><td class="comp">FraccionamientoDespachoPage</td><td><span class="verb POST">POST</span><span class="mono">/codigos-envase</span> · <span class="mono">/despachos</span></td><td class="svc">createCodigoEnvase · …Despacho · loteFraccionamiento</td><td><span class="tbl-chip">codigo_envase</span><span class="tbl-chip">despacho</span><span class="tbl-chip">lote_fraccionamiento</span></td><td><span class="fx-chip">🔗 genera código QR de envase</span></td></tr>
+      <tr><td class="comp">selects de origen</td><td><span class="verb GET">GET</span><span class="mono">/lotes-cosecha</span></td><td class="svc">listLotesCosecha()</td><td><span class="none">solo lectura</span></td><td><span class="none">—</span></td></tr>
+    </tbody></table>
+  </details>
+
+  <h2 class="section">⬢ Trazabilidad & Cumplimiento</h2>
+
+  <!-- TRAZABILIDAD -->
+  <details class="mod">
+    <summary><span class="caret">▶</span><span class="mname">Trazabilidad</span><span class="mbase">/api/trazabilidades · /api/public</span>
+      <span class="mdesc">Árbol de trazabilidad, origen, y consulta pública por QR.</span></summary>
+    <table><thead><tr><th>Componente</th><th>Endpoint</th><th>Service</th><th>Tablas</th><th>Side effects</th></tr></thead><tbody>
+      <tr><td class="comp">(orden/plan)</td><td><span class="verb POST">POST</span><span class="mono">/trazabilidades</span> · <span class="verb POST">POST</span><span class="mono">/:id/origenes</span></td><td class="svc">createTrazabilidad · addTrazabilidadOrigen</td><td><span class="tbl-chip">trazabilidad</span><span class="tbl-chip">trazabilidad_origen</span></td><td><span class="none">—</span></td></tr>
+      <tr><td class="comp">QrInversaPage</td><td><span class="verb GET">GET</span><span class="mono">/trazabilidades/codigo-envase/:qr/inversa</span></td><td class="svc">getTrazabilidadInversa()</td><td><span class="none">solo lectura</span></td><td><span class="fx-chip">🔗 resuelve QR → cadena de origen</span></td></tr>
+      <tr><td class="comp">TrazabilidadPublica (sin login)</td><td><span class="verb GET">GET</span><span class="mono">/public/trazabilidad/cuartel/:id</span></td><td class="svc">getTrazabilidadPublica()</td><td><span class="none">solo lectura</span></td><td><span class="fx-chip">🔗 endpoint público (QR consumidor)</span></td></tr>
+    </tbody></table>
+  </details>
+
+  <!-- CUMPLIMIENTO -->
+  <details class="mod">
+    <summary><span class="caret">▶</span><span class="mname">Cumplimiento</span><span class="mbase">/api/cumplimiento</span>
+      <span class="mdesc">Hallazgos (no conformidades), indicadores e historia de lote.</span></summary>
+    <table><thead><tr><th>Componente</th><th>Endpoint</th><th>Service</th><th>Tablas</th><th>Side effects</th></tr></thead><tbody>
+      <tr><td class="comp">ProgresoPage / Dashboard</td><td><span class="verb GET">GET</span><span class="mono">/hallazgos</span> · <span class="mono">/indicadores</span> · <span class="mono">/lotes/:id/historia</span></td><td class="svc">listHallazgos · getIndicadores · getHistoria</td><td><span class="none">solo lectura</span></td><td><span class="none">—</span></td></tr>
+      <tr><td class="comp">ProgresoPage (resolver)</td><td><span class="verb POST">POST</span><span class="mono">/hallazgos/:id/resolver</span> · <span class="mono">/aceptar</span></td><td class="svc">resolverHallazgo · aceptarHallazgo</td><td><span class="tbl-chip">hallazgo</span></td><td><span class="fx-chip">🔄 cambia estado del hallazgo</span></td></tr>
+    </tbody></table>
+  </details>
+
+  <h2 class="section">⬢ Agentes · WhatsApp & IA</h2>
+
+  <!-- BOT -->
+  <details class="mod">
+    <summary><span class="caret">▶</span><span class="mname">Bot (WhatsApp)</span><span class="mbase">/api/bot</span>
+      <span class="mdesc">Backend del agente de WhatsApp: auth de agente, delegaciones, contacto y registro de tareas.</span></summary>
+    <table><thead><tr><th>Cliente</th><th>Endpoint</th><th>Service</th><th>Tablas</th><th>Side effects</th></tr></thead><tbody>
+      <tr><td class="comp">Agente WhatsApp</td><td><span class="verb POST">POST</span><span class="mono">/auth/register</span> · <span class="mono">/register-agent</span> · <span class="mono">/login</span></td><td class="svc">botRegister · botRegisterAgent · botLogin</td><td><span class="tbl-chip">app_user</span><span class="tbl-chip">bot_action_log</span></td><td><span class="fx-chip">🔐 token de agente</span><span class="fx-chip">📋 audita</span></td></tr>
+      <tr><td class="comp">Usuario / agente</td><td><span class="verb POST">POST</span><span class="mono">/delegaciones</span> · <span class="verb GET">GET</span><span class="mono">/delegaciones/me</span> · <span class="verb DELETE">DELETE</span><span class="mono">/:id</span></td><td class="svc">crearDelegacion · listDelegaciones · revocarDelegacion</td><td><span class="tbl-chip">bot_delegation</span></td><td><span class="fx-chip">🔐 otorga scopes al bot</span></td></tr>
+      <tr><td class="comp">Agente (al contactar)</td><td class="mono">botContactarAsignacion (interno)</td><td class="svc">botContactarAsignacion()</td><td><span class="tbl-chip">tarea_asignacion</span><span class="tbl-chip">bot_action_log</span></td><td><span class="fx-chip">📱 marca whatsapp_contactado_at</span><span class="fx-chip">📋 audita</span></td></tr>
+    </tbody></table>
+  </details>
+
+  <!-- IA -->
+  <details class="mod">
+    <summary><span class="caret">▶</span><span class="mname">IA (Agente)</span><span class="mbase">/api/ia</span>
+      <span class="mdesc">API que consume el agente IA: catálogos, ejecución de tareas, consultas y delegaciones.</span></summary>
+    <table><thead><tr><th>Cliente</th><th>Endpoint</th><th>Service</th><th>Tablas</th><th>Side effects</th></tr></thead><tbody>
+      <tr><td class="comp">Agente IA</td><td><span class="verb GET">GET</span><span class="mono">/catalogos/*</span> (bodegas, fincas, cuarteles, protocolos, insumos, eventos…)</td><td class="svc">iaCatalogo*()</td><td><span class="none">solo lectura</span></td><td><span class="none">—</span></td></tr>
+      <tr><td class="comp">Agente IA</td><td><span class="verb POST">POST</span><span class="mono">/catalogos/cuarteles</span> · <span class="mono">/trabajadores</span></td><td class="svc">iaCrearCuartel · iaCrearTrabajador</td><td><span class="tbl-chip">cuartel</span><span class="tbl-chip">app_user</span></td><td><span class="fx-chip">📋 audita</span></td></tr>
+      <tr><td class="comp">Agente IA</td><td><span class="verb GET">GET</span><span class="mono">/tareas</span> · <span class="verb POST">POST</span><span class="mono">/tareas/iniciar</span> · <span class="mono">/:id/guardar-progreso</span> · <span class="mono">/entradas</span> · <span class="mono">/finalizar</span></td><td class="svc">iaIniciarTarea · iaGuardarProgreso · iaFinalizar</td><td><span class="tbl-chip">tarea_asignacion</span><span class="tbl-chip">tarea_entrada</span><span class="tbl-chip">tarea</span></td><td><span class="fx-chip">🔄 mismo cascadeo de estado que UI</span><span class="fx-chip">📋 audita</span></td></tr>
+      <tr><td class="comp">Agente IA</td><td><span class="verb POST">POST</span><span class="mono">/tareas/:id/contactar</span></td><td class="svc">iaContactar()</td><td><span class="tbl-chip">tarea_asignacion</span></td><td><span class="fx-chip">📱 whatsapp_contactado_at</span></td></tr>
+      <tr><td class="comp">Agente IA</td><td><span class="verb POST">POST</span><span class="mono">/consultas</span></td><td class="svc">iaConsultar()</td><td><span class="tbl-chip">bot_action_log</span></td><td><span class="fx-chip">📋 registra la consulta</span></td></tr>
+      <tr><td class="comp">Agente IA</td><td><span class="verb POST">POST</span><span class="mono">/delegaciones/solicitar</span> · <span class="mono">/confirmar</span></td><td class="svc">iaSolicitarDelegacion · iaConfirmar</td><td><span class="tbl-chip">bot_delegation</span></td><td><span class="fx-chip">🔐 flujo de consentimiento de scope</span></td></tr>
+    </tbody></table>
+  </details>
+
+  <footer>
+    Generado a partir del código real: <code>src/routes/index.ts</code> + <code>src/modules/*/(route·controller·service).ts</code> (backend) y <code>src/App.tsx</code> + <code>src/features/*</code> (frontend).<br>
+    Las tablas son los modelos Prisma (<code>@@map</code>). «Solo lectura» = la acción no modifica datos.
+  </footer>
+</div>
+
+<script>
+  function setAll(open){document.querySelectorAll('details.mod').forEach(d=>d.open=open);}
+  const q=document.getElementById('q');
+  q.addEventListener('input',()=>{
+    const t=q.value.trim().toLowerCase();
+    document.querySelectorAll('details.mod').forEach(mod=>{
+      if(!t){mod.classList.remove('hidden');mod.querySelectorAll('tbody tr').forEach(r=>r.classList.remove('hidden'));return;}
+      let any=false;
+      mod.querySelectorAll('tbody tr').forEach(r=>{
+        const hit=r.innerText.toLowerCase().includes(t);
+        r.classList.toggle('hidden',!hit); if(hit)any=true;
+      });
+      const head=(mod.querySelector('summary').innerText||'').toLowerCase().includes(t);
+      if(head){mod.querySelectorAll('tbody tr').forEach(r=>r.classList.remove('hidden'));any=true;}
+      mod.classList.toggle('hidden',!any);
+      mod.open=any;
+    });
+  });
+</script>
+</body>
+</html>

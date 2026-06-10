@@ -25,10 +25,10 @@ const Login = () => {
           <div className="mx-auto mb-5 inline-flex w-full max-w-sm items-center justify-center px-6 py-4">
             <img src={trazaLogo} alt="Traza" className="h-auto w-full max-w-[280px] object-contain" />
           </div>
-          <p className="text-cream text-sm">
+          <p className="text-sm text-[color:var(--text-on-dark-muted)]">
             Plataforma de trazabilidad vitivinícola
           </p>
-          <div className="mt-2 inline-flex items-center gap-1 rounded-full border border-gold/40  px-3 py-1 text-xs text-cream">
+          <div className="mt-2 inline-flex items-center gap-1 rounded-full border border-gold/40 px-3 py-1 text-xs text-[color:var(--text-on-dark-muted)]">
             <Lock className="h-3.5 w-3.5" aria-hidden="true" />
             Asegurada en blockchain
           </div>
@@ -134,7 +134,7 @@ const Login = () => {
         </AppCard>
 
         <div className="text-center mt-8">
-          <p className="text-cream text-xs">
+          <p className="text-xs text-[color:var(--text-on-dark-muted)]">
             © 2026 Traza. Todos los derechos reservados.
           </p>
         </div>

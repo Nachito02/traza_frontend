@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppButton, AppModal } from "../../../components/ui";
 import { resolveModuleAccess } from "../../../lib/permissions";
 import { useAuthStore } from "../../../store/authStore";
 import {
-  completarTarea,
   fetchTareaAsignacionDetail,
   patchTareaEntrada,
   type Tarea,
@@ -485,11 +484,8 @@ type TaskDetailModalProps = {
   onCompleted?: () => void;
 };
 
-export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, onDelete, onCompleted }: TaskDetailModalProps) {
+export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, onDelete }: TaskDetailModalProps) {
   const [entradas, setEntradas] = useState<TareaEntradaDetail[] | null>(null);
-  const [completing, setCompleting] = useState(false);
-  const onCompletedRef = useRef(onCompleted);
-  onCompletedRef.current = onCompleted;
 
   const handleEntradaUpdated = (updated: TareaEntradaDetail) => {
     setEntradas((prev) =>
@@ -519,21 +515,6 @@ export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, 
   }, [task]);
 
   if (!task) return null;
-
-  const handleCompletar = async () => {
-    const tareaId = String(task.tarea_id ?? task.id ?? "");
-    if (!tareaId) return;
-    setCompleting(true);
-    try {
-      await completarTarea(tareaId);
-      onClose();
-      onCompletedRef.current?.();
-    } catch {
-      // silencioso — el backend retorna el error en la respuesta
-    } finally {
-      setCompleting(false);
-    }
-  };
 
   const hasCompletedAssignment =
     task.tarea_asignacion?.some((a) => normalizeTaskStatus(a.estado) === "completado") ?? false;
@@ -718,23 +699,11 @@ export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, 
           <Link
             to={operativoHref}
             onClick={onClose}
-            className="inline-flex items-center rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] px-4 py-2 text-sm font-semibold text-[color:var(--accent-primary)] transition hover:border-[color:var(--border-default)] hover:bg-[color:var(--action-secondary-hover)]"
+            className="inline-flex items-center rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-[color:var(--action-primary-bg)] px-4 py-2 text-sm font-semibold text-[color:var(--action-primary-text)] transition hover:border-[color:var(--accent-secondary)] hover:bg-[color:var(--action-primary-hover)] hover:shadow-[0_0_0_1px_rgba(0,212,122,0.2),0_10px_22px_rgba(0,212,122,0.18)]"
           >
             {isFincaTask ? "Ir a Operación Campo →" : "Ir a Registro Operativo →"}
           </Link>
           <div className="flex flex-wrap gap-2">
-            {normalizeTaskStatus(effectiveEstado) !== "completado" && access.canAccessBodega && (
-              <AppButton
-                type="button"
-                variant="primary"
-                size="sm"
-                onClick={() => void handleCompletar()}
-                disabled={completing}
-                loading={completing}
-              >
-                {completing ? "Completando…" : "Completar tarea"}
-              </AppButton>
-            )}
             {canDelete && (
               <AppButton
                 type="button"

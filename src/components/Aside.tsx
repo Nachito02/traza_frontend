@@ -10,6 +10,7 @@ import {
   TrendingUp,
   Settings2,
   QrCode,
+  Coins,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
@@ -87,6 +88,12 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
                 description: "Avance por protocolo",
                 icon: <TrendingUp />,
               },
+              {
+                to: "/costos",
+                label: "Costos",
+                description: "Por cuartel y campaña",
+                icon: <Coins />,
+              },
             ]
           : []),
       ],
@@ -142,6 +149,12 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
                 label: "QR cuarteles",
                 description: "Trazabilidad pública",
                 icon: <QrCode />,
+              },
+              {
+                to: "/admin/tarifas",
+                label: "Tarifas de costos",
+                description: "Mano de obra, máquinas, combustible",
+                icon: <Coins />,
               },
             ]
           : []),

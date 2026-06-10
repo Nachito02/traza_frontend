@@ -41,6 +41,8 @@ import CuartelesAdmin from "./pages/Admin/CuartelesAdmin";
 import CampaniasAdmin from "./pages/Admin/CampaniasAdmin";
 // import ProtocolosAdmin from "./pages/Admin/ProtocolosAdmin";
 import QrCuartelesAdmin from "./pages/Admin/QrCuartelesAdmin";
+import TarifasPage from "./pages/Costos/TarifasPage";
+import CostosResumenPage from "./pages/Costos/CostosResumenPage";
 import TrazabilidadPublica from "./pages/Public/TrazabilidadPublica";
 import BodegaHome from "./pages/Bodega/BodegaHome";
 import BodegaVasijasPage from "./pages/Bodega/BodegaVasijasPage";
@@ -174,6 +176,8 @@ export default function App() {
         <Route path="/admin/cuarteles" element={<CuartelesAdmin />} />
         <Route path="/admin/campanias" element={<CampaniasAdmin />} />
         <Route path="/admin/qr-cuarteles" element={access.canAccessBodega ? <QrCuartelesAdmin /> : <Navigate to="/dashboard" replace />} />
+        <Route path="/admin/tarifas" element={access.canAccessBodega ? <TarifasPage /> : <Navigate to="/dashboard" replace />} />
+        <Route path="/costos" element={access.canAccessBodega ? <CostosResumenPage /> : <Navigate to="/dashboard" replace />} />
         {/* <Route
           path="/admin/protocolos"
           element={access.isAdminSistema ? <ProtocolosAdmin /> : <Navigate to="/dashboard" replace />}
