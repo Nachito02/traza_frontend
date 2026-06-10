@@ -21,7 +21,6 @@ import {
   CATEGORIA_LABEL,
   formatMoney,
   type ActividadCosto,
-  type ClaseMaquinaria,
   type CostosTarea,
   type InsumoCatalogo,
   type ModalidadEjecucion,
