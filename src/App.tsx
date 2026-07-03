@@ -43,6 +43,10 @@ import CampaniasAdmin from "./pages/Admin/CampaniasAdmin";
 import QrCuartelesAdmin from "./pages/Admin/QrCuartelesAdmin";
 import TarifasPage from "./pages/Costos/TarifasPage";
 import CostosResumenPage from "./pages/Costos/CostosResumenPage";
+import RegistroActividadPage from "./pages/Tareas/RegistroActividadPage";
+import InsumosPage from "./pages/Inventario/InsumosPage";
+import InventarioPage from "./pages/Inventario/InventarioPage";
+import PersonalPage from "./pages/Personal/PersonalPage";
 import TrazabilidadPublica from "./pages/Public/TrazabilidadPublica";
 import BodegaHome from "./pages/Bodega/BodegaHome";
 import BodegaVasijasPage from "./pages/Bodega/BodegaVasijasPage";
@@ -177,7 +181,10 @@ export default function App() {
         <Route path="/admin/campanias" element={<CampaniasAdmin />} />
         <Route path="/admin/qr-cuarteles" element={access.canAccessBodega ? <QrCuartelesAdmin /> : <Navigate to="/dashboard" replace />} />
         <Route path="/admin/tarifas" element={access.canAccessBodega ? <TarifasPage /> : <Navigate to="/dashboard" replace />} />
+        <Route path="/admin/insumos" element={access.canAccessBodega ? <InsumosPage /> : <Navigate to="/dashboard" replace />} />
         <Route path="/costos" element={access.canAccessBodega ? <CostosResumenPage /> : <Navigate to="/dashboard" replace />} />
+        <Route path="/inventario" element={access.canAccessBodega ? <InventarioPage /> : <Navigate to="/dashboard" replace />} />
+        <Route path="/personal" element={access.canAccessBodega ? <PersonalPage /> : <Navigate to="/dashboard" replace />} />
         {/* <Route
           path="/admin/protocolos"
           element={access.isAdminSistema ? <ProtocolosAdmin /> : <Navigate to="/dashboard" replace />}
@@ -203,6 +210,7 @@ export default function App() {
         />
         <Route path="/operacion" element={canUseOperacionBodega ? <OperacionLayout /> : <Navigate to="/ordenes" replace />}>
           <Route path="tareas" element={<Navigate to="/ordenes" replace />} />
+          <Route path="registro" element={<RegistroActividadPage />} />
           <Route path="recepcion" element={<IngresoUvaFlowPage />} />
           <Route path="ciu-qc" element={<Navigate to="/operacion/recepcion?paso=ciu" replace />} />
           <Route path="vasijas" element={<VasijasProcesoPage />} />

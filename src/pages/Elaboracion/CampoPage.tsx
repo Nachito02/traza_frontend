@@ -20,14 +20,15 @@ import {
   AppInput,
   AppModal,
   AppSelect,
-  AppTextarea,
   MetricCard,
   NoticeBanner,
   SectionIntro,
   useAppNotifications,
 } from "../../components/ui";
 import { EVENTO_CONFIG, type EventoConfig } from "../Trazabilidad/eventoConfig";
+import { Link } from "react-router-dom";
 import CostosActividadPanel from "../Costos/CostosActividadPanel";
+import EventoFields from "../Tareas/components/EventoFields";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -737,64 +738,8 @@ function TareaDetalleModal({
               Registrar avance{eventoConfig ? ` — ${eventoConfig.label}` : ""}
             </p>
 
-            {eventoConfig ? (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {eventoConfig.fields
-                  .filter((field) => field.type !== "user_select")
-                  .filter((field) => !field.showWhen || draft[field.showWhen.field] === field.showWhen.value)
-                  .map((field) => {
-                    const value = draft[field.name] ?? field.defaultValue ?? "";
-                    if (field.type === "textarea") {
-                      return (
-                        <div key={field.name} className="sm:col-span-2">
-                          <AppTextarea
-                            label={field.label}
-                            value={value}
-                            onChange={(e) => setDraftField(field.name, e.target.value)}
-                            placeholder={field.placeholder}
-                            uiSize="lg"
-                          />
-                        </div>
-                      );
-                    }
-                    if (field.type === "select" && field.options) {
-                      return (
-                        <AppSelect
-                          key={field.name}
-                          label={field.label}
-                          value={value}
-                          onChange={(e) => setDraftField(field.name, e.target.value)}
-                        >
-                          <option value="">Seleccionar...</option>
-                          {field.options.map((opt) => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                          ))}
-                        </AppSelect>
-                      );
-                    }
-                    return (
-                      <AppInput
-                        key={field.name}
-                        label={`${field.label}${field.required ? " *" : ""}`}
-                        type={field.type === "date" ? "date" : field.type === "number" ? "number" : "text"}
-                        value={value}
-                        onChange={(e) => setDraftField(field.name, e.target.value)}
-                        placeholder={field.placeholder}
-                        step={field.step}
-                        uiSize="lg"
-                      />
-                    );
-                  })}
-              </div>
-            ) : (
-              <AppTextarea
-                label="Notas del registro"
-                value={draft["_notas"] ?? ""}
-                onChange={(e) => setDraftField("_notas", e.target.value)}
-                placeholder="Describí qué se hizo, mediciones, observaciones..."
-                uiSize="lg"
-              />
-            )}
+            <EventoFields eventoConfig={eventoConfig} draft={draft} onChange={setDraftField} />
+
 
             {/* ── Adjuntos picker ─────────────────────────────────────── */}
             <div>
@@ -1121,11 +1066,18 @@ export default function CampoPage({ standalone = false }: { standalone?: boolean
   const content = (
     <div className="space-y-6">
       <AppCard as="section" tone="default" padding="lg">
-        <SectionIntro
-          eyebrow="Operaciones de campo"
-          title="Actividad por finca"
-          description="Tareas registradas en las fincas vinculadas a esta bodega. Hacé click en una tarea para ver el detalle y registrar avances."
-        />
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <SectionIntro
+            eyebrow="Operaciones de campo"
+            title="Actividad por finca"
+            description="Tareas registradas en las fincas vinculadas a esta bodega. Hacé click en una tarea para ver el detalle y registrar avances."
+          />
+          {!standalone && (
+            <Link to="/operacion/registro" className="shrink-0">
+              <AppButton variant="primary">+ Registrar actividad</AppButton>
+            </Link>
+          )}
+        </div>
 
         {tareasDeCampo.length > 0 && (
           <div className="mt-5 grid gap-4 md:grid-cols-4">
@@ -1200,6 +1152,11 @@ export default function CampoPage({ standalone = false }: { standalone?: boolean
             .map((grupo) => {
               const tareasFiltradas = grupo.tareas
                 .filter((t) => {
+                  // Las canceladas no son trabajo de campo activo: no aparecen
+                  // en "pendientes" (se gestionan/eliminan desde Órdenes).
+                  if (statusFilter === "pendientes" && normalizeEstado(t.estado) === "cancelado") {
+                    return false;
+                  }
                   if (statusFilter !== "todos") {
                     const completada = normalizeEstado(t.estado) === "completado";
                     if (statusFilter === "completadas" ? !completada : completada) return false;

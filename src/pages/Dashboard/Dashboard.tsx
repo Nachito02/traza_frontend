@@ -281,20 +281,29 @@ const Dashboard = () => {
             {/* ── Tiles de acción principales ─────────────────────── */}
             <div className={[
               "grid gap-4",
-              access.canAccessOperacion ? "md:grid-cols-2" : "md:grid-cols-1 max-w-lg",
+              access.canAccessOperacion ? "md:grid-cols-3" : "md:grid-cols-1 max-w-lg",
             ].join(" ")}>
+              {access.canAccessOperacion ? (
+                <ActionTile
+                  to="/operacion/registro"
+                  icon={<ClipboardPenLine className="h-5 w-5" />}
+                  title="Registrar actividad"
+                  description="Cargá una labor o tarea de campo con su personal, insumos y costos en un solo paso."
+                  accent
+                />
+              ) : null}
               <ActionTile
                 to={dailyOrdersPath}
                 icon={<ListTodo className="h-5 w-5" />}
                 title="Órdenes de trabajo"
                 description="Creá, asigná y completá órdenes operativas. Centro diario de trabajo del equipo."
                 badge={loading ? "…" : tareasCount > 0 ? `${tareasCount} pendiente${tareasCount !== 1 ? "s" : ""}` : "Al día"}
-                accent
+                accent={!access.canAccessOperacion}
               />
               {access.canAccessOperacion ? (
                 <ActionTile
                   to="/operacion"
-                  icon={<ClipboardPenLine className="h-5 w-5" />}
+                  icon={<Warehouse className="h-5 w-5" />}
                   title="Registro operativo"
                   description="Ingresá recepción de uva, operaciones de vasija, cortes y fraccionamiento."
                 />

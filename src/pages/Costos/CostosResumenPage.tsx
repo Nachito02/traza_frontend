@@ -13,6 +13,7 @@ import { fetchCuartelesByFinca, type Cuartel } from "../../features/cuarteles/ap
 import { fetchCampanias, type Campania } from "../../features/campanias/api";
 import {
   fetchActividadesPorCuartel,
+  fetchResumenPorBodega,
   fetchResumenPorCampania,
   fetchResumenPorCuartel,
   formatMoney,
@@ -22,7 +23,7 @@ import {
   type ResumenCostos,
 } from "../../features/costos/api";
 
-type Modo = "cuartel" | "campania";
+type Modo = "bodega" | "cuartel" | "campania";
 
 const CATEGORIAS: CategoriaCosto[] = [
   "mano_obra",
@@ -65,7 +66,7 @@ export default function CostosResumenPage() {
   const fincas = useFincasStore((state) => state.fincas);
   const loadFincas = useFincasStore((state) => state.loadFincas);
 
-  const [modo, setModo] = useState<Modo>("cuartel");
+  const [modo, setModo] = useState<Modo>("bodega");
   const [fincaId, setFincaId] = useState("");
   const [cuarteles, setCuarteles] = useState<Cuartel[]>([]);
   const [cuartelId, setCuartelId] = useState("");
@@ -115,28 +116,51 @@ export default function CostosResumenPage() {
     }
   }, []);
 
-  const loadResumenCampania = useCallback(async (cid: string) => {
+  const loadResumenBodega = useCallback(async (bid: string) => {
     setLoading(true);
     setError(null);
     try {
-      const r = await fetchResumenPorCampania(cid);
-      setResumen(r);
-      setActividades([]);
+      const r = await fetchResumenPorBodega(bid);
+      setResumen({ total: r.total, porCategoria: r.porCategoria, costoPorHa: r.costoPorHa, actividades: r.actividades.length });
+      setActividades(r.actividades);
     } catch (e) {
       setError(getApiErrorMessage(e));
       setResumen(null);
+      setActividades([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadResumenCampania = useCallback(async (cid: string, bid: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      // La campaña agrega a nivel bodega; las actividades (con finca/cuartel)
+      // se traen de la bodega para saber de dónde es cada gasto.
+      const [r, bod] = await Promise.all([fetchResumenPorCampania(cid), fetchResumenPorBodega(bid)]);
+      setResumen(r);
+      setActividades(bod.actividades);
+    } catch (e) {
+      setError(getApiErrorMessage(e));
+      setResumen(null);
+      setActividades([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    if (modo === "bodega" && bodegaId) void loadResumenBodega(String(bodegaId));
+  }, [modo, bodegaId, loadResumenBodega]);
+
+  useEffect(() => {
     if (modo === "cuartel" && cuartelId) void loadResumenCuartel(cuartelId);
   }, [modo, cuartelId, loadResumenCuartel]);
 
   useEffect(() => {
-    if (modo === "campania" && campaniaId) void loadResumenCampania(campaniaId);
-  }, [modo, campaniaId, loadResumenCampania]);
+    if (modo === "campania" && campaniaId && bodegaId) void loadResumenCampania(campaniaId, String(bodegaId));
+  }, [modo, campaniaId, bodegaId, loadResumenCampania]);
 
   const fincaOptions = useMemo(
     () => fincas.filter((f) => f.finca_id).map((f) => ({ id: f.finca_id!, label: f.nombre_finca ?? f.finca_id! })),
@@ -145,27 +169,31 @@ export default function CostosResumenPage() {
 
   if (!bodegaId) {
     return (
-      <div className="space-y-4">
-        <SectionIntro title="Costos" />
-        <NoticeBanner tone="warning">Seleccioná una bodega para ver los costos.</NoticeBanner>
+      <div className="min-h-screen bg-secondary px-6 py-10">
+        <div className="mx-auto w-full max-w-6xl space-y-4">
+          <SectionIntro title="Costos" />
+          <NoticeBanner tone="warning">Seleccioná una bodega para ver los costos.</NoticeBanner>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-secondary px-6 py-10">
+      <div className="mx-auto w-full max-w-6xl space-y-6">
       <SectionIntro
         eyebrow="Costos"
         title="Resumen de costos"
-        description="Costos acumulados por cuartel o por campaña, con desglose por categoría y costo por hectárea."
+        description="Por defecto ves las actividades recientes de la bodega con su finca y cuartel. Filtrá por cuartel o campaña si querés acotar."
       />
 
       {/* Selector de modo + entidad */}
       <AppCard padding="md">
         <div className="grid gap-3 md:grid-cols-3">
-          <AppSelect label="Agrupar por" value={modo} onChange={(e) => setModo(e.target.value as Modo)}>
-            <option value="cuartel">Cuartel</option>
-            <option value="campania">Campaña</option>
+          <AppSelect label="Ver" value={modo} onChange={(e) => setModo(e.target.value as Modo)}>
+            <option value="bodega">Bodega (recientes)</option>
+            <option value="cuartel">Por cuartel</option>
+            <option value="campania">Por campaña</option>
           </AppSelect>
 
           {modo === "cuartel" ? (
@@ -185,7 +213,7 @@ export default function CostosResumenPage() {
                 ))}
               </AppSelect>
             </>
-          ) : (
+          ) : modo === "campania" ? (
             <AppSelect label="Campaña" value={campaniaId} onChange={(e) => setCampaniaId(e.target.value)}>
               <option value="">Seleccionar…</option>
               {campanias.filter((c) => c.campania_id ?? c.id).map((c) => (
@@ -194,7 +222,7 @@ export default function CostosResumenPage() {
                 </option>
               ))}
             </AppSelect>
-          )}
+          ) : null}
         </div>
       </AppCard>
 
@@ -216,16 +244,17 @@ export default function CostosResumenPage() {
             <CategoriaBreakdown resumen={resumen} />
           </AppCard>
 
-          {modo === "cuartel" && actividades.length > 0 ? (
-            <AppCard header={<h3 className="text-base font-semibold">Actividades del cuartel</h3>}>
+          {actividades.length > 0 ? (
+            <AppCard header={<h3 className="text-base font-semibold">Actividades{modo === "bodega" ? " recientes" : ""}</h3>}>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs uppercase tracking-wide text-[color:var(--text-ink-muted)]">
                       <th className="py-2 pr-3">Actividad</th>
+                      <th className="py-2 pr-3">Finca</th>
+                      <th className="py-2 pr-3">Cuartel</th>
                       <th className="py-2 pr-3">Estado</th>
                       <th className="py-2 pr-3">Fecha</th>
-                      <th className="py-2 pr-3 text-right">Sup. (ha)</th>
                       <th className="py-2 pr-3 text-right">$/ha</th>
                       <th className="py-2 text-right">Total</th>
                     </tr>
@@ -234,9 +263,10 @@ export default function CostosResumenPage() {
                     {actividades.map((a) => (
                       <tr key={a.tareaId} className="border-t border-[color:var(--border-shell)]">
                         <td className="py-2 pr-3">{a.actividad ?? a.titulo}</td>
+                        <td className="py-2 pr-3">{a.finca ?? "—"}</td>
+                        <td className="py-2 pr-3">{a.cuartel ?? "—"}</td>
                         <td className="py-2 pr-3 capitalize">{a.estado}</td>
                         <td className="py-2 pr-3">{new Date(a.fecha).toLocaleDateString("es-AR")}</td>
-                        <td className="py-2 pr-3 text-right">{a.superficie ?? "—"}</td>
                         <td className="py-2 pr-3 text-right">
                           {a.costoPorHa != null ? formatMoney(a.costoPorHa) : "—"}
                         </td>
@@ -256,6 +286,7 @@ export default function CostosResumenPage() {
           ) : null}
         </>
       ) : null}
+      </div>
     </div>
   );
 }

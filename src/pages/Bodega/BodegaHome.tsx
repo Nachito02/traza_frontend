@@ -33,18 +33,18 @@ const RESOURCES = [
     enabled: true,
   },
   {
-    title: "Personal",
-    description: "Gestión del personal operativo y administrativo vinculado a la bodega.",
-    to: "",
-    action: "Próximamente",
-    enabled: false,
-  },
-  {
     title: "Costos",
     description: "Seguimiento de costos operativos, insumos y estructura económica de la bodega.",
-    to: "",
-    action: "Próximamente",
-    enabled: false,
+    to: "/costos",
+    action: "Ver costos",
+    enabled: true,
+  },
+  {
+    title: "Personal",
+    description: "Legajo de costos del personal: sueldo o costo por hora, interno/externo y rol.",
+    to: "/personal",
+    action: "Administrar personal",
+    enabled: true,
   },
   {
     title: "Normas habilitadas en bodega",

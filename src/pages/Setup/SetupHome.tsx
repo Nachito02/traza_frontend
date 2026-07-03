@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   AppCard,
@@ -9,6 +9,7 @@ import {
 import { useFincasStore } from "../../features/fincas/store";
 import { useAuthStore } from "../../store/authStore";
 import { useDashboardData } from "../Dashboard/useDashboardData";
+import { fetchTarifasMaquinaria } from "../../features/costos/api";
 
 const steps = [
   {
@@ -27,6 +28,16 @@ const steps = [
     to: "/setup/cuarteles",
   },
   {
+    title: "Tarifas de costos",
+    description: "Precios de mano de obra, máquinas y combustible.",
+    to: "/admin/tarifas",
+  },
+  {
+    title: "Insumos",
+    description: "Catálogo de insumos y sus precios.",
+    to: "/admin/insumos",
+  },
+  {
     title: "Ir a operación",
     description: "Entrar al trabajo diario de tareas, recepción y seguimiento.",
     to: "/ordenes",
@@ -38,11 +49,24 @@ const SetupHome = () => {
   const fincas = useFincasStore((state) => state.fincas);
   const loadFincas = useFincasStore((state) => state.loadFincas);
   const { cuartelesCount, vasijasCount, campanias } = useDashboardData(activeBodegaId, fincas);
+  const [hasTarifas, setHasTarifas] = useState(false);
 
   useEffect(() => {
     if (!activeBodegaId) return;
     void loadFincas(activeBodegaId);
   }, [activeBodegaId, loadFincas]);
+
+  useEffect(() => {
+    if (!activeBodegaId) {
+      setHasTarifas(false);
+      return;
+    }
+    let mounted = true;
+    fetchTarifasMaquinaria(activeBodegaId)
+      .then((rows) => { if (mounted) setHasTarifas(rows.length > 0); })
+      .catch(() => { if (mounted) setHasTarifas(false); });
+    return () => { mounted = false; };
+  }, [activeBodegaId]);
 
   const readinessSteps = useMemo<OperationalReadinessStep[]>(() => {
     const hasBodega = Boolean(activeBodegaId);
@@ -96,8 +120,17 @@ const SetupHome = () => {
         done: hasVasijas,
         disabled: !hasBodega,
       },
+      {
+        key: "tarifas",
+        title: "Tarifas y costos",
+        description: "Cargá los precios de mano de obra, máquinas y combustible para costear las actividades.",
+        actionLabel: "Configurar tarifas",
+        to: "/admin/tarifas",
+        done: hasTarifas,
+        disabled: !hasBodega,
+      },
     ];
-  }, [activeBodegaId, campanias, cuartelesCount, fincas.length, vasijasCount]);
+  }, [activeBodegaId, campanias, cuartelesCount, fincas.length, vasijasCount, hasTarifas]);
 
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">

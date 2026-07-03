@@ -6,9 +6,13 @@ import { useAuthStore } from "../../../store/authStore";
 import {
   fetchTareaAsignacionDetail,
   patchTareaEntrada,
+  validarTarea,
+  eliminarTareaDefinitivo,
   type Tarea,
   type TareaEntradaDetail,
 } from "../../../features/encargos/api";
+import { useAppNotifications } from "../../../components/ui";
+import { getApiErrorMessage } from "../../../lib/api";
 import { OPERACION_TASK_ROUTES } from "../tareas.constants";
 import { getMatchedCatalogTaskId, normalizeTaskStatus } from "../tareas.helpers";
 import { EVENTO_CONFIG, type EventoConfig } from "../../Trazabilidad/eventoConfig";
@@ -484,8 +488,43 @@ type TaskDetailModalProps = {
   onCompleted?: () => void;
 };
 
-export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, onDelete }: TaskDetailModalProps) {
+export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, onDelete, onCompleted }: TaskDetailModalProps) {
   const [entradas, setEntradas] = useState<TareaEntradaDetail[] | null>(null);
+  const [validando, setValidando] = useState(false);
+  const [eliminando, setEliminando] = useState(false);
+  const { notifySuccess, notifyError } = useAppNotifications();
+
+  const handleEliminar = async () => {
+    const id = String(task?.tarea_id ?? task?.id ?? "");
+    if (!id) return;
+    setEliminando(true);
+    try {
+      await eliminarTareaDefinitivo(id);
+      notifySuccess({ title: "Orden eliminada" });
+      onCompleted?.();
+      onClose();
+    } catch (e) {
+      notifyError({ title: "No se pudo eliminar", message: getApiErrorMessage(e) });
+    } finally {
+      setEliminando(false);
+    }
+  };
+
+  const handleValidar = async () => {
+    const id = String(task?.tarea_id ?? task?.id ?? "");
+    if (!id) return;
+    setValidando(true);
+    try {
+      await validarTarea(id);
+      notifySuccess({ title: "Tarea validada" });
+      onCompleted?.();
+      onClose();
+    } catch (e) {
+      notifyError({ title: "No se pudo validar", message: getApiErrorMessage(e) });
+    } finally {
+      setValidando(false);
+    }
+  };
 
   const handleEntradaUpdated = (updated: TareaEntradaDetail) => {
     setEntradas((prev) =>
@@ -704,7 +743,30 @@ export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, 
             {isFincaTask ? "Ir a Operación Campo →" : "Ir a Registro Operativo →"}
           </Link>
           <div className="flex flex-wrap gap-2">
-            {canDelete && (
+            {normalizeTaskStatus(effectiveEstado) === "completado" && access.canAccessBodega && (
+              <AppButton
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() => void handleValidar()}
+                disabled={validando}
+                loading={validando}
+              >
+                {validando ? "Validando…" : "Validar"}
+              </AppButton>
+            )}
+            {normalizeTaskStatus(effectiveEstado) === "cancelado" && access.canAccessBodega ? (
+              <AppButton
+                type="button"
+                variant="danger"
+                size="sm"
+                onClick={() => void handleEliminar()}
+                disabled={eliminando}
+                loading={eliminando}
+              >
+                {eliminando ? "Eliminando…" : "Eliminar definitivamente"}
+              </AppButton>
+            ) : canDelete ? (
               <AppButton
                 type="button"
                 variant="danger"
@@ -715,7 +777,7 @@ export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, 
               >
                 {isDeleting ? "Eliminando…" : "Eliminar orden"}
               </AppButton>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

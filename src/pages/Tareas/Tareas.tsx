@@ -21,7 +21,7 @@ type TareasProps = {
 };
 
 type SortDir = "desc" | "asc";
-type StatusFilter = "todos" | "pendientes" | "completadas";
+type StatusFilter = "todos" | "pendientes" | "completadas" | "canceladas";
 
 // Fecha relevante para ordenar: completada → fecha de completado; si no, fecha límite; si no, creación
 function taskSortTime(task: Tarea): number {
@@ -43,6 +43,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
     setForm,
     tasks,
     completedTasks,
+    cancelledTasks,
     loading,
     completedLoading,
     saving,
@@ -84,7 +85,9 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
         ? tasks
         : statusFilter === "completadas"
           ? completedTasks
-          : [...tasks, ...completedTasks];
+          : statusFilter === "canceladas"
+            ? cancelledTasks
+            : [...tasks, ...completedTasks, ...cancelledTasks];
     return base
       .slice()
       .sort((a, b) =>
@@ -92,7 +95,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
           ? taskSortTime(b) - taskSortTime(a)
           : taskSortTime(a) - taskSortTime(b),
       );
-  }, [statusFilter, sortDir, tasks, completedTasks]);
+  }, [statusFilter, sortDir, tasks, completedTasks, cancelledTasks]);
 
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
@@ -172,6 +175,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                       <option value="todos">Todas</option>
                       <option value="pendientes">Pendientes</option>
                       <option value="completadas">Completadas</option>
+                      <option value="canceladas">Canceladas</option>
                     </AppSelect>
                   </div>
                 </div>

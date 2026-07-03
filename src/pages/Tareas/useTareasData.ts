@@ -90,6 +90,7 @@ export type UseTareasDataReturn = {
   // Tareas
   tasks: Tarea[];
   completedTasks: Tarea[];
+  cancelledTasks: Tarea[];
   loading: boolean;
   completedLoading: boolean;
   saving: boolean;
@@ -145,6 +146,7 @@ export function useTareasData(mode: "manager" | "operator"): UseTareasDataReturn
   const [operariosCampo, setOperariosCampo] = useState<Awaited<ReturnType<typeof fetchOperariosByBodega>>>([]);
   const [tasks, setTasks] = useState<Tarea[]>([]);
   const [completedTasks, setCompletedTasks] = useState<Tarea[]>([]);
+  const [cancelledTasks, setCancelledTasks] = useState<Tarea[]>([]);
   const [protocoloTaskOptions, setProtocoloTaskOptions] = useState<ProtocoloTaskOption[]>([]);
   const [canManageTasks, setCanManageTasks] = useState(false);
   const [forceMineMode, setForceMineMode] = useState(true);
@@ -268,7 +270,8 @@ export function useTareasData(mode: "manager" | "operator"): UseTareasDataReturn
     setCompletedLoading(true);
     try {
       const data = await fetchTareasByBodega(String(activeBodegaId));
-      const completed = dedupeTasksById(data ?? [])
+      const deduped = dedupeTasksById(data ?? []);
+      const completed = deduped
         .filter(isCompletedTask)
         .sort((a, b) => {
           const aDate = getTaskCompletedDate(a)?.getTime() ?? 0;
@@ -276,8 +279,10 @@ export function useTareasData(mode: "manager" | "operator"): UseTareasDataReturn
           return bDate - aDate;
         });
       setCompletedTasks(completed);
+      setCancelledTasks(deduped.filter((t) => String(t.estado ?? "").toLowerCase() === "cancelado"));
     } catch {
       setCompletedTasks([]);
+      setCancelledTasks([]);
     } finally {
       setCompletedLoading(false);
     }
@@ -698,6 +703,7 @@ export function useTareasData(mode: "manager" | "operator"): UseTareasDataReturn
     setForm,
     tasks,
     completedTasks,
+    cancelledTasks,
     loading,
     completedLoading,
     saving,

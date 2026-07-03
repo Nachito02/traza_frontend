@@ -92,6 +92,12 @@ export async function deleteTarea(tareaId: string) {
   return response.data;
 }
 
+/** Borrado definitivo de una orden cancelada. */
+export async function eliminarTareaDefinitivo(tareaId: string) {
+  const response = await apiClient.delete(`/tareas/${encodeURIComponent(tareaId)}`);
+  return response.data;
+}
+
 export async function completarTarea(tareaId: string) {
   const response = await apiClient.patch(`/tareas/${encodeURIComponent(tareaId)}/completar`);
   return response.data;
@@ -123,6 +129,50 @@ export async function createTarea(payload: CreateTareaPayload) {
     assigneeUserIds: payload.operarioUserId ? [payload.operarioUserId] : undefined,
   });
   return response.data;
+}
+
+export type RegistrarActividadPayload = {
+  bodegaId: string;
+  procesoId: string;
+  fincaId?: string;
+  cuartelId?: string;
+  /** Campos de la actividad serializados (JSON), igual que el registro operativo. */
+  descripcion?: string;
+  /** Costos opcionales, para crear actividad + costos en un solo paso. */
+  ejecucion?: Record<string, unknown>;
+  maquinas?: Record<string, unknown>[];
+  insumos?: Record<string, unknown>[];
+  contratistas?: Record<string, unknown>[];
+};
+
+export type RegistrarActividadResult = {
+  tareaId: string;
+  asignacionId: string;
+  entradaId: string;
+};
+
+/**
+ * Carga rápida: crea una actividad ya completada (auto-asignada al usuario) en
+ * una sola llamada, junto con sus costos (ejecución, máquinas, insumos, contratistas).
+ */
+export async function registrarActividad(payload: RegistrarActividadPayload) {
+  const response = await apiClient.post<RegistrarActividadResult>("/tareas/registro", {
+    bodegaId: payload.bodegaId,
+    procesoId: payload.procesoId,
+    fincaId: payload.fincaId,
+    cuartelId: payload.cuartelId,
+    descripcion: payload.descripcion ?? null,
+    ...(payload.ejecucion ? { ejecucion: payload.ejecucion } : {}),
+    ...(payload.maquinas ? { maquinas: payload.maquinas } : {}),
+    ...(payload.insumos ? { insumos: payload.insumos } : {}),
+    ...(payload.contratistas ? { contratistas: payload.contratistas } : {}),
+  });
+  return response.data;
+}
+
+export async function validarTarea(tareaId: string) {
+  const { data } = await apiClient.patch(`/tareas/${encodeURIComponent(tareaId)}/validar`);
+  return data;
 }
 
 export async function assignTareaToUser(tareaId: string, userId: string) {

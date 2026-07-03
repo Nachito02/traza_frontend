@@ -11,6 +11,8 @@ import {
   Settings2,
   QrCode,
   Coins,
+  ClipboardPlus,
+  Boxes,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
@@ -63,6 +65,12 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
         ...(access.canAccessOperacionBodega
           ? [
               {
+                to: "/operacion/registro",
+                label: "Registrar actividad",
+                description: "Carga rápida sin orden",
+                icon: <ClipboardPlus />,
+              },
+              {
                 to: "/operacion/campo",
                 label: "Registro operativo",
                 description: "Campo y elaboración",
@@ -93,6 +101,12 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
                 label: "Costos",
                 description: "Por cuartel y campaña",
                 icon: <Coins />,
+              },
+              {
+                to: "/inventario",
+                label: "Inventario",
+                description: "Stock y existencias",
+                icon: <Boxes />,
               },
             ]
           : []),
@@ -156,6 +170,18 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
                 description: "Mano de obra, máquinas, combustible",
                 icon: <Coins />,
               },
+              {
+                to: "/admin/insumos",
+                label: "Insumos",
+                description: "Catálogo y precios",
+                icon: <Boxes />,
+              },
+              {
+                to: "/personal",
+                label: "Personal",
+                description: "Legajo de costos",
+                icon: <Users />,
+              },
             ]
           : []),
         // ...(access.isAdminSistema
@@ -192,13 +218,25 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
                 {group.label}
               </p>
             </div>
-            {group.links.map((link) => (
+            {group.links.map((link) => {
+              // Un item con matchPrefix no debe marcarse activo si la ruta actual
+              // coincide exactamente con otro item del mismo grupo (p. ej.
+              // "Registro operativo" /operacion/ vs "Registrar actividad" /operacion/registro).
+              const otherExactMatch = group.links.some(
+                (other) => other.to !== link.to && other.to === location.pathname,
+              );
+              const prefixActive = Boolean(
+                link.matchPrefix &&
+                  location.pathname.startsWith(link.matchPrefix) &&
+                  !otherExactMatch,
+              );
+              return (
               <NavLink
                 key={link.to}
                 to={link.to}
                 onClick={onNavigate}
                 className={({ isActive }) => {
-                  const active = isActive || (link.matchPrefix ? location.pathname.startsWith(link.matchPrefix) : false);
+                  const active = isActive || prefixActive;
                   return [
                     "group block rounded-[var(--radius-lg)] border px-3 py-3 text-sm transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)]",
                     active
@@ -208,7 +246,7 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
                 }}
               >
                 {({ isActive }) => {
-                  const active = isActive || (link.matchPrefix ? location.pathname.startsWith(link.matchPrefix) : false);
+                  const active = isActive || prefixActive;
                   return (
                     <div className="flex items-center gap-3">
                       <span
@@ -239,7 +277,8 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
                   );
                 }}
               </NavLink>
-            ))}
+              );
+            })}
           </section>
         ))}
       </nav>

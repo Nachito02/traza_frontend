@@ -68,9 +68,14 @@ export type TareaEjecucion = {
   tarea_ejecucion_id: string;
   tarea_id: string;
   modalidad: ModalidadEjecucion;
+  fecha_inicio: string | null;
+  fecha_fin: string | null;
   superficie_intervenida: string;
   unidad_superficie: string;
   pct_intervenido: string | null;
+  cantidad_ejecutada: string | null;
+  unidad_ejecutada: string | null;
+  cantidad_operarios: number | null;
   jornales_generales: string | null;
   horas_generales: string | null;
   jornales_tractorista: string | null;
@@ -78,7 +83,20 @@ export type TareaEjecucion = {
   horas_tecnico: string | null;
   contratista: string | null;
   monto_contratista: string | null;
+  responsable_user_id: string | null;
+  responsable?: { user_id: string; nombre: string } | null;
+  personal_asignado: { personal_id: string; nombre: string; horas?: number | null }[];
   observaciones: string | null;
+};
+
+export type ActividadSugerencia = {
+  actividad_sugerencia_id: string;
+  clave: string;
+  nombre: string;
+  productividad_unidad: string | null;
+  productividad_label: string | null;
+  equipos_sugeridos: string[];
+  insumos_sugeridos: string[];
 };
 
 export type ActividadMaquina = {
@@ -88,6 +106,7 @@ export type ActividadMaquina = {
   nombre: string;
   clase: ClaseMaquinaria;
   propia: boolean;
+  cantidad: number | null;
   horas: string;
   consumo_combustible_lts: string | null;
   costo_hora_snapshot: string | null;
@@ -107,6 +126,16 @@ export type ActividadInsumo = {
   costo_total: string | null;
 };
 
+export type ActividadContratista = {
+  actividad_contratista_id: string;
+  tarea_id: string;
+  cuadrilla: string;
+  cantidad_operarios: number | null;
+  horas: string | null;
+  jornales: string | null;
+  monto: string;
+};
+
 export type ActividadCosto = {
   actividad_costo_id: string;
   tarea_id: string;
@@ -121,6 +150,7 @@ export type CostosTarea = {
   ejecucion: TareaEjecucion | null;
   maquinas: ActividadMaquina[];
   insumos: ActividadInsumo[];
+  contratistas: ActividadContratista[];
   costos: ActividadCosto[];
   total: number;
   costoPorHa: number | null;
@@ -227,6 +257,17 @@ export async function fetchInsumosCatalogo(bodegaId?: string | number) {
   return data;
 }
 
+export async function fetchSugerencias() {
+  const { data } = await apiClient.get<ActividadSugerencia[]>("/costos/actividades/sugerencias");
+  return data;
+}
+export async function fetchSugerencia(clave: string) {
+  const { data } = await apiClient.get<ActividadSugerencia | null>(
+    `/costos/actividades/${encodeURIComponent(clave)}/sugerencias`,
+  );
+  return data;
+}
+
 // ── Captura por actividad ─────────────────────────────────────────────────────
 
 export async function fetchCostosTarea(tareaId: string) {
@@ -238,15 +279,20 @@ export async function putEjecucion(
   tareaId: string,
   payload: {
     modalidad: ModalidadEjecucion;
+    fecha_inicio?: string | null;
+    fecha_fin?: string | null;
     superficie_intervenida: number;
     unidad_superficie?: string;
+    cantidad_ejecutada?: number | null;
+    unidad_ejecutada?: string | null;
+    cantidad_operarios?: number | null;
     jornales_generales?: number | null;
     horas_generales?: number | null;
     jornales_tractorista?: number | null;
     horas_tractorista?: number | null;
     horas_tecnico?: number | null;
-    contratista?: string | null;
-    monto_contratista?: number | null;
+    responsable_user_id?: string | null;
+    personal_asignado?: { personal_id: string; nombre: string; horas?: number | null }[];
     observaciones?: string | null;
   },
 ) {
@@ -261,6 +307,7 @@ export async function addMaquina(
     nombre?: string;
     clase: ClaseMaquinaria;
     propia?: boolean;
+    cantidad?: number | null;
     horas: number;
     consumo_combustible_lts?: number | null;
   },
@@ -290,6 +337,26 @@ export async function deleteInsumo(id: string) {
   await apiClient.delete(`/costos/insumos/${id}`);
 }
 
+export async function addContratista(
+  tareaId: string,
+  payload: {
+    cuadrilla: string;
+    cantidad_operarios?: number | null;
+    horas?: number | null;
+    jornales?: number | null;
+    monto: number;
+  },
+) {
+  const { data } = await apiClient.post<ActividadContratista>(
+    `/costos/tareas/${tareaId}/contratistas`,
+    payload,
+  );
+  return data;
+}
+export async function deleteContratista(id: string) {
+  await apiClient.delete(`/costos/contratistas/${id}`);
+}
+
 export async function recalcularCostos(tareaId: string) {
   const { data } = await apiClient.post(`/costos/tareas/${tareaId}/recalcular`);
   return data;
@@ -308,6 +375,8 @@ export type ActividadConCosto = {
   estado: string;
   actividad: string | null;
   eventoTipo: string | null;
+  finca: string | null;
+  cuartel: string | null;
   fecha: string;
   superficie: number | null;
   total: number;
@@ -319,6 +388,13 @@ export async function fetchActividadesPorCuartel(cuartelId: string) {
   const { data } = await apiClient.get<ActividadConCosto[]>(
     `/costos/resumen/cuartel/${cuartelId}/actividades`,
   );
+  return data;
+}
+
+export type ResumenBodega = Omit<ResumenCostos, "actividades"> & { actividades: ActividadConCosto[] };
+
+export async function fetchResumenPorBodega(bodegaId: string | number) {
+  const { data } = await apiClient.get<ResumenBodega>(`/costos/resumen/bodega${q(bodegaId)}`);
   return data;
 }
 export async function fetchResumenPorCampania(campaniaId: string) {
