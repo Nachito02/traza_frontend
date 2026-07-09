@@ -480,6 +480,7 @@ function TareaDetalleModal({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened]);
 
+
   const setDraftField = (field: string, value: string) =>
     setDraft((prev) => ({ ...prev, [field]: value }));
 
@@ -810,6 +811,7 @@ function TareaDetalleModal({
             <CostosActividadPanel
               tareaId={tarea.tarea_id}
               bodegaId={tarea.bodega_id ?? modalBodegaId}
+              esFertilizacion={eventoConfig?.label === "Fertilización"}
             />
           </div>
         )}

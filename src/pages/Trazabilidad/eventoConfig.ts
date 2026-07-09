@@ -1,3 +1,5 @@
+import { ENFERMEDADES_VID, PLAGAS_VID } from "./vidReferencias";
+
 export type FieldType = "date" | "text" | "number" | "textarea" | "select" | "user_select";
 
 export type FieldDef = {
@@ -6,6 +8,7 @@ export type FieldDef = {
   type: FieldType;
   required?: boolean;
   step?: string;
+  min?: string;
   placeholder?: string;
   defaultValue?: string;
   options?: { value: string; label: string }[];
@@ -53,7 +56,7 @@ export const EVENTO_CONFIG: Record<string, EventoConfig> = {
     label: "Riego",
     fields: [
       { name: "fecha", label: "Fecha", type: "date", required: true },
-      { name: "volumen", label: "Volumen aplicado", type: "number", required: true, step: "0.01" },
+      { name: "volumen", label: "Volumen aplicado", type: "number", required: true, step: "0.01", min: "0" },
       {
         name: "unidad",
         label: "Unidad",
@@ -65,7 +68,7 @@ export const EVENTO_CONFIG: Record<string, EventoConfig> = {
           { value: "litros", label: "Litros" },
         ],
       },
-      { name: "tiempo_horas", label: "Tiempo de riego (horas)", type: "number", required: true, step: "0.01" },
+      { name: "tiempo_horas", label: "Tiempo de riego (horas)", type: "number", required: true, step: "0.01", min: "0" },
       {
         name: "sistema_riego",
         label: "Sistema de riego",
@@ -110,23 +113,12 @@ export const EVENTO_CONFIG: Record<string, EventoConfig> = {
     ],
   },
   fertilizacion: {
+    // El producto, la dosis y la cantidad del fertilizante se cargan en la
+    // sección "Insumos" (descuenta stock y registra el insumo). Acá quedan sólo
+    // los datos propios del evento que no son del insumo.
     label: "Fertilización",
     fields: [
       { name: "fecha", label: "Fecha", type: "date", required: true },
-      { name: "producto_fuente", label: "Producto / fuente nutricional", type: "text", required: true, placeholder: "Ej: Urea, Nitrato de calcio, Guano..." },
-      { name: "dosis", label: "Dosis", type: "number", required: true, step: "0.01" },
-      {
-        name: "unidad",
-        label: "Unidad",
-        type: "select",
-        required: true,
-        options: [
-          { value: "kg/ha", label: "kg/ha" },
-          { value: "l/ha", label: "l/ha" },
-          { value: "kg", label: "kg" },
-          { value: "litros", label: "Litros" },
-        ],
-      },
       {
         name: "metodo",
         label: "Método de aplicación",
@@ -219,7 +211,7 @@ export const EVENTO_CONFIG: Record<string, EventoConfig> = {
     label: "Monitoreo de enfermedad",
     fields: [
       { name: "fecha", label: "Fecha", type: "date", required: true },
-      { name: "enfermedad", label: "Enfermedad", type: "text", required: true },
+      { name: "enfermedad", label: "Enfermedad", type: "select", required: true, options: ENFERMEDADES_VID },
       { name: "incidencia", label: "Incidencia", type: "text" },
     ],
   },
@@ -227,7 +219,7 @@ export const EVENTO_CONFIG: Record<string, EventoConfig> = {
     label: "Monitoreo de plaga",
     fields: [
       { name: "fecha", label: "Fecha", type: "date", required: true },
-      { name: "plaga", label: "Plaga", type: "text", required: true },
+      { name: "plaga", label: "Plaga", type: "select", required: true, options: PLAGAS_VID },
       { name: "nivel", label: "Nivel", type: "text" },
     ],
   },

@@ -69,9 +69,17 @@ export default function EventoFields({ eventoConfig, draft, onChange }: Props) {
               label={`${field.label}${field.required ? " *" : ""}`}
               type={field.type === "date" ? "date" : field.type === "number" ? "number" : "text"}
               value={value}
-              onChange={(e) => onChange(field.name, e.target.value)}
+              onChange={(e) => {
+                let v = e.target.value;
+                // Respeta el mínimo (ej. no permitir negativos en volumen/tiempo de riego).
+                if (field.type === "number" && field.min !== undefined && v !== "" && Number(v) < Number(field.min)) {
+                  v = field.min;
+                }
+                onChange(field.name, v);
+              }}
               placeholder={field.placeholder}
               step={field.step}
+              min={field.min}
               uiSize="lg"
             />
           );

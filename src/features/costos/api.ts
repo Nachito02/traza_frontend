@@ -2,13 +2,6 @@ import { apiClient } from "../../lib/api";
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
-export type RolManoObra =
-  | "operario"
-  | "tractorista"
-  | "aplicador"
-  | "tecnico"
-  | "encargado"
-  | "contratista";
 export type ClaseMaquinaria = "motriz" | "implemento";
 export type TipoCombustible = "gasoil" | "nafta" | "electricidad" | "glp" | "otro";
 export type ModalidadEjecucion = "propia" | "contratada" | "mixta";
@@ -18,17 +11,6 @@ export type CategoriaCosto =
   | "combustible"
   | "insumos"
   | "contratista";
-
-export type TarifaManoObra = {
-  tarifa_mano_obra_id: string;
-  bodega_id: string;
-  rol: RolManoObra;
-  costo_jornal: string;
-  costo_hora: string | null;
-  moneda: string;
-  vigencia_desde: string;
-  activo: boolean;
-};
 
 export type TarifaMaquinaria = {
   tarifa_maquinaria_id: string;
@@ -85,18 +67,40 @@ export type TareaEjecucion = {
   monto_contratista: string | null;
   responsable_user_id: string | null;
   responsable?: { user_id: string; nombre: string } | null;
-  personal_asignado: { personal_id: string; nombre: string; horas?: number | null }[];
+  personal_asignado: PersonalAsignadoInput[];
   observaciones: string | null;
+};
+
+/**
+ * Persona asignada a la actividad. Puede ser un legajo registrado (`personal_id`)
+ * o un operario "transitorio" cargado al vuelo con su costo inline. Modalidad del
+ * transitorio: por_hora, mensual (deriva costo/hora) o al_tanto (monto fijo).
+ */
+export type PersonalAsignadoInput = {
+  personal_id?: string | null;
+  nombre: string;
+  tipo?: "interno" | "externo";
+  transitorio?: boolean;
+  modalidad?: "por_hora" | "mensual" | "al_tanto";
+  horas?: number | null;
+  costo_hora?: number | null;
+  sueldo_mensual?: number | null;
+  dias_mes?: number | null;
+  monto?: number | null;
 };
 
 export type ActividadSugerencia = {
   actividad_sugerencia_id: string;
   clave: string;
   nombre: string;
+  tipo: "manual" | "mecanizada" | null;
   productividad_unidad: string | null;
   productividad_label: string | null;
   equipos_sugeridos: string[];
   insumos_sugeridos: string[];
+  aplica_maquinaria: boolean;
+  aplica_combustible: boolean;
+  aplica_insumos: boolean;
 };
 
 export type ActividadMaquina = {
@@ -168,32 +172,6 @@ const q = (bodegaId?: string | number) =>
     ? `?bodegaId=${encodeURIComponent(String(bodegaId))}`
     : "";
 
-// ── Tarifas: mano de obra ─────────────────────────────────────────────────────
-
-export async function fetchTarifasManoObra(bodegaId: string | number) {
-  const { data } = await apiClient.get<TarifaManoObra[]>(`/costos/tarifas/mano-obra${q(bodegaId)}`);
-  return data;
-}
-export async function createTarifaManoObra(payload: {
-  bodegaId: string | number;
-  rol: RolManoObra;
-  costo_jornal: number;
-  costo_hora?: number | null;
-  vigencia_desde?: string;
-}) {
-  const { data } = await apiClient.post<TarifaManoObra>("/costos/tarifas/mano-obra", payload);
-  return data;
-}
-export async function patchTarifaManoObra(
-  id: string,
-  payload: Partial<{ costo_jornal: number; costo_hora: number | null; vigencia_desde: string; activo: boolean }>,
-) {
-  const { data } = await apiClient.patch<TarifaManoObra>(`/costos/tarifas/mano-obra/${id}`, payload);
-  return data;
-}
-export async function deleteTarifaManoObra(id: string) {
-  await apiClient.delete(`/costos/tarifas/mano-obra/${id}`);
-}
 
 // ── Tarifas: maquinaria ───────────────────────────────────────────────────────
 
@@ -292,7 +270,7 @@ export async function putEjecucion(
     horas_tractorista?: number | null;
     horas_tecnico?: number | null;
     responsable_user_id?: string | null;
-    personal_asignado?: { personal_id: string; nombre: string; horas?: number | null }[];
+    personal_asignado?: PersonalAsignadoInput[];
     observaciones?: string | null;
   },
 ) {

@@ -9,9 +9,13 @@ import {
   useAppNotifications,
 } from "../../components/ui";
 import { getApiErrorMessage } from "../../lib/api";
+import { nonNeg } from "../../lib/number";
 import { fetchOperariosByBodega, type Operario } from "../../features/operarios/api";
 import { fetchPersonal, type Personal } from "../../features/personal/api";
 import { fetchExistencias, type Existencia } from "../../features/inventario/api";
+import PersonalSection from "./PersonalSection";
+import { buildPersonalAsignado, payloadToTransitorio, type TransitorioDraft } from "./PersonalTransitorios";
+import InsumoPicker, { type AddInsumoLine } from "./InsumoPicker";
 import {
   addInsumo,
   addMaquina,
@@ -39,6 +43,8 @@ type Props = {
   bodegaId: string | number | null | undefined;
   /** Nombre de la actividad para precargar sugerencias (productividad, equipos, insumos). */
   actividadClave?: string;
+  /** En fertilización el insumo es el fertilizante: se resalta la sección Insumos. */
+  esFertilizacion?: boolean;
   /** Permite recargar la vista padre cuando cambian los costos. */
   onChanged?: () => void;
 };
@@ -55,7 +61,16 @@ function num(v: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-export default function CostosActividadPanel({ tareaId, bodegaId, actividadClave, onChanged }: Props) {
+/** Aviso para secciones de costo que normalmente no aplican a la labor. */
+function NoAplicaNota({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mb-3 rounded-[var(--radius-md)] border border-dashed border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-3 py-2 text-xs text-[color:var(--text-ink-muted)]">
+      {children} Podés cargarlo igual si esta vez se usó.
+    </p>
+  );
+}
+
+export default function CostosActividadPanel({ tareaId, bodegaId, actividadClave, esFertilizacion, onChanged }: Props) {
   const { notifySuccess, notifyError } = useAppNotifications();
   const [data, setData] = useState<CostosTarea | null>(null);
   const [tarifasMaq, setTarifasMaq] = useState<TarifaMaquinaria[]>([]);
@@ -75,6 +90,7 @@ export default function CostosActividadPanel({ tareaId, bodegaId, actividadClave
   const [responsableId, setResponsableId] = useState("");
   // Personal asignado con horas por operario: { user_id: "horas" }
   const [personal, setPersonal] = useState<Record<string, string>>({});
+  const [transitorios, setTransitorios] = useState<TransitorioDraft[]>([]);
   const [personalQuery, setPersonalQuery] = useState("");
   const [operarios, setOperarios] = useState<Operario[]>([]);
   const [personalList, setPersonalList] = useState<Personal[]>([]);
@@ -97,12 +113,6 @@ export default function CostosActividadPanel({ tareaId, bodegaId, actividadClave
   const [maqConsumo, setMaqConsumo] = useState("");
   const [addingMaq, setAddingMaq] = useState(false);
 
-  // Form: insumo
-  const [insId, setInsId] = useState("");
-  const [insDosis, setInsDosis] = useState("");
-  const [insUnidadDosis, setInsUnidadDosis] = useState("kg/ha");
-  const [insCantidad, setInsCantidad] = useState("");
-  const [addingIns, setAddingIns] = useState(false);
 
   const loadExistencias = useCallback(async () => {
     if (!bodegaId) return;
@@ -147,10 +157,16 @@ export default function CostosActividadPanel({ tareaId, bodegaId, actividadClave
         setUnidadEjec(e.unidad_ejecutada ?? "");
         setHorasGen(e.horas_generales ?? "");
         setResponsableId(e.responsable_user_id ?? "");
+        const asignado = e.personal_asignado ?? [];
         setPersonal(
           Object.fromEntries(
-            (e.personal_asignado ?? []).map((p) => [p.personal_id, p.horas != null ? String(p.horas) : ""]),
+            asignado
+              .filter((p) => p.personal_id)
+              .map((p) => [p.personal_id as string, p.horas != null ? String(p.horas) : ""]),
           ),
+        );
+        setTransitorios(
+          asignado.filter((p) => p.transitorio || !p.personal_id).map(payloadToTransitorio),
         );
         setObs(e.observaciones ?? "");
       }
@@ -176,6 +192,10 @@ export default function CostosActividadPanel({ tareaId, bodegaId, actividadClave
   }, [tareaId, onChanged]);
 
   const requiresContratista = modalidad === "contratada" || modalidad === "mixta";
+  // Secciones que la labor normalmente no usa (se atenúan, no se ocultan).
+  const aplicaMaquinaria = !sugerencia || sugerencia.aplica_maquinaria;
+  const aplicaCombustible = !sugerencia || sugerencia.aplica_combustible;
+  const aplicaInsumos = !sugerencia || sugerencia.aplica_insumos;
 
   const handleSaveEjecucion = async () => {
     const sup = num(superficie);
@@ -194,11 +214,7 @@ export default function CostosActividadPanel({ tareaId, bodegaId, actividadClave
         unidad_ejecutada: unidadEjec.trim() || null,
         horas_generales: num(horasGen),
         responsable_user_id: responsableId || null,
-        personal_asignado: Object.entries(personal).map(([id, horas]) => ({
-          personal_id: id,
-          nombre: personalList.find((p) => p.personal_bodega_id === id)?.nombre ?? "",
-          horas: horas.trim() ? Number(horas) : null,
-        })),
+        personal_asignado: buildPersonalAsignado(personal, personalList, transitorios),
         observaciones: obs.trim() || null,
       });
       notifySuccess({ title: "Ejecución guardada" });
@@ -254,35 +270,15 @@ export default function CostosActividadPanel({ tareaId, bodegaId, actividadClave
     }
   };
 
-  const handleAddInsumo = async () => {
-    const dosis = num(insDosis);
-    const cantidad = num(insCantidad);
-    if (!insId) {
-      notifyError({ title: "Elegí un insumo", message: "Seleccioná un insumo del catálogo." });
-      return;
-    }
-    if (!dosis || dosis <= 0 || !cantidad || cantidad <= 0) {
-      notifyError({ title: "Faltan datos", message: "Dosis por ha y cantidad total son obligatorias." });
-      return;
-    }
-    setAddingIns(true);
-    try {
-      await addInsumo(tareaId, {
-        insumo_id: insId,
-        dosis_ha: dosis,
-        unidad_dosis: insUnidadDosis.trim() || "kg/ha",
-        cantidad_total: cantidad,
-      });
-      setInsId("");
-      setInsDosis("");
-      setInsCantidad("");
-      notifySuccess({ title: "Insumo agregado" });
-      await Promise.all([refresh(), loadExistencias()]);
-    } catch (e) {
-      notifyError({ title: "Error", message: getApiErrorMessage(e) });
-    } finally {
-      setAddingIns(false);
-    }
+  const handleAddInsumo = async (line: AddInsumoLine) => {
+    await addInsumo(tareaId, {
+      insumo_id: line.insumo.insumo_id,
+      dosis_ha: line.dosis_ha,
+      unidad_dosis: line.unidad_dosis,
+      cantidad_total: line.cantidad_total,
+    });
+    notifySuccess({ title: "Insumo agregado" });
+    await Promise.all([refresh(), loadExistencias()]);
   };
 
   const handleDeleteInsumo = async (id: string) => {
@@ -429,10 +425,10 @@ export default function CostosActividadPanel({ tareaId, bodegaId, actividadClave
               <option key={m.value} value={m.value}>{m.label}</option>
             ))}
           </AppSelect>
-          <AppInput label="Superficie intervenida (ha)" type="number" value={superficie} onChange={(e) => setSuperficie(e.target.value)} />
+          <AppInput label="Superficie intervenida (ha)" type="number" min="0" value={superficie} onChange={(e) => setSuperficie(nonNeg(e.target.value))} />
           <AppInput label="Fecha de inicio" type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} />
           <AppInput label="Fecha de fin" type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} />
-          <AppInput label="Cantidad ejecutada" type="number" value={cantEjec} onChange={(e) => setCantEjec(e.target.value)} placeholder="ej. 4500" />
+          <AppInput label="Cantidad ejecutada" type="number" min="0" value={cantEjec} onChange={(e) => setCantEjec(nonNeg(e.target.value))} placeholder="ej. 4500" />
           <AppInput label="Unidad (plantas, kg, m…)" value={unidadEjec} onChange={(e) => setUnidadEjec(e.target.value)} placeholder="plantas" />
           <AppSelect label="Responsable de ejecución" value={responsableId} onChange={(e) => setResponsableId(e.target.value)}>
             <option value="">Sin responsable</option>
@@ -442,83 +438,18 @@ export default function CostosActividadPanel({ tareaId, bodegaId, actividadClave
           </AppSelect>
         </div>
 
-        {/* Personal asignado con horas por persona */}
-        {personalList.length > 0 ? (
-          <div className="mt-3">
-            <p className="mb-1 text-sm font-medium text-[color:var(--field-label)]">
-              Personal asignado (horas por persona)
-            </p>
-            <input
-              type="search"
-              value={personalQuery}
-              onChange={(e) => setPersonalQuery(e.target.value)}
-              placeholder="Buscar persona…"
-              className="mb-2 w-full max-w-xs rounded-[var(--radius-sm)] border border-[color:var(--field-border)] bg-[color:var(--field-bg)] px-3 py-1.5 text-sm text-[color:var(--field-text)]"
-            />
-            <div className="flex flex-wrap gap-2">
-              {personalList
-                .filter((o) => o.nombre.toLowerCase().includes(personalQuery.trim().toLowerCase()))
-                .map((o) => {
-                  const active = o.personal_bodega_id in personal;
-                  return (
-                    <button
-                      key={o.personal_bodega_id}
-                      type="button"
-                      onClick={() =>
-                        setPersonal((prev) => {
-                          const next = { ...prev };
-                          if (active) delete next[o.personal_bodega_id];
-                          else next[o.personal_bodega_id] = "";
-                          return next;
-                        })
-                      }
-                      className={`rounded-full border px-3 py-1 text-xs transition ${
-                        active
-                          ? "border-[color:var(--accent-primary)] bg-[color:var(--surface-accent-soft)] text-[color:var(--text-ink)]"
-                          : "border-[color:var(--border-shell)] text-[color:var(--text-ink-muted)] hover:border-[color:var(--border-default)]"
-                      }`}
-                    >
-                      {active ? "✓ " : ""}{o.nombre}
-                    </button>
-                  );
-                })}
-            </div>
-            {Object.keys(personal).length > 0 ? (
-              <div className="mt-3 space-y-2">
-                {personalList
-                  .filter((o) => o.personal_bodega_id in personal)
-                  .map((o) => (
-                    <div key={o.personal_bodega_id} className="flex items-center gap-2">
-                      <span className="min-w-40 text-sm">{o.nombre}</span>
-                      <input
-                        type="number"
-                        value={personal[o.personal_bodega_id]}
-                        onChange={(e) => setPersonal((prev) => ({ ...prev, [o.personal_bodega_id]: e.target.value }))}
-                        placeholder="horas"
-                        className="w-24 rounded-[var(--radius-sm)] border border-[color:var(--field-border)] bg-[color:var(--field-bg)] px-2 py-1 text-sm text-[color:var(--field-text)]"
-                      />
-                      <button
-                        type="button"
-                        className="text-xs text-[color:var(--text-ink-muted)] hover:text-[color:var(--field-error)]"
-                        onClick={() => setPersonal((prev) => { const n = { ...prev }; delete n[o.personal_bodega_id]; return n; })}
-                      >
-                        quitar
-                      </button>
-                    </div>
-                  ))}
-              </div>
-            ) : null}
-            {personalList.length === 0 ? (
-              <p className="text-xs text-[color:var(--text-ink-muted)]">Cargá personal en Bodega → Personal para poder asignarlo.</p>
-            ) : null}
-            {horasHombre > 0 ? (
-              <p className="mt-2 text-xs text-[color:var(--text-ink-muted)]">
-                Horas-hombre totales: <span className="font-semibold">{horasHombre}</span> · Jornales (auto):{" "}
-                <span className="font-semibold">{jornalesAuto}</span>
-              </p>
-            ) : null}
-          </div>
-        ) : null}
+        {/* Personal asignado + transitorios (bloque compartido con el registro) */}
+        <PersonalSection
+          personalList={personalList}
+          personal={personal}
+          setPersonal={setPersonal}
+          personalQuery={personalQuery}
+          setPersonalQuery={setPersonalQuery}
+          transitorios={transitorios}
+          setTransitorios={setTransitorios}
+          horasHombre={horasHombre}
+          jornalesAuto={jornalesAuto}
+        />
 
         {requiresContratista ? (
           <p className="mt-2 text-xs text-[color:var(--text-ink-muted)]">
@@ -575,10 +506,10 @@ export default function CostosActividadPanel({ tareaId, bodegaId, actividadClave
         )}
         <div className="grid gap-3 md:grid-cols-3">
           <AppInput label="Cuadrilla / contratista" value={conCuadrilla} onChange={(e) => setConCuadrilla(e.target.value)} />
-          <AppInput label="Cantidad de operarios" type="number" value={conCantOp} onChange={(e) => setConCantOp(e.target.value)} />
-          <AppInput label="Horas" type="number" value={conHoras} onChange={(e) => setConHoras(e.target.value)} />
-          <AppInput label="Jornales" type="number" value={conJornales} onChange={(e) => setConJornales(e.target.value)} />
-          <AppInput label="Monto cobrado" type="number" value={conMonto} onChange={(e) => setConMonto(e.target.value)} />
+          <AppInput label="Cantidad de operarios" type="number" min="0" value={conCantOp} onChange={(e) => setConCantOp(nonNeg(e.target.value))} />
+          <AppInput label="Horas" type="number" min="0" value={conHoras} onChange={(e) => setConHoras(nonNeg(e.target.value))} />
+          <AppInput label="Jornales" type="number" min="0" value={conJornales} onChange={(e) => setConJornales(nonNeg(e.target.value))} />
+          <AppInput label="Monto cobrado" type="number" min="0" value={conMonto} onChange={(e) => setConMonto(nonNeg(e.target.value))} />
         </div>
         <div className="mt-3">
           <AppButton variant="secondary" loading={addingCon} onClick={() => void handleAddContratista()}>
@@ -588,7 +519,15 @@ export default function CostosActividadPanel({ tareaId, bodegaId, actividadClave
       </AppCard>
 
       {/* Máquinas */}
-      <AppCard tone="default" padding="md" header={<h4 className="text-sm font-semibold">Máquinas y equipos</h4>}>
+      <AppCard
+        tone="default"
+        padding="md"
+        className={!aplicaMaquinaria ? "opacity-70" : undefined}
+        header={<h4 className="text-sm font-semibold">Máquinas y equipos</h4>}
+      >
+        {!aplicaMaquinaria ? (
+          <NoAplicaNota>Esta labor es manual y normalmente no usa maquinaria.</NoAplicaNota>
+        ) : null}
         {(data?.maquinas ?? []).length > 0 ? (
           <ul className="mb-3 space-y-2">
             {data!.maquinas.map((m) => (
@@ -618,7 +557,13 @@ export default function CostosActividadPanel({ tareaId, bodegaId, actividadClave
           </AppSelect>
           <AppInput label="Cantidad" type="number" value={maqCantidad} onChange={(e) => setMaqCantidad(e.target.value)} placeholder="opcional" />
           <AppInput label="Horas de uso" type="number" value={maqHoras} onChange={(e) => setMaqHoras(e.target.value)} />
-          <AppInput label="Combustible (lt, opcional)" type="number" value={maqConsumo} onChange={(e) => setMaqConsumo(e.target.value)} />
+          <AppInput
+            label={aplicaCombustible ? "Combustible (lt, opcional)" : "Combustible (lt) · no habitual"}
+            type="number"
+            value={maqConsumo}
+            onChange={(e) => setMaqConsumo(e.target.value)}
+            className={!aplicaCombustible ? "opacity-70" : undefined}
+          />
         </div>
         <div className="mt-3">
           <AppButton variant="secondary" loading={addingMaq} onClick={() => void handleAddMaquina()}>
@@ -628,7 +573,20 @@ export default function CostosActividadPanel({ tareaId, bodegaId, actividadClave
       </AppCard>
 
       {/* Insumos */}
-      <AppCard tone="default" padding="md" header={<h4 className="text-sm font-semibold">Insumos</h4>}>
+      <AppCard
+        tone="default"
+        padding="md"
+        className={!aplicaInsumos ? "opacity-70" : undefined}
+        header={<h4 className="text-sm font-semibold">{esFertilizacion ? "Fertilizante / insumos" : "Insumos"}</h4>}
+      >
+        {!aplicaInsumos ? (
+          <NoAplicaNota>Esta labor normalmente no lleva insumos.</NoAplicaNota>
+        ) : null}
+        {esFertilizacion ? (
+          <p className="mb-3 rounded-[var(--radius-md)] border border-[color:var(--border-subtle)] bg-[color:var(--surface-accent-soft)] px-3 py-2 text-xs text-[color:var(--text-ink-muted)]">
+            Cargá acá el fertilizante desde tu catálogo: se registra el insumo y <strong>descuenta stock</strong> automáticamente.
+          </p>
+        ) : null}
         {(data?.insumos ?? []).length > 0 ? (
           <ul className="mb-3 space-y-2">
             {data!.insumos.map((ins) => (
@@ -646,42 +604,12 @@ export default function CostosActividadPanel({ tareaId, bodegaId, actividadClave
         ) : (
           <p className="mb-3 text-xs text-[color:var(--text-ink-muted)]">Sin insumos registrados.</p>
         )}
-        <div className="grid gap-3 md:grid-cols-4">
-          <AppSelect label="Insumo" value={insId} onChange={(e) => setInsId(e.target.value)}>
-            <option value="">Seleccionar…</option>
-            {insumos.map((i) => {
-              const ex = existencias[i.insumo_id];
-              const disp = ex ? ` · disp. ${ex.stock} ${ex.unidad_base}` : "";
-              return (
-                <option key={i.insumo_id} value={i.insumo_id}>
-                  {i.nombre_comercial} ({i.tipo}){disp}
-                </option>
-              );
-            })}
-          </AppSelect>
-          <AppInput label="Dosis por ha" type="number" value={insDosis} onChange={(e) => setInsDosis(e.target.value)} />
-          <AppInput label="Unidad dosis" value={insUnidadDosis} onChange={(e) => setInsUnidadDosis(e.target.value)} />
-          <AppInput label="Cantidad total" type="number" value={insCantidad} onChange={(e) => setInsCantidad(e.target.value)} />
-        </div>
-        {insId && existencias[insId] ? (
-          (() => {
-            const ex = existencias[insId]!;
-            const cant = num(insCantidad) ?? 0;
-            const queda = ex.stock - cant;
-            return (
-              <p className={`mt-2 text-xs ${queda < 0 ? "text-[color:var(--feedback-danger-text)]" : "text-[color:var(--text-ink-muted)]"}`}>
-                Disponible: <strong>{ex.stock} {ex.unidad_base}</strong>
-                {cant > 0 ? ` · queda ${queda} ${ex.unidad_base} tras este consumo` : ""}
-                {queda < 0 ? " — stock insuficiente (quedará en negativo)" : ""}
-              </p>
-            );
-          })()
-        ) : null}
-        <div className="mt-3">
-          <AppButton variant="secondary" loading={addingIns} onClick={() => void handleAddInsumo()}>
-            Agregar insumo
-          </AppButton>
-        </div>
+        <InsumoPicker
+          insumos={insumos}
+          existencias={existencias}
+          onAdd={handleAddInsumo}
+          onError={(message) => notifyError({ title: "No se pudo agregar", message })}
+        />
       </AppCard>
     </div>
   );
