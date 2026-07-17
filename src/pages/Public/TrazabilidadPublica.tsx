@@ -304,22 +304,21 @@ const TrazabilidadPublica = () => {
   useEffect(() => {
     if (!cuartelId) return;
     let mounted = true;
-    setLoading(true);
-    setError(null);
 
-    fetchPublicTrazabilidadCuartel(cuartelId)
-      .then((res) => {
-        if (!mounted) return;
-        setData(res);
-      })
-      .catch((err: unknown) => {
-        if (!mounted) return;
-        setError(err instanceof Error ? err.message : "No se pudo cargar la trazabilidad.");
-      })
-      .finally(() => {
-        if (!mounted) return;
-        setLoading(false);
-      });
+    const run = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetchPublicTrazabilidadCuartel(cuartelId);
+        if (mounted) setData(res);
+      } catch (err: unknown) {
+        if (mounted) setError(err instanceof Error ? err.message : "No se pudo cargar la trazabilidad.");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    void run();
 
     return () => {
       mounted = false;

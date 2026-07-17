@@ -73,7 +73,7 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
     }
     clearCampanias();
     void loadCampanias(activeBodegaId);
-  }, [activeBodegaId]);
+  }, [activeBodegaId, clearCampanias, loadCampanias]);
 
   return (
     <header className="sticky top-0 z-30 border-b border-[color:var(--border-shell)] bg-[color:var(--surface-shell)]/95 px-4 text-[color:var(--text-on-dark)] backdrop-blur-xl md:px-6">

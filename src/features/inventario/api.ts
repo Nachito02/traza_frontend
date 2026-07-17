@@ -1,16 +1,61 @@
 import { apiClient } from "../../lib/api";
 
+export type AmbitoInsumo = "finca" | "bodega";
+
 export type Insumo = {
   insumo_id: string;
   bodega_id: string | null;
+  ambito: AmbitoInsumo;
   tipo: string;
+  familia: string | null;
   nombre_comercial: string;
   principio_activo: string | null;
   unidad_base: string;
+  dosis_min: string | null;
+  dosis_max: string | null;
+  unidad_dosis: string | null;
+  proveedor: string | null;
   costo_unitario: string | null;
   moneda: string;
+  vigencia: string | null;
   stock_minimo: string | null;
+  marca: string | null;
+  fabricante: string | null;
+  presentacion: string | null;
   activo: boolean;
+};
+
+// Fila del catálogo maestro global (referencia para autocompletar).
+export type InsumoMaestro = {
+  insumo_maestro_id: string;
+  ambito: AmbitoInsumo;
+  categoria: string;
+  familia: string | null;
+  principio_activo: string | null;
+  nombre_comercial: string;
+  unidad: string | null;
+  dosis_min: string | null;
+  dosis_max: string | null;
+  unidad_dosis: string | null;
+};
+
+export type InsumoInput = {
+  ambito: AmbitoInsumo;
+  tipo: string;
+  familia?: string | null;
+  nombre_comercial: string;
+  principio_activo?: string | null;
+  unidad_base: string;
+  dosis_min?: number | null;
+  dosis_max?: number | null;
+  unidad_dosis?: string | null;
+  proveedor?: string | null;
+  costo_unitario?: number | null;
+  vigencia?: string | null;
+  stock_minimo?: number | null;
+  marca?: string | null;
+  fabricante?: string | null;
+  presentacion?: string | null;
 };
 
 const q = (bodegaId?: string | number) =>
@@ -18,38 +63,36 @@ const q = (bodegaId?: string | number) =>
     ? `?bodegaId=${encodeURIComponent(String(bodegaId))}`
     : "";
 
-export async function fetchInsumos(bodegaId?: string | number, incluirInactivos = false) {
-  const sep = q(bodegaId) ? "&" : "?";
-  const extra = incluirInactivos ? `${sep}incluirInactivos=true` : "";
-  const { data } = await apiClient.get<Insumo[]>(`/inventario/insumos${q(bodegaId)}${extra}`);
+export async function fetchInsumos(bodegaId?: string | number, ambito?: AmbitoInsumo, incluirInactivos = false) {
+  const params = new URLSearchParams();
+  if (bodegaId !== undefined && bodegaId !== null && String(bodegaId).trim()) {
+    params.set("bodegaId", String(bodegaId));
+  }
+  if (ambito) params.set("ambito", ambito);
+  if (incluirInactivos) params.set("incluirInactivos", "true");
+  const qs = params.toString();
+  const { data } = await apiClient.get<Insumo[]>(`/inventario/insumos${qs ? `?${qs}` : ""}`);
   return data;
 }
 
-export async function createInsumo(payload: {
-  bodegaId: string | number;
-  tipo: string;
-  nombre_comercial: string;
-  principio_activo?: string | null;
-  unidad_base: string;
-  costo_unitario?: number | null;
-  stock_minimo?: number | null;
-}) {
+export async function fetchCategoriasMaestro(ambito: AmbitoInsumo) {
+  const { data } = await apiClient.get<string[]>(`/inventario/maestro/categorias?ambito=${ambito}`);
+  return data;
+}
+
+export async function fetchMaestro(ambito: AmbitoInsumo, categoria: string) {
+  const { data } = await apiClient.get<InsumoMaestro[]>(
+    `/inventario/maestro?ambito=${ambito}&categoria=${encodeURIComponent(categoria)}`,
+  );
+  return data;
+}
+
+export async function createInsumo(payload: InsumoInput & { bodegaId: string | number }) {
   const { data } = await apiClient.post<Insumo>("/inventario/insumos", payload);
   return data;
 }
 
-export async function patchInsumo(
-  id: string,
-  payload: Partial<{
-    tipo: string;
-    nombre_comercial: string;
-    principio_activo: string | null;
-    unidad_base: string;
-    costo_unitario: number | null;
-    stock_minimo: number | null;
-    activo: boolean;
-  }>,
-) {
+export async function patchInsumo(id: string, payload: Partial<InsumoInput & { activo: boolean }>) {
   const { data } = await apiClient.patch<Insumo>(`/inventario/insumos/${id}`, payload);
   return data;
 }

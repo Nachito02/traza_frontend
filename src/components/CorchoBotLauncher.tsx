@@ -166,7 +166,8 @@ function createWelcomeMessage(pathname: string, bodegaName?: string | null): Cor
 export default function CorchoBotLauncher() {
   const location = useLocation();
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
-  const bodegas = useAuthStore((state) => state.bodegas) ?? [];
+  const bodegasRaw = useAuthStore((state) => state.bodegas);
+  const bodegas = useMemo(() => bodegasRaw ?? [], [bodegasRaw]);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {

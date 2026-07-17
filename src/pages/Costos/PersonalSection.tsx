@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { Personal } from "../../features/personal/api";
-import PersonalTransitorios, { type TransitorioDraft } from "./PersonalTransitorios";
+import PersonalTransitorios from "./PersonalTransitorios";
+import type { TransitorioDraft } from "./transitorios";
 
 type Props = {
   personalList: Personal[];

@@ -37,42 +37,46 @@ export function useDashboardData(
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!activeBodegaId) {
-      setCuartelesCount(0);
-      setVasijasCount(0);
-      setTareasCount(0);
-      setTasks([]);
-      setTrazabilidades([]);
-      setCampanias([]);
-      return;
-    }
-
     let mounted = true;
-    setLoading(true);
-    setError(null);
 
-    // Para managers: fetchTareasByBodega devuelve todas (pendientes + completadas),
-    // filtramos solo pendientes para no mostrar completadas como si fueran activas.
-    // Para operarios: fetchPendientesByScope con "mine" ya devuelve solo pendientes.
-    const tareasFetch = isManager
-      ? fetchTareasByBodega(String(activeBodegaId))
-          .then((data) => data.filter(isPendingTask))
-          .catch(() => [] as Tarea[])
-      : fetchPendientesByScope({ bodegaId: String(activeBodegaId), mode: "mine" }).catch(() => [] as Tarea[]);
+    const run = async () => {
+      if (!activeBodegaId) {
+        if (mounted) {
+          setCuartelesCount(0);
+          setVasijasCount(0);
+          setTareasCount(0);
+          setTasks([]);
+          setTrazabilidades([]);
+          setCampanias([]);
+        }
+        return;
+      }
 
-    Promise.all([
-      fetchTrazabilidades(activeBodegaId),
-      fetchCampanias(activeBodegaId),
-      listElaboracionResource("vasijas", { bodegaId: String(activeBodegaId) }).catch(() => []),
-      tareasFetch,
-      Promise.all(
-        fincas
-          .map((finca) => finca.finca_id ?? finca.id)
-          .filter(Boolean)
-          .map((fincaId) => fetchCuartelesByFinca(String(fincaId))),
-      ),
-    ])
-      .then(([trazabilidadesData, campaniasData, vasijasData, tareasData, cuartelesLists]) => {
+      setLoading(true);
+      setError(null);
+
+      // Para managers: fetchTareasByBodega devuelve todas (pendientes + completadas),
+      // filtramos solo pendientes para no mostrar completadas como si fueran activas.
+      // Para operarios: fetchPendientesByScope con "mine" ya devuelve solo pendientes.
+      const tareasFetch = isManager
+        ? fetchTareasByBodega(String(activeBodegaId))
+            .then((data) => data.filter(isPendingTask))
+            .catch(() => [] as Tarea[])
+        : fetchPendientesByScope({ bodegaId: String(activeBodegaId), mode: "mine" }).catch(() => [] as Tarea[]);
+
+      try {
+        const [trazabilidadesData, campaniasData, vasijasData, tareasData, cuartelesLists] = await Promise.all([
+          fetchTrazabilidades(activeBodegaId),
+          fetchCampanias(activeBodegaId),
+          listElaboracionResource("vasijas", { bodegaId: String(activeBodegaId) }).catch(() => []),
+          tareasFetch,
+          Promise.all(
+            fincas
+              .map((finca) => finca.finca_id ?? finca.id)
+              .filter(Boolean)
+              .map((fincaId) => fetchCuartelesByFinca(String(fincaId))),
+          ),
+        ]);
         if (!mounted) return;
         setTrazabilidades(trazabilidadesData ?? []);
         setCampanias(campaniasData ?? []);
@@ -85,20 +89,18 @@ export function useDashboardData(
           0,
         );
         setCuartelesCount(totalCuarteles);
-      })
-      .catch(() => {
-        if (!mounted) return;
-        setError("No se pudieron cargar todos los indicadores.");
-      })
-      .finally(() => {
-        if (!mounted) return;
-        setLoading(false);
-      });
+      } catch {
+        if (mounted) setError("No se pudieron cargar todos los indicadores.");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    void run();
 
     return () => {
       mounted = false;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeBodegaId, fincas, isManager, refreshKey]);
 
   return {

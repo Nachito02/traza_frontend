@@ -31,7 +31,11 @@ import {
   getSistemaConduccionLabel,
   getVariedadLabel,
   getVariedadesByTipo,
+  isKnownSistemaRiego,
+  isKnownVariedad,
   MANEJO_CULTIVO_OPTIONS,
+  OTRA_VARIEDAD_VALUE,
+  OTRO_RIEGO_VALUE,
   SISTEMA_CONDUCCION_OPTIONS,
   SISTEMA_RIEGO_OPTIONS,
   TIPO_VARIEDAD_OPTIONS,
@@ -45,7 +49,9 @@ type FormState = {
   cultivo: string;
   tipo_variedad: TipoVariedadVid;
   variedad: string;
+  variedad_otra: string;
   sistema_riego: string;
+  sistema_riego_otro: string;
   sistema_productivo: string;
   sistema_conduccion: string;
   cantidad_hileras: string;
@@ -61,7 +67,9 @@ const emptyForm: FormState = {
   cultivo: "Vid",
   tipo_variedad: "tinta",
   variedad: "",
+  variedad_otra: "",
   sistema_riego: "",
+  sistema_riego_otro: "",
   sistema_productivo: "",
   sistema_conduccion: "",
   cantidad_hileras: "",
@@ -147,18 +155,31 @@ export default function CuartelesAdmin() {
   };
 
   const onChangeTipoVariedad = (value: TipoVariedadVid) => {
-    setForm((prev) => ({ ...prev, tipo_variedad: value, variedad: "" }));
+    setForm((prev) => ({ ...prev, tipo_variedad: value, variedad: "", variedad_otra: "" }));
     setFieldErrors((prev) => ({ ...prev, tipo_variedad: undefined, variedad: undefined }));
     setError(null);
   };
 
   const onChangeVariedad = (value: string) => {
+    const isOtra = value === OTRA_VARIEDAD_VALUE;
     setForm((prev) => ({
       ...prev,
       variedad: value,
-      tipo_variedad: value ? getTipoVariedadForVariedad(value) : prev.tipo_variedad,
+      // "Otra" no permite inferir el tipo: se conserva el elegido por el usuario.
+      tipo_variedad: value && !isOtra ? getTipoVariedadForVariedad(value) : prev.tipo_variedad,
+      variedad_otra: isOtra ? prev.variedad_otra : "",
     }));
     setFieldErrors((prev) => ({ ...prev, variedad: undefined, tipo_variedad: undefined }));
+    setError(null);
+  };
+
+  const onChangeSistemaRiego = (value: string) => {
+    setForm((prev) => ({
+      ...prev,
+      sistema_riego: value,
+      sistema_riego_otro: value === OTRO_RIEGO_VALUE ? prev.sistema_riego_otro : "",
+    }));
+    setFieldErrors((prev) => ({ ...prev, sistema_riego: undefined }));
     setError(null);
   };
 
@@ -178,6 +199,11 @@ export default function CuartelesAdmin() {
     }
     if (!form.variedad.trim()) {
       nextErrors.variedad = "Seleccioná una variedad.";
+    } else if (form.variedad === OTRA_VARIEDAD_VALUE && !form.variedad_otra.trim()) {
+      nextErrors.variedad_otra = "Especificá la variedad.";
+    }
+    if (form.sistema_riego === OTRO_RIEGO_VALUE && !form.sistema_riego_otro.trim()) {
+      nextErrors.sistema_riego_otro = "Especificá el sistema de riego.";
     }
 
     const numericFields: Array<{ key: keyof FormState; label: string; value: string }> = [
@@ -264,6 +290,14 @@ export default function CuartelesAdmin() {
       return;
     }
 
+    // "Otra/Otro" guardan el texto libre como valor real (el schema acepta string).
+    const variedadFinal =
+      form.variedad === OTRA_VARIEDAD_VALUE ? form.variedad_otra.trim() : form.variedad;
+    const sistemaRiegoFinal =
+      form.sistema_riego === OTRO_RIEGO_VALUE
+        ? form.sistema_riego_otro.trim()
+        : form.sistema_riego.trim();
+
     setSaving(true);
     setError(null);
     setFieldErrors({});
@@ -274,8 +308,8 @@ export default function CuartelesAdmin() {
           superficie_ha: Number(form.superficie_ha),
           cultivo: "Vid",
           tipo_variedad: form.tipo_variedad,
-          variedad: form.variedad,
-          sistema_riego: form.sistema_riego.trim() || null,
+          variedad: variedadFinal,
+          sistema_riego: sistemaRiegoFinal || null,
           sistema_productivo: form.sistema_productivo.trim() || null,
           sistema_conduccion: form.sistema_conduccion.trim() || null,
           cantidad_hileras: optionalNumber(form.cantidad_hileras),
@@ -296,8 +330,8 @@ export default function CuartelesAdmin() {
           superficie_ha: Number(form.superficie_ha),
           cultivo: "Vid",
           tipo_variedad: form.tipo_variedad,
-          variedad: form.variedad,
-          sistema_riego: form.sistema_riego.trim() || null,
+          variedad: variedadFinal,
+          sistema_riego: sistemaRiegoFinal || null,
           sistema_productivo: form.sistema_productivo.trim() || null,
           sistema_conduccion: form.sistema_conduccion.trim() || null,
           cantidad_hileras: optionalNumber(form.cantidad_hileras),
@@ -343,6 +377,12 @@ export default function CuartelesAdmin() {
       setFieldErrors({});
       setMapPolygon(detail.poligono ?? null);
       setMapCentroid(detail.centroide ?? null);
+      // Si el valor guardado no está en el catálogo, se muestra como "Otra/Otro"
+      // con el texto libre precargado.
+      const rawVariedad = detail.variedad ?? "";
+      const variedadConocida = isKnownVariedad(rawVariedad);
+      const rawRiego = detail.sistema_riego ?? "";
+      const riegoConocido = isKnownSistemaRiego(rawRiego);
       setForm({
         fincaId: String(detail.finca_id ?? fallbackFincaId ?? ""),
         codigo_cuartel: detail.codigo_cuartel ?? "",
@@ -352,8 +392,10 @@ export default function CuartelesAdmin() {
             : String(detail.superficie_ha),
         cultivo: "Vid",
         tipo_variedad: (detail.tipo_variedad as TipoVariedadVid | null) ?? getTipoVariedadForVariedad(detail.variedad),
-        variedad: detail.variedad ?? "",
-        sistema_riego: detail.sistema_riego ?? "",
+        variedad: variedadConocida ? rawVariedad : rawVariedad ? OTRA_VARIEDAD_VALUE : "",
+        variedad_otra: variedadConocida ? "" : rawVariedad,
+        sistema_riego: riegoConocido ? rawRiego : rawRiego ? OTRO_RIEGO_VALUE : "",
+        sistema_riego_otro: riegoConocido ? "" : rawRiego,
         sistema_productivo: detail.sistema_productivo ?? "",
         sistema_conduccion: detail.sistema_conduccion ?? "",
         cantidad_hileras:
@@ -720,6 +762,7 @@ export default function CuartelesAdmin() {
                 <AppInput
                   label="Superficie (ha)"
                     type="number"
+                    min="0"
                     step="0.01"
                     value={form.superficie_ha}
                     onChange={(e) => setFieldValue("superficie_ha", e.target.value)}
@@ -747,23 +790,37 @@ export default function CuartelesAdmin() {
                     </option>
                   ))}
                 </AppSelect>
-                <AppSelect
-                  label="Variedad"
-                  value={form.variedad}
-                  onChange={(e) => onChangeVariedad(e.target.value)}
-                  uiSize="lg"
-                  error={fieldErrors.variedad}
-                >
-                  <option value="">Seleccionar variedad</option>
-                  {variedadOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </AppSelect>
+                <div className="space-y-3">
+                  <AppSelect
+                    label="Variedad"
+                    value={form.variedad}
+                    onChange={(e) => onChangeVariedad(e.target.value)}
+                    uiSize="lg"
+                    error={fieldErrors.variedad}
+                  >
+                    <option value="">Seleccionar variedad</option>
+                    {variedadOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                    <option value={OTRA_VARIEDAD_VALUE}>Otra (especificar)…</option>
+                  </AppSelect>
+                  {form.variedad === OTRA_VARIEDAD_VALUE && (
+                    <AppInput
+                      label="Especificá la variedad"
+                      value={form.variedad_otra}
+                      onChange={(e) => setFieldValue("variedad_otra", e.target.value)}
+                      placeholder="Ej. Petit Verdot"
+                      uiSize="lg"
+                      error={fieldErrors.variedad_otra}
+                    />
+                  )}
+                </div>
                 <AppInput
                   label="Cantidad de hileras"
                   type="number"
+                  min="0"
                   step="1"
                   value={form.cantidad_hileras}
                   onChange={(e) => setFieldValue("cantidad_hileras", e.target.value)}
@@ -774,6 +831,7 @@ export default function CuartelesAdmin() {
                 <AppInput
                   label="Largo de hileras (m)"
                   type="number"
+                  min="0"
                   step="0.01"
                   value={form.largo_hileras_m}
                   onChange={(e) => setFieldValue("largo_hileras_m", e.target.value)}
@@ -784,6 +842,7 @@ export default function CuartelesAdmin() {
                 <AppInput
                   label="Densidad de plantación (plantas/ha)"
                   type="number"
+                  min="0"
                   step="0.01"
                   value={form.densidad_hileras}
                   onChange={(e) => setFieldValue("densidad_hileras", e.target.value)}
@@ -798,19 +857,32 @@ export default function CuartelesAdmin() {
                   placeholder="Ej. 2.5 x 1.2 m"
                   uiSize="lg"
                 />
-                <AppSelect
-                  label="Sistema de riego"
-                  value={form.sistema_riego}
-                  onChange={(e) => setFieldValue("sistema_riego", e.target.value)}
-                  uiSize="lg"
-                >
-                  <option value="">Seleccionar sistema</option>
-                  {SISTEMA_RIEGO_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </AppSelect>
+                <div className="space-y-3">
+                  <AppSelect
+                    label="Sistema de riego"
+                    value={form.sistema_riego}
+                    onChange={(e) => onChangeSistemaRiego(e.target.value)}
+                    uiSize="lg"
+                  >
+                    <option value="">Seleccionar sistema</option>
+                    {SISTEMA_RIEGO_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                    <option value={OTRO_RIEGO_VALUE}>Otro (especificar)…</option>
+                  </AppSelect>
+                  {form.sistema_riego === OTRO_RIEGO_VALUE && (
+                    <AppInput
+                      label="Especificá el sistema de riego"
+                      value={form.sistema_riego_otro}
+                      onChange={(e) => setFieldValue("sistema_riego_otro", e.target.value)}
+                      placeholder="Ej. Riego por mangas"
+                      uiSize="lg"
+                      error={fieldErrors.sistema_riego_otro}
+                    />
+                  )}
+                </div>
                 <AppSelect
                   label="Manejo de cultivo"
                   value={form.sistema_productivo}

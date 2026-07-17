@@ -25,18 +25,21 @@ const QrCuartelesAdmin = () => {
   const [selectedQr, setSelectedQr] = useState<CuartelWithFinca | null>(null);
 
   useEffect(() => {
-    if (!activeBodegaId) {
-      setAllCuarteles([]);
-      setLoading(false);
-      return;
-    }
-
     let mounted = true;
-    setLoading(true);
-    setError(null);
 
-    fetchFincas(String(activeBodegaId))
-      .then(async (fincas) => {
+    const run = async () => {
+      if (!activeBodegaId) {
+        if (mounted) {
+          setAllCuarteles([]);
+          setLoading(false);
+        }
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+      try {
+        const fincas = await fetchFincas(String(activeBodegaId));
         if (!mounted) return;
         const results = await Promise.all(
           fincas.map(async (finca) => {
@@ -48,15 +51,14 @@ const QrCuartelesAdmin = () => {
         );
         if (!mounted) return;
         setAllCuarteles(results.flat());
-      })
-      .catch(() => {
-        if (!mounted) return;
-        setError("No se pudieron cargar los cuarteles.");
-      })
-      .finally(() => {
-        if (!mounted) return;
-        setLoading(false);
-      });
+      } catch {
+        if (mounted) setError("No se pudieron cargar los cuarteles.");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    void run();
 
     return () => {
       mounted = false;

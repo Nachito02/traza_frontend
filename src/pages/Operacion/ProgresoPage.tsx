@@ -715,16 +715,29 @@ export default function ProgresoPage() {
   const [timelineOpen, setTimelineOpen] = useState(false);
 
   useEffect(() => {
-    if (!activeProtocoloId) {
-      setProtocolo(null);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    fetchProtocoloById(activeProtocoloId)
-      .then((data) => setProtocolo(data))
-      .catch(() => setProtocolo(null))
-      .finally(() => setLoading(false));
+    let mounted = true;
+    const run = async () => {
+      if (!activeProtocoloId) {
+        if (mounted) {
+          setProtocolo(null);
+          setLoading(false);
+        }
+        return;
+      }
+      setLoading(true);
+      try {
+        const data = await fetchProtocoloById(activeProtocoloId);
+        if (mounted) setProtocolo(data);
+      } catch {
+        if (mounted) setProtocolo(null);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    void run();
+    return () => {
+      mounted = false;
+    };
   }, [activeProtocoloId]);
 
   useEffect(() => {

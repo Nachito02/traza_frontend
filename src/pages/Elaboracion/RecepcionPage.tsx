@@ -177,6 +177,20 @@ export default function RecepcionPage({
     initialSection,
   );
 
+  // La sección visible se sincroniza desde la URL/props (fuente de verdad), ajustando
+  // el estado durante el render en lugar de en un efecto para evitar renders en cascada.
+  const resolvedSection: "remito" | "recepcion" | "analisis" = (() => {
+    if (hideSectionSelector) return initialSection;
+    const section = searchParams.get("section");
+    if (section === "remito" || section === "recepcion" || section === "analisis") return section;
+    return initialSection;
+  })();
+  const [syncedSection, setSyncedSection] = useState(resolvedSection);
+  if (syncedSection !== resolvedSection) {
+    setSyncedSection(resolvedSection);
+    setActiveSection(resolvedSection);
+  }
+
   const goToSection = useCallback(
     (section: "remito" | "recepcion" | "analisis") => {
       setActiveSection(section);
@@ -215,42 +229,43 @@ export default function RecepcionPage({
   }, [activeBodegaId]);
 
   useEffect(() => {
-    if (hideSectionSelector) {
-      setActiveSection(initialSection);
-      return;
-    }
-    const section = searchParams.get("section");
-    if (section === "remito" || section === "recepcion" || section === "analisis") {
-      setActiveSection(section);
-      return;
-    }
-    setActiveSection(initialSection);
-  }, [hideSectionSelector, initialSection, searchParams]);
-
-  useEffect(() => {
     if (!activeBodegaId) return;
     void loadFincas(activeBodegaId);
-    loadOperationalOptions()
-      .catch(() => {
+    const run = async () => {
+      try {
+        await loadOperationalOptions();
+      } catch {
         // opciones quedan vacías, el usuario puede continuar sin filtrar por select
         setRemitoOptions([]);
         setRecepcionOptions([]);
-      });
+      }
+    };
+    void run();
   }, [activeBodegaId, loadFincas, loadOperationalOptions]);
 
   useEffect(() => {
-    if (fincas.length === 0) {
-      setCuarteles([]);
-      return;
-    }
-    Promise.all(
-      fincas.map((finca) => {
-        const fincaId = String(finca.finca_id ?? finca.id ?? "");
-        return fincaId ? fetchCuartelesByFinca(fincaId) : Promise.resolve([]);
-      }),
-    )
-      .then((groups) => setCuarteles(groups.flat()))
-      .catch(() => setCuarteles([]));
+    let mounted = true;
+    const run = async () => {
+      if (fincas.length === 0) {
+        if (mounted) setCuarteles([]);
+        return;
+      }
+      try {
+        const groups = await Promise.all(
+          fincas.map((finca) => {
+            const fincaId = String(finca.finca_id ?? finca.id ?? "");
+            return fincaId ? fetchCuartelesByFinca(fincaId) : Promise.resolve([]);
+          }),
+        );
+        if (mounted) setCuarteles(groups.flat());
+      } catch {
+        if (mounted) setCuarteles([]);
+      }
+    };
+    void run();
+    return () => {
+      mounted = false;
+    };
   }, [fincas]);
 
   const fincaOptions = useMemo(

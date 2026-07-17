@@ -124,18 +124,21 @@ export default function BodegaVasijaDetailPage() {
 
   useEffect(() => {
     if (!id || !activeBodegaId) return;
-    setLoading(true);
-    setError(null);
+    let mounted = true;
 
-    const bodegaIdStr = String(activeBodegaId);
+    const run = async () => {
+      setLoading(true);
+      setError(null);
 
-    Promise.all([
-      getElaboracionResource("vasijas", id),
-      listElaboracionResource("operaciones-vasija", { bodegaId: bodegaIdStr }),
-      listElaboracionResource("existencias-vasija", { bodegaId: bodegaIdStr }),
-      listElaboracionResource("controles-fermentacion", { bodegaId: bodegaIdStr }),
-    ])
-      .then(([vasijaData, ops, exs, ctrls]) => {
+      const bodegaIdStr = String(activeBodegaId);
+      try {
+        const [vasijaData, ops, exs, ctrls] = await Promise.all([
+          getElaboracionResource("vasijas", id),
+          listElaboracionResource("operaciones-vasija", { bodegaId: bodegaIdStr }),
+          listElaboracionResource("existencias-vasija", { bodegaId: bodegaIdStr }),
+          listElaboracionResource("controles-fermentacion", { bodegaId: bodegaIdStr }),
+        ]);
+        if (!mounted) return;
         setVasija(vasijaData);
         setOperaciones(
           ops.filter(
@@ -146,26 +149,35 @@ export default function BodegaVasijaDetailPage() {
         );
         setExistencias(exs.filter((ex) => stringVal(ex.vasija_id) === id));
         setFermentaciones(ctrls.filter((c) => stringVal(c.vasija_id) === id));
-      })
-      .catch((err) => setError(getApiErrorMessage(err)))
-      .finally(() => setLoading(false));
+      } catch (err) {
+        if (mounted) setError(getApiErrorMessage(err));
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    void run();
+
+    return () => {
+      mounted = false;
+    };
   }, [id, activeBodegaId]);
 
   const events = useMemo<TimelineEvent[]>(() => {
-    const ops = operaciones.map<TimelineEvent>((op) => ({
-      id: String(op.operacion_vasija_id ?? op.id ?? Math.random()),
+    const ops = operaciones.map<TimelineEvent>((op, idx) => ({
+      id: String(op.operacion_vasija_id ?? op.id ?? `op-${idx}`),
       tipo: "operacion",
       fecha: new Date(String(op.fecha_hora ?? op.created_at ?? 0)),
       raw: op,
     }));
-    const exs = existencias.map<TimelineEvent>((ex) => ({
-      id: String(ex.existencia_vasija_id ?? ex.id ?? Math.random()),
+    const exs = existencias.map<TimelineEvent>((ex, idx) => ({
+      id: String(ex.existencia_vasija_id ?? ex.id ?? `ex-${idx}`),
       tipo: "existencia",
       fecha: new Date(String(ex.fecha_hora ?? ex.created_at ?? 0)),
       raw: ex,
     }));
-    const ctrls = fermentaciones.map<TimelineEvent>((c) => ({
-      id: String(c.control_fermentacion_id ?? c.id ?? Math.random()),
+    const ctrls = fermentaciones.map<TimelineEvent>((c, idx) => ({
+      id: String(c.control_fermentacion_id ?? c.id ?? `ferm-${idx}`),
       tipo: "fermentacion",
       fecha: new Date(String(c.fecha_hora ?? c.created_at ?? 0)),
       raw: c,

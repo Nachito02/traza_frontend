@@ -18,6 +18,8 @@ import {
   getTipoVariedadForVariedad,
   getVariedadesByTipo,
   MANEJO_CULTIVO_OPTIONS,
+  OTRA_VARIEDAD_VALUE,
+  OTRO_RIEGO_VALUE,
   SISTEMA_CONDUCCION_OPTIONS,
   SISTEMA_RIEGO_OPTIONS,
   TIPO_VARIEDAD_OPTIONS,
@@ -46,7 +48,9 @@ type CuartelForm = {
   cultivo: string;
   tipo_variedad: TipoVariedadVid;
   variedad: string;
+  variedad_otra: string;
   sistema_riego: string;
+  sistema_riego_otro: string;
   sistema_productivo: string;
   sistema_conduccion: string;
   cantidad_hileras: string;
@@ -79,7 +83,9 @@ const SetupCuarteles = () => {
     cultivo: "Vid",
     tipo_variedad: "tinta" as TipoVariedadVid,
     variedad: "",
+    variedad_otra: "",
     sistema_riego: "",
+    sistema_riego_otro: "",
     sistema_productivo: "",
     sistema_conduccion: "",
     cantidad_hileras: "",
@@ -130,18 +136,31 @@ const SetupCuarteles = () => {
   };
 
   const onChangeTipoVariedad = (value: TipoVariedadVid) => {
-    setForm((prev) => ({ ...prev, tipo_variedad: value, variedad: "" }));
+    setForm((prev) => ({ ...prev, tipo_variedad: value, variedad: "", variedad_otra: "" }));
     setFieldErrors((prev) => ({ ...prev, tipo_variedad: undefined, variedad: undefined }));
     setError(null);
   };
 
   const onChangeVariedad = (value: string) => {
+    const isOtra = value === OTRA_VARIEDAD_VALUE;
     setForm((prev) => ({
       ...prev,
       variedad: value,
-      tipo_variedad: value ? getTipoVariedadForVariedad(value) : prev.tipo_variedad,
+      // "Otra" no permite inferir el tipo: se conserva el elegido por el usuario.
+      tipo_variedad: value && !isOtra ? getTipoVariedadForVariedad(value) : prev.tipo_variedad,
+      variedad_otra: isOtra ? prev.variedad_otra : "",
     }));
     setFieldErrors((prev) => ({ ...prev, variedad: undefined, tipo_variedad: undefined }));
+    setError(null);
+  };
+
+  const onChangeSistemaRiego = (value: string) => {
+    setForm((prev) => ({
+      ...prev,
+      sistema_riego: value,
+      sistema_riego_otro: value === OTRO_RIEGO_VALUE ? prev.sistema_riego_otro : "",
+    }));
+    setFieldErrors((prev) => ({ ...prev, sistema_riego: undefined }));
     setError(null);
   };
 
@@ -161,6 +180,11 @@ const SetupCuarteles = () => {
     }
     if (!form.variedad.trim()) {
       nextErrors.variedad = "Seleccioná una variedad.";
+    } else if (form.variedad === OTRA_VARIEDAD_VALUE && !form.variedad_otra.trim()) {
+      nextErrors.variedad_otra = "Especificá la variedad.";
+    }
+    if (form.sistema_riego === OTRO_RIEGO_VALUE && !form.sistema_riego_otro.trim()) {
+      nextErrors.sistema_riego_otro = "Especificá el sistema de riego.";
     }
 
     const numericFields: Array<{ key: keyof CuartelForm; label: string; value: string }> = [
@@ -191,6 +215,14 @@ const SetupCuarteles = () => {
       return;
     }
 
+    // "Otra/Otro" guardan el texto libre como valor real (el schema acepta string).
+    const variedadFinal =
+      form.variedad === OTRA_VARIEDAD_VALUE ? form.variedad_otra.trim() : form.variedad;
+    const sistemaRiegoFinal =
+      form.sistema_riego === OTRO_RIEGO_VALUE
+        ? form.sistema_riego_otro.trim()
+        : form.sistema_riego.trim();
+
     setSaving(true);
     setError(null);
     setFieldErrors({});
@@ -201,8 +233,8 @@ const SetupCuarteles = () => {
         superficie_ha: Number(form.superficie_ha),
         cultivo: "Vid",
         tipo_variedad: form.tipo_variedad,
-        variedad: form.variedad,
-        sistema_riego: form.sistema_riego.trim() || null,
+        variedad: variedadFinal,
+        sistema_riego: sistemaRiegoFinal || null,
         sistema_productivo: form.sistema_productivo.trim() || null,
         sistema_conduccion: form.sistema_conduccion.trim() || null,
         cantidad_hileras: optionalNumber(form.cantidad_hileras),
@@ -227,7 +259,9 @@ const SetupCuarteles = () => {
         superficie_ha: "",
         tipo_variedad: "tinta",
         variedad: "",
+        variedad_otra: "",
         sistema_riego: "",
+        sistema_riego_otro: "",
         sistema_productivo: "",
         sistema_conduccion: "",
         cantidad_hileras: "",
@@ -361,6 +395,7 @@ const SetupCuarteles = () => {
             <AppInput
               label="Superficie (ha)"
                 type="number"
+                min="0"
                 step="0.01"
                 uiSize="lg"
                 placeholder="12.5"
@@ -404,12 +439,25 @@ const SetupCuarteles = () => {
                   {option.label}
                 </option>
               ))}
+              <option value={OTRA_VARIEDAD_VALUE}>Otra (especificar)…</option>
             </AppSelect>
+            {form.variedad === OTRA_VARIEDAD_VALUE && (
+              <AppInput
+                label="Especificá la variedad"
+                type="text"
+                uiSize="lg"
+                placeholder="Ej. Petit Verdot"
+                value={form.variedad_otra}
+                onChange={(e) => onChange("variedad_otra", e.target.value)}
+                error={fieldErrors.variedad_otra}
+              />
+            )}
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <AppInput
               label={<OptLabel>Cantidad de hileras</OptLabel>}
               type="number"
+              min="0"
               step="1"
               uiSize="lg"
               placeholder="Ej. 42"
@@ -420,6 +468,7 @@ const SetupCuarteles = () => {
             <AppInput
               label={<OptLabel>Largo de hileras (m)</OptLabel>}
               type="number"
+              min="0"
               step="0.01"
               uiSize="lg"
               placeholder="Ej. 120"
@@ -430,6 +479,7 @@ const SetupCuarteles = () => {
             <AppInput
               label={<OptLabel>Densidad de plantación (plantas/ha)</OptLabel>}
               type="number"
+              min="0"
               step="0.01"
               uiSize="lg"
               placeholder="Ej. 2.5"
@@ -447,19 +497,33 @@ const SetupCuarteles = () => {
             />
           </div>
           <div className="grid gap-4 md:grid-cols-2">
-            <AppSelect
-              label={<OptLabel>Sistema de riego</OptLabel>}
-              uiSize="lg"
-              value={form.sistema_riego}
-              onChange={(e) => onChange("sistema_riego", e.target.value)}
-            >
-              <option value="">Seleccionar sistema</option>
-              {SISTEMA_RIEGO_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </AppSelect>
+            <div className="space-y-3">
+              <AppSelect
+                label={<OptLabel>Sistema de riego</OptLabel>}
+                uiSize="lg"
+                value={form.sistema_riego}
+                onChange={(e) => onChangeSistemaRiego(e.target.value)}
+              >
+                <option value="">Seleccionar sistema</option>
+                {SISTEMA_RIEGO_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+                <option value={OTRO_RIEGO_VALUE}>Otro (especificar)…</option>
+              </AppSelect>
+              {form.sistema_riego === OTRO_RIEGO_VALUE && (
+                <AppInput
+                  label="Especificá el sistema de riego"
+                  type="text"
+                  uiSize="lg"
+                  placeholder="Ej. Riego por mangas"
+                  value={form.sistema_riego_otro}
+                  onChange={(e) => onChange("sistema_riego_otro", e.target.value)}
+                  error={fieldErrors.sistema_riego_otro}
+                />
+              )}
+            </div>
             <AppSelect
               label={<OptLabel>Manejo de cultivo</OptLabel>}
               uiSize="lg"

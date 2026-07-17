@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import Topbar from "../components/Topbar";
 import { useAuthStore } from "../store/authStore";
@@ -9,15 +9,13 @@ const AppLayout = () => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  useEffect(() => {
+  // Cierra el menú móvil al cambiar de ruta, ajustando el estado durante el render
+  // en lugar de en un efecto para evitar renders en cascada.
+  const [syncedPath, setSyncedPath] = useState(location.pathname);
+  if (syncedPath !== location.pathname) {
+    setSyncedPath(location.pathname);
     setMobileMenuOpen(false);
-  }, [location.pathname]);
-
-  // useEffect(() => {
-  //   window.requestAnimationFrame(() => {
-  //     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-  //   });
-  // }, [location.pathname, location.search]);
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;

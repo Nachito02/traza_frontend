@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AppButton,
   AppCard,
@@ -230,7 +230,7 @@ const Usuarios = () => {
   );
   const currentUserGlobalRoles = useMemo(
     () => normalizeRoles([actorFromUsers?.roles_globales, actorUser?.roles_globales, (actorUser as { rol?: string } | null)?.rol]),
-    [actorFromUsers?.roles_globales, actorUser?.roles_globales, actorUser],
+    [actorFromUsers?.roles_globales, actorUser],
   );
   const isAdminSistema = useMemo(
     () =>
@@ -287,7 +287,7 @@ const Usuarios = () => {
   }, [activeBodegaId, actorFromUsers, canManageBodegaRoles, isAdminSistema]);
 
   // ── Data loaders ─────────────────────────────────────────────────────────
-  const hydrateUsersWithDetail = async (list: AuthUser[]) => {
+  const hydrateUsersWithDetail = useCallback(async (list: AuthUser[]) => {
     const detailed = await Promise.all(
       (list ?? []).map(async (user) => {
         try {
@@ -298,9 +298,9 @@ const Usuarios = () => {
       }),
     );
     return detailed;
-  };
+  }, []);
 
-  const loadUsers = async (name?: string) => {
+  const loadUsers = useCallback(async (name?: string) => {
     setLoading(true);
     setError(null);
     try {
@@ -313,9 +313,9 @@ const Usuarios = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [hydrateUsersWithDetail]);
 
-  useEffect(() => { void loadUsers(); }, []);
+  useEffect(() => { void loadUsers(); }, [loadUsers]);
 
   useEffect(() => {
     if (!activeBodegaId) { setFincas([]); return; }
@@ -323,8 +323,6 @@ const Usuarios = () => {
       .then((data) => setFincas(data ?? []))
       .catch(() => setFincas([]));
   }, [activeBodegaId]);
-
-  useEffect(() => { void loadOperarios(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [activeBodegaId]);
 
   useEffect(() => {
     setBodegaFormByUser((prev) => {
@@ -452,11 +450,12 @@ const Usuarios = () => {
   };
 
   // ── Operarios ────────────────────────────────────────────────────────────
-  const loadOperarios = async () => {
+  const loadOperarios = useCallback(async () => {
     if (!activeBodegaId) { setOperarios([]); return; }
     try { setOperarios(await fetchOperariosByBodega(activeBodegaId)); }
     catch { setOperarios([]); }
-  };
+  }, [activeBodegaId]);
+  useEffect(() => { void loadOperarios(); }, [loadOperarios]);
   const onCreateOperario = async () => {
     if (!activeBodegaId) return;
     if (!operariosForm.nombre.trim()) { setOperariosError("El nombre es obligatorio."); return; }

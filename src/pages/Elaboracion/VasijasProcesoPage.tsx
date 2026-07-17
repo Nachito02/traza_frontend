@@ -90,6 +90,27 @@ export default function VasijasProcesoPage({
   const [activeSection, setActiveSection] = useState<
     "vasijas" | "operaciones" | "existencias" | "fermentacion"
   >(initialSection);
+
+  // La sección visible se sincroniza desde la URL/props (fuente de verdad), ajustando
+  // el estado durante el render en lugar de en un efecto para evitar renders en cascada.
+  const resolvedSection: "vasijas" | "operaciones" | "existencias" | "fermentacion" = (() => {
+    if (hideSectionSelector) return initialSection;
+    const section = searchParams.get("section");
+    if (
+      section === "vasijas" ||
+      section === "operaciones" ||
+      section === "existencias" ||
+      section === "fermentacion"
+    ) {
+      return section;
+    }
+    return initialSection;
+  })();
+  const [syncedSection, setSyncedSection] = useState(resolvedSection);
+  if (syncedSection !== resolvedSection) {
+    setSyncedSection(resolvedSection);
+    setActiveSection(resolvedSection);
+  }
   const [vasijaOptions, setVasijaOptions] = useState<SelectOption[]>([]);
   const [recepcionOptions, setRecepcionOptions] = useState<SelectOption[]>([]);
   const [vasijaOptionsVersion, setVasijaOptionsVersion] = useState(0);
@@ -111,24 +132,6 @@ export default function VasijasProcesoPage({
     if (preselectedTipo) defaults.tipo = preselectedTipo;
     return Object.keys(defaults).length > 0 ? defaults : undefined;
   }, [operacionDefaultValues, preselectedVasijaId, preselectedRecepcionId, preselectedTipo]);
-
-  useEffect(() => {
-    if (hideSectionSelector) {
-      setActiveSection(initialSection);
-      return;
-    }
-    const section = searchParams.get("section");
-    if (
-      section === "vasijas" ||
-      section === "operaciones" ||
-      section === "existencias" ||
-      section === "fermentacion"
-    ) {
-      setActiveSection(section);
-      return;
-    }
-    setActiveSection(initialSection);
-  }, [hideSectionSelector, initialSection, searchParams]);
 
   useEffect(() => {
     if (!activeBodegaId) return;

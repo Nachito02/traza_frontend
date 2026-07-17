@@ -87,7 +87,10 @@ export default function CiuQcPage({
   }, [activeBodegaId]);
 
   useEffect(() => {
-    void loadReferenceOptions();
+    const run = async () => {
+      await loadReferenceOptions();
+    };
+    void run();
   }, [loadReferenceOptions, referenceOptionsVersion]);
 
   return (

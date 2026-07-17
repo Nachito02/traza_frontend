@@ -383,7 +383,7 @@ export default function GenericCrudSection({
     setError(null);
     setFieldErrors({});
     setViewMode(separatedLayout && !hasDefaultValues ? "list" : "form");
-  }, [defaultValues, fields, resource]);
+  }, [defaultValues, fields, resource, separatedLayout]);
 
   const autoOpenHandledRef = useRef(false);
   useEffect(() => {

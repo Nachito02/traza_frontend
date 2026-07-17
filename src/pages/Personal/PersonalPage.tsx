@@ -31,19 +31,44 @@ const ROLES: { value: RolManoObra; label: string }[] = [
   { value: "contratista", label: "Contratista" },
 ];
 
+const MODALIDADES: { value: ModalidadPago; label: string }[] = [
+  { value: "por_hora", label: "Por hora" },
+  { value: "mensual", label: "Mensualizado" },
+  { value: "al_tanto", label: "Al tanto" },
+  { value: "otro", label: "Otro" },
+];
+
+// Al tanto / otro se pagan por unidad producida (planta, surco, tacho…): costo unitario.
+const esPorUnidad = (m: ModalidadPago) => m === "al_tanto" || m === "otro";
+
 const EMPTY = {
   nombre: "",
+  legajo: "",
+  fecha_ingreso: "",
   targetUserId: "",
   tipo: "interno" as TipoPersonal,
   modalidad: "por_hora" as ModalidadPago,
   rol: "operario" as RolManoObra,
   sueldo_mensual: "",
   costo_hora: "",
+  costo_unitario: "",
   dias_mes: "25",
 };
 
 function money(n: number) {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 }).format(n);
+}
+
+// Antigüedad en años completos desde la fecha de ingreso (vista previa en vivo).
+function antiguedadDe(fechaIso: string): number | null {
+  if (!fechaIso) return null;
+  const d = new Date(fechaIso);
+  if (Number.isNaN(d.getTime())) return null;
+  const hoy = new Date();
+  let anios = hoy.getFullYear() - d.getFullYear();
+  const mes = hoy.getMonth() - d.getMonth();
+  if (mes < 0 || (mes === 0 && hoy.getDate() < d.getDate())) anios -= 1;
+  return anios < 0 ? 0 : anios;
 }
 
 export default function PersonalPage() {
@@ -117,11 +142,14 @@ export default function PersonalPage() {
     try {
       const cost = {
         nombre: form.nombre.trim(),
+        legajo: form.legajo.trim() || null,
+        fecha_ingreso: form.fecha_ingreso || null,
         tipo: form.tipo,
         modalidad: form.modalidad,
         rol: form.rol,
         sueldo_mensual: form.modalidad === "mensual" ? num(form.sueldo_mensual) : null,
         costo_hora: form.modalidad === "por_hora" ? num(form.costo_hora) : null,
+        costo_unitario: esPorUnidad(form.modalidad) ? num(form.costo_unitario) : null,
         dias_mes: Number(form.dias_mes) || 25,
       };
       if (editingId) {
@@ -148,12 +176,15 @@ export default function PersonalPage() {
     setEditingId(p.personal_bodega_id);
     setForm({
       nombre: p.nombre,
+      legajo: p.legajo ?? "",
+      fecha_ingreso: p.fecha_ingreso ? p.fecha_ingreso.slice(0, 10) : "",
       targetUserId: p.user_id ?? "",
       tipo: p.tipo,
       modalidad: p.modalidad,
       rol: (p.rol ?? "operario") as RolManoObra,
       sueldo_mensual: p.sueldo_mensual ?? "",
       costo_hora: p.costo_hora ?? "",
+      costo_unitario: p.costo_unitario ?? "",
       dias_mes: String(p.dias_mes ?? 25),
     });
   };
@@ -187,7 +218,7 @@ export default function PersonalPage() {
         <SectionIntro
           eyebrow="Bodega"
           title="Personal"
-          description="Legajo de costos del personal: modalidad de pago (mensual o por hora), interno/externo y rol. Estos costos alimentan la mano de obra de cada actividad."
+          description="Legajo del personal: N° de legajo, fecha de ingreso (antigüedad), tipo, rol y modalidad de pago (mensual, por hora, al tanto u otro). Estos costos alimentan la mano de obra de cada actividad."
         />
 
         {error ? <NoticeBanner tone="danger">{error}</NoticeBanner> : null}
@@ -195,6 +226,20 @@ export default function PersonalPage() {
         <AppCard header={<h3 className="text-base font-semibold">{editingId ? "Editar legajo" : "Agregar personal"}</h3>}>
           <div className="grid gap-3 md:grid-cols-3">
             <AppInput label="Nombre" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} placeholder="Nombre y apellido" />
+            <AppInput label="N° de legajo" value={form.legajo} onChange={(e) => setForm({ ...form, legajo: e.target.value })} placeholder="Ej. 1001" />
+            <div>
+              <AppInput
+                label="Fecha de ingreso"
+                type="date"
+                value={form.fecha_ingreso}
+                onChange={(e) => setForm({ ...form, fecha_ingreso: e.target.value })}
+              />
+              {antiguedadDe(form.fecha_ingreso) != null ? (
+                <p className="mt-1 text-xs text-[color:var(--text-ink-muted)]">
+                  Antigüedad: <span className="font-semibold text-[color:var(--text-ink)]">{antiguedadDe(form.fecha_ingreso)} año(s)</span>
+                </p>
+              ) : null}
+            </div>
             {!editingId ? (
               <AppSelect label="Vincular a usuario (opcional)" value={form.targetUserId} onChange={(e) => setForm({ ...form, targetUserId: e.target.value })}>
                 <option value="">Sin vincular</option>
@@ -211,19 +256,26 @@ export default function PersonalPage() {
               {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
             </AppSelect>
             <AppSelect label="Modalidad de pago" value={form.modalidad} onChange={(e) => setForm({ ...form, modalidad: e.target.value as ModalidadPago })}>
-              <option value="por_hora">Por hora</option>
-              <option value="mensual">Mensualizado</option>
+              {MODALIDADES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
             </AppSelect>
             {form.modalidad === "mensual" ? (
               <>
-                <AppInput label="Sueldo mensual" type="number" value={form.sueldo_mensual} onChange={(e) => setForm({ ...form, sueldo_mensual: e.target.value })} />
-                <AppInput label="Días por mes (jornales)" type="number" value={form.dias_mes} onChange={(e) => setForm({ ...form, dias_mes: e.target.value })} />
+                <AppInput label="Sueldo mensual" type="number" min="0" value={form.sueldo_mensual} onChange={(e) => setForm({ ...form, sueldo_mensual: e.target.value })} />
+                <AppInput label="Días por mes (jornales)" type="number" min="1" value={form.dias_mes} onChange={(e) => setForm({ ...form, dias_mes: e.target.value })} />
               </>
+            ) : esPorUnidad(form.modalidad) ? (
+              <AppInput label="Costo unitario (planta, surco, tacho, etc.)" type="number" min="0" value={form.costo_unitario} onChange={(e) => setForm({ ...form, costo_unitario: e.target.value })} />
             ) : (
-              <AppInput label="Costo por hora" type="number" value={form.costo_hora} onChange={(e) => setForm({ ...form, costo_hora: e.target.value })} />
+              <AppInput label="Costo por hora" type="number" min="0" value={form.costo_hora} onChange={(e) => setForm({ ...form, costo_hora: e.target.value })} />
             )}
           </div>
-          {costoHoraPreview != null ? (
+          {esPorUnidad(form.modalidad) ? (
+            num(form.costo_unitario) != null ? (
+              <p className="mt-3 text-xs text-[color:var(--text-ink-muted)]">
+                Costo unitario: <span className="font-semibold text-[color:var(--text-ink)]">{money(num(form.costo_unitario) ?? 0)}</span> por unidad
+              </p>
+            ) : null
+          ) : costoHoraPreview != null ? (
             <p className="mt-3 text-xs text-[color:var(--text-ink-muted)]">
               Costo/hora efectivo: <span className="font-semibold text-[color:var(--text-ink)]">{money(costoHoraPreview)}</span>
               {form.modalidad === "mensual" ? ` (jornal ${money(costoHoraPreview * 8)})` : ""}
@@ -247,22 +299,36 @@ export default function PersonalPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-xs uppercase tracking-wide text-[color:var(--text-ink-muted)]">
+                    <th className="py-2 pr-3">Legajo</th>
                     <th className="py-2 pr-3">Persona</th>
                     <th className="py-2 pr-3">Tipo</th>
                     <th className="py-2 pr-3">Rol</th>
                     <th className="py-2 pr-3">Modalidad</th>
-                    <th className="py-2 pr-3 text-right">Costo/hora</th>
+                    <th className="py-2 pr-3 text-right">Antigüedad</th>
+                    <th className="py-2 pr-3 text-right">Costo</th>
                     <th className="py-2 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {personal.map((p) => (
                     <tr key={p.personal_bodega_id} className={`border-t border-[color:var(--border-shell)] ${p.activo ? "" : "opacity-50"}`}>
+                      <td className="py-2 pr-3">{p.legajo ?? "—"}</td>
                       <td className="py-2 pr-3">{p.nombre}{!p.activo ? <span className="ml-2 text-[10px] uppercase text-[color:var(--text-ink-muted)]">inactivo</span> : null}</td>
                       <td className="py-2 pr-3 capitalize">{p.tipo}</td>
                       <td className="py-2 pr-3 capitalize">{p.rol ?? "—"}</td>
-                      <td className="py-2 pr-3">{p.modalidad === "mensual" ? `Mensual (${money(Number(p.sueldo_mensual ?? 0))})` : "Por hora"}</td>
-                      <td className="py-2 pr-3 text-right">{money(p.costo_hora_efectivo)}</td>
+                      <td className="py-2 pr-3">
+                        {p.modalidad === "mensual"
+                          ? `Mensual (${money(Number(p.sueldo_mensual ?? 0))})`
+                          : MODALIDADES.find((m) => m.value === p.modalidad)?.label ?? p.modalidad}
+                      </td>
+                      <td className="py-2 pr-3 text-right">{p.antiguedad_anios != null ? `${p.antiguedad_anios} año(s)` : "—"}</td>
+                      <td className="py-2 pr-3 text-right">
+                        {esPorUnidad(p.modalidad)
+                          ? p.costo_unitario != null
+                            ? `${money(Number(p.costo_unitario))} /u`
+                            : "—"
+                          : money(p.costo_hora_efectivo)}
+                      </td>
                       <td className="py-2 text-right">
                         <div className="inline-flex gap-1">
                           <AppButton variant="ghost" size="sm" onClick={() => startEdit(p)}>Editar</AppButton>

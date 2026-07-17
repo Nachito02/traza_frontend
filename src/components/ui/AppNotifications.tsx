@@ -1,16 +1,18 @@
 import { Notification } from "@mantine/core";
 import { AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
-
-type AppNotificationTone = "success" | "error" | "info";
+import {
+  AppNotificationsContext,
+  type AppNotificationsContextValue,
+  type AppNotificationTone,
+  type NotifyInput,
+} from "./notificationsContext";
 
 type AppNotification = {
   id: string;
@@ -18,20 +20,6 @@ type AppNotification = {
   title: string;
   message?: string;
 };
-
-type NotifyInput = {
-  title: string;
-  message?: string;
-};
-
-type AppNotificationsContextValue = {
-  notify: (notification: NotifyInput & { tone?: AppNotificationTone }) => void;
-  notifySuccess: (notification: NotifyInput) => void;
-  notifyError: (notification: NotifyInput) => void;
-  notifyInfo: (notification: NotifyInput) => void;
-};
-
-const AppNotificationsContext = createContext<AppNotificationsContextValue | null>(null);
 
 const toneConfig: Record<
   AppNotificationTone,
@@ -177,12 +165,4 @@ export function AppNotificationsProvider({ children }: { children: ReactNode }) 
       </div>
     </AppNotificationsContext.Provider>
   );
-}
-
-export function useAppNotifications() {
-  const context = useContext(AppNotificationsContext);
-  if (!context) {
-    throw new Error("useAppNotifications debe usarse dentro de AppNotificationsProvider.");
-  }
-  return context;
 }

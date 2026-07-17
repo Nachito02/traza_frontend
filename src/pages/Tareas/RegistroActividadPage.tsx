@@ -19,7 +19,7 @@ import { fetchCuartelesByFinca, type Cuartel } from "../../features/cuarteles/ap
 import { fetchProtocolos, fetchProtocoloById } from "../../features/protocolos/api";
 import { registrarActividad, uploadEntradaAdjunto } from "../../features/encargos/api";
 import PersonalSection from "../Costos/PersonalSection";
-import { buildPersonalAsignado, type TransitorioDraft } from "../Costos/PersonalTransitorios";
+import { buildPersonalAsignado, type TransitorioDraft } from "../Costos/transitorios";
 import InsumoPicker, { type AddInsumoLine } from "../Costos/InsumoPicker";
 import { fetchOperariosByBodega, type Operario } from "../../features/operarios/api";
 import { fetchPersonal, type Personal } from "../../features/personal/api";

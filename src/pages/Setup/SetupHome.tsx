@@ -57,14 +57,20 @@ const SetupHome = () => {
   }, [activeBodegaId, loadFincas]);
 
   useEffect(() => {
-    if (!activeBodegaId) {
-      setHasTarifas(false);
-      return;
-    }
     let mounted = true;
-    fetchTarifasMaquinaria(activeBodegaId)
-      .then((rows) => { if (mounted) setHasTarifas(rows.length > 0); })
-      .catch(() => { if (mounted) setHasTarifas(false); });
+    const run = async () => {
+      if (!activeBodegaId) {
+        if (mounted) setHasTarifas(false);
+        return;
+      }
+      try {
+        const rows = await fetchTarifasMaquinaria(activeBodegaId);
+        if (mounted) setHasTarifas(rows.length > 0);
+      } catch {
+        if (mounted) setHasTarifas(false);
+      }
+    };
+    void run();
     return () => { mounted = false; };
   }, [activeBodegaId]);
 

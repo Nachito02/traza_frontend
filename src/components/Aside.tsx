@@ -13,6 +13,7 @@ import {
   Coins,
   ClipboardPlus,
   Boxes,
+  Tractor,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
@@ -175,6 +176,12 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
                 label: "Insumos",
                 description: "Catálogo y precios",
                 icon: <Boxes />,
+              },
+              {
+                to: "/admin/recursos",
+                label: "Máquinas y equipos",
+                description: "Máquinas, implementos, equipos y herramientas",
+                icon: <Tractor />,
               },
               {
                 to: "/personal",

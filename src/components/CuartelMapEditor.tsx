@@ -4,21 +4,24 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { getMapboxToken } from "../lib/mapbox";
 import type { GeoJSONPolygon, Centroide } from "../features/cuarteles/api";
 
-// ── Geocoding ──────────────────────────────────────────────────────────────
+// ── Geocoding (autocompletado en vivo) ──────────────────────────────────────
 
-async function geocodeAddress(
-  query: string,
-  token: string,
-): Promise<{ center: [number, number]; placeName: string } | null> {
-  const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&language=es&limit=1`;
+type GeoSuggestion = {
+  id: string;
+  center: [number, number];
+  placeName: string;
+};
+
+async function geocodeSuggestions(query: string, token: string): Promise<GeoSuggestion[]> {
+  // autocomplete=true + limit=5: sugerencias en vivo mientras se escribe.
+  // country=ar acota a Argentina para resultados más relevantes.
+  const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&language=es&autocomplete=true&limit=5&country=ar`;
   const res = await fetch(url);
-  if (!res.ok) return null;
+  if (!res.ok) return [];
   const data = (await res.json()) as {
-    features?: { center: [number, number]; place_name: string }[];
+    features?: { id: string; center: [number, number]; place_name: string }[];
   };
-  const first = data.features?.[0];
-  if (!first) return null;
-  return { center: first.center, placeName: first.place_name };
+  return (data.features ?? []).map((f) => ({ id: f.id, center: f.center, placeName: f.place_name }));
 }
 
 // ── Tipos internos ─────────────────────────────────────────────────────────
@@ -95,32 +98,58 @@ const CuartelMapEditor = ({ initialPolygon, initialCentroid, onChange }: Props) 
     initialPointsFromPolygon(initialPolygon),
   );
 
-  // ── Geocoder state ───────────────────────────────────────────────────────
+  // ── Geocoder (autocompletado en vivo) ──────────────────────────────────────
   const [geoQuery, setGeoQuery] = useState("");
-  const [geoSearching, setGeoSearching] = useState(false);
-  const [geoError, setGeoError] = useState<string | null>(null);
-  const [geoResult, setGeoResult] = useState<string | null>(null);
+  const [geoSuggestions, setGeoSuggestions] = useState<GeoSuggestion[]>([]);
+  const [geoOpen, setGeoOpen] = useState(false);
+  const [geoLoading, setGeoLoading] = useState(false);
+  const [geoSelected, setGeoSelected] = useState<string | null>(null);
+  // Evita re-disparar la búsqueda cuando el input cambia por elegir una sugerencia.
+  const skipFetchRef = useRef(false);
+  // Descarta respuestas fuera de orden (el usuario sigue tipeando).
+  const reqIdRef = useRef(0);
 
-  const handleGeoSearch = useCallback(async () => {
+  // Debounce: 300ms después de dejar de tipear, pide sugerencias.
+  useEffect(() => {
+    if (skipFetchRef.current) {
+      skipFetchRef.current = false;
+      return;
+    }
+    const q = geoQuery.trim();
     const token = getMapboxToken();
-    if (!token || !geoQuery.trim()) return;
-    setGeoSearching(true);
-    setGeoError(null);
-    setGeoResult(null);
-    try {
-      const result = await geocodeAddress(geoQuery.trim(), token);
-      if (!result) {
-        setGeoError("No se encontró esa dirección. Probá con más detalle (localidad, provincia).");
+    const reqId = ++reqIdRef.current;
+    const timer = window.setTimeout(async () => {
+      if (!token || q.length < 3) {
+        setGeoSuggestions([]);
+        setGeoOpen(false);
         return;
       }
-      mapRef.current?.flyTo({ center: result.center, zoom: 15, duration: 1400 });
-      setGeoResult(result.placeName);
-    } catch {
-      setGeoError("Error al buscar la dirección.");
-    } finally {
-      setGeoSearching(false);
-    }
+      setGeoLoading(true);
+      try {
+        const results = await geocodeSuggestions(q, token);
+        if (reqIdRef.current !== reqId) return; // llegó una respuesta vieja
+        setGeoSuggestions(results);
+        setGeoOpen(results.length > 0);
+      } catch {
+        if (reqIdRef.current === reqId) {
+          setGeoSuggestions([]);
+          setGeoOpen(false);
+        }
+      } finally {
+        if (reqIdRef.current === reqId) setGeoLoading(false);
+      }
+    }, 300);
+    return () => window.clearTimeout(timer);
   }, [geoQuery]);
+
+  const selectSuggestion = useCallback((s: GeoSuggestion) => {
+    skipFetchRef.current = true;
+    setGeoQuery(s.placeName);
+    setGeoSuggestions([]);
+    setGeoOpen(false);
+    setGeoSelected(s.placeName);
+    mapRef.current?.flyTo({ center: s.center, zoom: 15, duration: 1400 });
+  }, []);
 
   // Ref para evitar stale closure en el click handler del mapa
   const pointsRef = useRef<LngLat[]>(points);
@@ -279,30 +308,43 @@ const CuartelMapEditor = ({ initialPolygon, initialCentroid, onChange }: Props) 
 
   return (
     <div className="space-y-2">
-      {/* Buscador de dirección */}
-      <div className="flex gap-2">
+      {/* Buscador de dirección con autocompletado en vivo */}
+      <div className="relative">
         <input
           type="text"
           value={geoQuery}
-          onChange={(e) => { setGeoQuery(e.target.value); setGeoError(null); setGeoResult(null); }}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void handleGeoSearch(); } }}
-          placeholder="Buscá una dirección para navegar el mapa…"
-          className="flex-1 rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-[color:var(--surface-base)] px-3 py-2 text-sm text-[color:var(--text-ink)] placeholder:text-[color:var(--text-ink-muted)] focus:border-[color:var(--brand-primary)] focus:outline-none"
+          onChange={(e) => { setGeoQuery(e.target.value); setGeoSelected(null); }}
+          onFocus={() => { if (geoSuggestions.length > 0) setGeoOpen(true); }}
+          onBlur={() => window.setTimeout(() => setGeoOpen(false), 120)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") { e.preventDefault(); if (geoSuggestions[0]) selectSuggestion(geoSuggestions[0]); }
+            if (e.key === "Escape") setGeoOpen(false);
+          }}
+          placeholder="Buscá una dirección o localidad…"
+          autoComplete="off"
+          className="w-full rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-[color:var(--surface-base)] px-3 py-2 pr-9 text-sm text-[color:var(--text-ink)] placeholder:text-[color:var(--text-ink-muted)] focus:border-[color:var(--brand-primary)] focus:outline-none"
         />
-        <button
-          type="button"
-          disabled={geoSearching || !geoQuery.trim()}
-          onClick={() => void handleGeoSearch()}
-          className="rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-[color:var(--surface-base)] px-3 py-2 text-sm font-semibold text-[color:var(--text-ink)] transition-all hover:bg-[color:var(--surface-soft)] disabled:opacity-50"
-        >
-          {geoSearching ? "…" : "Buscar"}
-        </button>
+        {geoLoading ? (
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[color:var(--text-ink-muted)]">…</span>
+        ) : null}
+        {geoOpen && geoSuggestions.length > 0 ? (
+          <ul className="absolute z-20 mt-1 w-full overflow-hidden rounded-[var(--radius-md)] border border-[color:var(--border-default)] bg-[color:var(--surface-base)] shadow-lg">
+            {geoSuggestions.map((s) => (
+              <li key={s.id}>
+                <button
+                  type="button"
+                  onMouseDown={(e) => { e.preventDefault(); selectSuggestion(s); }}
+                  className="block w-full px-3 py-2 text-left text-sm text-[color:var(--text-ink)] transition-colors hover:bg-[color:var(--surface-soft)]"
+                >
+                  <span className="mr-1">📍</span>{s.placeName}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </div>
-      {geoResult ? (
-        <p className="text-xs text-[color:var(--feedback-success-text)]">📍 {geoResult}</p>
-      ) : null}
-      {geoError ? (
-        <p className="text-xs text-[color:var(--feedback-danger-text)]">{geoError}</p>
+      {geoSelected ? (
+        <p className="text-xs text-[color:var(--feedback-success-text)]">📍 {geoSelected}</p>
       ) : null}
 
       {/* Mapa */}

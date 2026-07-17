@@ -14,7 +14,7 @@ import { fetchOperariosByBodega, type Operario } from "../../features/operarios/
 import { fetchPersonal, type Personal } from "../../features/personal/api";
 import { fetchExistencias, type Existencia } from "../../features/inventario/api";
 import PersonalSection from "./PersonalSection";
-import { buildPersonalAsignado, payloadToTransitorio, type TransitorioDraft } from "./PersonalTransitorios";
+import { buildPersonalAsignado, payloadToTransitorio, type TransitorioDraft } from "./transitorios";
 import InsumoPicker, { type AddInsumoLine } from "./InsumoPicker";
 import {
   addInsumo,

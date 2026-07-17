@@ -109,17 +109,6 @@ export default function FincasAdmin() {
     void load();
   }, [load]);
 
-  useEffect(() => {
-    const editId = searchParams.get("edit");
-    if (!editId) return;
-    void onEditById(editId);
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.delete("edit");
-      return next;
-    }, { replace: true });
-  }, [searchParams, setSearchParams]);
-
   const disabled = useMemo(() => !activeBodegaId || saving, [activeBodegaId, saving]);
 
   const onSubmit = async () => {
@@ -172,7 +161,7 @@ export default function FincasAdmin() {
     }
   };
 
-  const onEditById = async (id: string) => {
+  const onEditById = useCallback(async (id: string) => {
     if (!id) return;
     setLoadingEdit(true);
     setError(null);
@@ -198,7 +187,18 @@ export default function FincasAdmin() {
     } finally {
       setLoadingEdit(false);
     }
-  };
+  }, [vinculosByFincaId]);
+
+  useEffect(() => {
+    const editId = searchParams.get("edit");
+    if (!editId) return;
+    void onEditById(editId);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("edit");
+      return next;
+    }, { replace: true });
+  }, [searchParams, setSearchParams, onEditById]);
 
   const onDelete = (item: Finca) => {
     const id = String(item.finca_id ?? item.id ?? "");

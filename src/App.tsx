@@ -28,7 +28,6 @@ import SetupCuarteles from "./pages/Setup/SetupCuarteles";
 import FincaDetail from "./pages/Fincas/FincaDetail";
 import Fincas from "./pages/Fincas/Fincas";
 import Usuarios from "./pages/Usuarios/Usuarios";
-// import Integraciones from "./pages/Integraciones/Integraciones";
 import Tareas from "./pages/Tareas/Tareas";
 import IngresoUvaFlowPage from "./pages/Elaboracion/IngresoUvaFlowPage";
 import VasijasProcesoPage from "./pages/Elaboracion/VasijasProcesoPage";
@@ -39,12 +38,12 @@ import CampoPage from "./pages/Elaboracion/CampoPage";
 import FincasAdmin from "./pages/Admin/FincasAdmin";
 import CuartelesAdmin from "./pages/Admin/CuartelesAdmin";
 import CampaniasAdmin from "./pages/Admin/CampaniasAdmin";
-// import ProtocolosAdmin from "./pages/Admin/ProtocolosAdmin";
 import QrCuartelesAdmin from "./pages/Admin/QrCuartelesAdmin";
 import TarifasPage from "./pages/Costos/TarifasPage";
 import CostosResumenPage from "./pages/Costos/CostosResumenPage";
 import RegistroActividadPage from "./pages/Tareas/RegistroActividadPage";
 import InsumosPage from "./pages/Inventario/InsumosPage";
+import RecursosAdmin from "./pages/Admin/RecursosAdmin";
 import InventarioPage from "./pages/Inventario/InventarioPage";
 import PersonalPage from "./pages/Personal/PersonalPage";
 import TrazabilidadPublica from "./pages/Public/TrazabilidadPublica";
@@ -182,13 +181,10 @@ export default function App() {
         <Route path="/admin/qr-cuarteles" element={access.canAccessBodega ? <QrCuartelesAdmin /> : <Navigate to="/dashboard" replace />} />
         <Route path="/admin/tarifas" element={access.canAccessBodega ? <TarifasPage /> : <Navigate to="/dashboard" replace />} />
         <Route path="/admin/insumos" element={access.canAccessBodega ? <InsumosPage /> : <Navigate to="/dashboard" replace />} />
+        <Route path="/admin/recursos" element={access.canAccessBodega ? <RecursosAdmin /> : <Navigate to="/dashboard" replace />} />
         <Route path="/costos" element={access.canAccessBodega ? <CostosResumenPage /> : <Navigate to="/dashboard" replace />} />
         <Route path="/inventario" element={access.canAccessBodega ? <InventarioPage /> : <Navigate to="/dashboard" replace />} />
         <Route path="/personal" element={access.canAccessBodega ? <PersonalPage /> : <Navigate to="/dashboard" replace />} />
-        {/* <Route
-          path="/admin/protocolos"
-          element={access.isAdminSistema ? <ProtocolosAdmin /> : <Navigate to="/dashboard" replace />}
-        /> */}
         <Route path="/bodega" element={access.canAccessBodega ? <BodegaHome /> : <Navigate to="/fincas" replace />} />
         <Route path="/bodega/vasijas" element={access.canAccessBodega ? <BodegaVasijasPage /> : <Navigate to="/fincas" replace />} />
         <Route path="/bodega/vasijas/nueva" element={access.canAccessBodega ? <BodegaVasijaFormPage mode="create" /> : <Navigate to="/fincas" replace />} />
@@ -231,7 +227,6 @@ export default function App() {
         <Route path="/ordenes" element={<Tareas mode="manager" />} />
         <Route path="/tareas" element={<Tareas mode="operator" />} />
         <Route path="/usuarios" element={access.canAccessBodega ? <Usuarios /> : <Navigate to="/dashboard" replace />} />
-        {/* <Route path="/integraciones" element={<Integraciones />} /> */}
         <Route path="/fincas/:id" element={<FincaDetail />} />
         <Route path="/setup" element={<SetupHome />} />
         <Route path="/setup/finca" element={<SetupFinca />} />
@@ -242,7 +237,6 @@ export default function App() {
         <Route path="/trazabilidades/nueva" element={<Navigate to="/ordenes" replace />} />
         <Route path="/trazabilidades/:id/plan" element={<Navigate to="/ordenes" replace />} />
       </Route>
-      {/* <Route path="*" element={<NotFound />} /> */}
     </Routes>
     </>
   );
