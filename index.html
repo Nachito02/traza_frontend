@@ -9,7 +9,8 @@
       (function () {
         try {
           var t = localStorage.getItem("traza-theme");
-          if (t === "light") document.documentElement.setAttribute("data-theme", "light");
+          // Menta claro por defecto (evita flash); oscuro sólo si se eligió.
+          if (t !== "dark") document.documentElement.setAttribute("data-theme", "light");
         } catch (e) {}
       })();
     </script>

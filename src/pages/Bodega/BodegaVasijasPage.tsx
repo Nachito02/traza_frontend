@@ -17,6 +17,21 @@ import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
 
 const VASIJA_ID_KEYS = ["id_vasija", "vasija_id", "id"];
+const editIcon = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+  </svg>
+);
+const deleteIcon = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M3 6h18" />
+    <path d="M8 6V4h8v2" />
+    <path d="M19 6l-1 14H6L5 6" />
+    <path d="M10 11v6" />
+    <path d="M14 11v6" />
+  </svg>
+);
 
 function resolveVasijaId(item: ElaboracionEntity) {
   for (const key of VASIJA_ID_KEYS) {
@@ -220,52 +235,60 @@ export default function BodegaVasijasPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <AppButton
-                          type="button"
-                          variant="primary"
-                          size="sm"
-                          onClick={() =>
-                            navigate(`/bodega/vasijas/${encodeURIComponent(id)}`)
-                          }
-                          disabled={!id}
-                        >
-                          Ver movimientos
-                        </AppButton>
-                        <AppButton
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          onClick={() =>
-                            navigate(
-                              `/operacion/vasijas?section=operaciones&vasijaId=${encodeURIComponent(id)}`,
-                            )
-                          }
-                          disabled={!id}
-                        >
-                          Gestionar
-                        </AppButton>
-                        <AppButton
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            navigate(`/bodega/vasijas/${encodeURIComponent(id)}/editar`)
-                          }
-                          disabled={!id}
-                        >
-                          Editar
-                        </AppButton>
-                        <AppButton
-                          type="button"
-                          variant="danger"
-                          size="sm"
-                          disabled={!id || deletingId === id}
-                          loading={deletingId === id}
-                          onClick={() => void onDelete(item)}
-                        >
-                          {deletingId === id ? "Eliminando..." : "Eliminar"}
-                        </AppButton>
+                      <div className="mt-4">
+                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                          <AppButton
+                            type="button"
+                            variant="primary"
+                            size="sm"
+                            className="w-full justify-center"
+                            onClick={() =>
+                              navigate(`/bodega/vasijas/${encodeURIComponent(id)}`)
+                            }
+                            disabled={!id}
+                          >
+                            Ver movimientos
+                          </AppButton>
+                          <AppButton
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            className="w-full justify-center"
+                            onClick={() =>
+                              navigate(
+                                `/operacion/vasijas?section=operaciones&vasijaId=${encodeURIComponent(id)}`,
+                              )
+                            }
+                            disabled={!id}
+                          >
+                            Gestionar
+                          </AppButton>
+                          <AppButton
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            leftSection={editIcon}
+                            className="w-full justify-center border-[color:var(--border-default)] bg-[color:var(--surface-soft)] text-[color:var(--text-ink)] hover:bg-[color:var(--surface-base)]"
+                            onClick={() =>
+                              navigate(`/bodega/vasijas/${encodeURIComponent(id)}/editar`)
+                            }
+                            disabled={!id}
+                          >
+                            Editar
+                          </AppButton>
+                          <AppButton
+                            type="button"
+                            variant="danger"
+                            size="sm"
+                            leftSection={deleteIcon}
+                            className="w-full justify-center border-[color:rgba(213,74,74,0.28)] bg-[color:rgba(213,74,74,0.08)] text-[color:var(--feedback-danger-text)] hover:border-[color:rgba(213,74,74,0.45)] hover:bg-[color:rgba(213,74,74,0.14)]"
+                            disabled={!id || deletingId === id}
+                            loading={deletingId === id}
+                            onClick={() => void onDelete(item)}
+                          >
+                            {deletingId === id ? "Eliminando..." : "Eliminar"}
+                          </AppButton>
+                        </div>
                       </div>
                     </AppCard>
                   );

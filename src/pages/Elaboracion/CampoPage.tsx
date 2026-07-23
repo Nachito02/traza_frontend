@@ -1,17 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   fetchTareasByBodega,
   fetchPendientesByScope,
   fetchTareaAsignacionDetail,
-  createTareaEntrada,
-  finalizarTareaAsignacion,
-  uploadEntradaAdjunto,
   patchTareaEntrada,
   type AdjuntoRecord,
   type Tarea,
   type TareaEntradaDetail,
 } from "../../features/encargos/api";
-import { getApiErrorMessage } from "../../lib/api";
 import { useFincasStore } from "../../features/fincas/store";
 import { useAuthStore } from "../../store/authStore";
 import {
@@ -23,12 +19,9 @@ import {
   MetricCard,
   NoticeBanner,
   SectionIntro,
-  useAppNotifications,
 } from "../../components/ui";
 import { EVENTO_CONFIG, type EventoConfig } from "../Trazabilidad/eventoConfig";
-import { Link } from "react-router-dom";
-import CostosActividadPanel from "../Costos/CostosActividadPanel";
-import EventoFields from "../Tareas/components/EventoFields";
+import { Link, useNavigate } from "react-router-dom";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -173,6 +166,13 @@ function EntradaDescripcion({ descripcion }: { descripcion: string }) {
   );
 }
 
+function summarizeParsedFields(
+  fields: [string, string][],
+  maxItems = 3,
+) {
+  return fields.slice(0, maxItems);
+}
+
 // ─── EntradaItem con edición completa ────────────────────────────────────────
 
 function parseDraft(rawDesc: string): Record<string, string> {
@@ -188,11 +188,13 @@ function parseDraft(rawDesc: string): Record<string, string> {
 }
 
 function EntradaItem({
+  tareaId,
   entrada,
   index,
   eventoConfig,
   onUpdated,
 }: {
+  tareaId: string;
   entrada: TareaEntradaDetail;
   index: number;
   eventoConfig: EventoConfig | null;
@@ -209,14 +211,7 @@ function EntradaItem({
     const label = eventoConfig?.fields.find((f) => f.name === k)?.label ?? k.replace(/_/g, " ");
     return [label, v] as [string, string];
   });
-
-  const openEdit = () => {
-    const d = new Date(entrada.fecha);
-    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-    setEditFecha(local);
-    setEditDraft({ ...draft });
-    setEditing(true);
-  };
+  const previewFields = summarizeParsedFields(parsedFields);
 
   const handleSave = async () => {
     if (!entrada.entradaId) return;
@@ -237,45 +232,71 @@ function EntradaItem({
   };
 
   return (
-    <div className="rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-3 py-2">
+    <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
       {/* Cabecera */}
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs text-[color:var(--text-ink-muted)]">
-          #{index + 1} · {new Date(entrada.fecha).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
-          {entrada.creadoPor?.nombre ? ` · ${entrada.creadoPor.nombre}` : ""}
-        </p>
+      <div className="flex items-start justify-between gap-3 px-4 py-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-[color:var(--border-shell)] bg-[color:var(--surface-base)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-[color:var(--text-ink-muted)]">
+              Registro #{index + 1}
+            </span>
+            <p className="text-sm font-semibold text-[color:var(--text-ink)]">
+              {new Date(entrada.fecha).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+            </p>
+            {entrada.creadoPor?.nombre ? (
+              <span className="text-sm text-[color:var(--text-ink-muted)]">
+                · {entrada.creadoPor.nombre}
+              </span>
+            ) : null}
+          </div>
+          {previewFields.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {previewFields.map(([label, value]) => (
+                <span
+                  key={label}
+                  className="rounded-full border border-[color:var(--border-shell)] bg-[color:var(--surface-base)] px-3 py-1 text-xs text-[color:var(--text-ink-muted)]"
+                >
+                  <strong className="font-semibold text-[color:var(--text-ink)]">{label}:</strong> {value}
+                </span>
+              ))}
+            </div>
+          ) : rawDesc ? (
+            <p className="mt-2 line-clamp-2 text-sm text-[color:var(--text-ink-muted)]">
+              Ver detalle del registro guardado.
+            </p>
+          ) : null}
+        </div>
         {!editing && (
-          <button
-            type="button"
-            onClick={openEdit}
-            className="shrink-0 text-[11px] text-[color:var(--text-ink-muted)] underline hover:text-[color:var(--text-ink)]"
+          <Link
+            to={`/operacion/registro?mode=edit&tareaId=${encodeURIComponent(tareaId)}&entradaId=${encodeURIComponent(entrada.entradaId)}&from=campo`}
+            className="inline-flex min-h-9 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] px-3 py-2 text-xs font-semibold text-[color:var(--accent-primary)] shadow-[var(--shadow-inset-soft)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)] hover:border-[color:var(--border-default)] hover:bg-[color:var(--action-secondary-hover)]"
           >
-            Editar
-          </button>
+            Abrir editor
+          </Link>
         )}
       </div>
 
       {/* Modo lectura */}
       {!editing && (
-        <>
+        <div className="border-t border-[color:var(--border-shell)]/60 bg-[color:var(--surface-base)] px-4 py-4">
           {parsedFields.length > 0 ? (
-            <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
               {parsedFields.map(([label, value]) => (
                 <div key={label}>
-                  <span className="text-sm capitalize text-[color:var(--text-ink-muted)]">{label}: </span>
-                  <span className="text-sm font-medium text-[color:var(--text-ink)]">{value}</span>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--text-ink-muted)]">{label}</p>
+                  <p className="mt-0.5 text-sm font-medium text-[color:var(--text-ink)]">{value}</p>
                 </div>
               ))}
             </div>
           ) : rawDesc ? (
             <EntradaDescripcion descripcion={rawDesc} />
           ) : null}
-        </>
+        </div>
       )}
 
       {/* Modo edición */}
       {editing && (
-        <div className="mt-3 space-y-3">
+        <div className="space-y-3 border-t border-[color:var(--border-shell)]/60 bg-[color:var(--surface-base)] px-4 py-4">
           {/* Fecha */}
           <div>
             <label className="mb-1 block text-xs font-semibold text-[color:var(--text-ink-muted)]">Fecha</label>
@@ -376,7 +397,8 @@ function EntradaItem({
 
       {/* Adjuntos */}
       {!editing && Array.isArray(entrada.adjuntos) && entrada.adjuntos.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-2">
+        <div className="border-t border-[color:var(--border-shell)]/60 bg-[color:var(--surface-base)] px-4 py-4">
+          <div className="flex flex-wrap gap-2">
           {(entrada.adjuntos as AdjuntoRecord[]).map((adj) =>
             adj.tipo.startsWith("image/") ? (
               <a key={adj.cid} href={adj.url} target="_blank" rel="noopener noreferrer"
@@ -391,6 +413,7 @@ function EntradaItem({
               </a>
             )
           )}
+          </div>
         </div>
       )}
     </div>
@@ -403,59 +426,21 @@ function TareaDetalleModal({
   tarea,
   opened,
   onClose,
-  onCompleted,
 }: {
   tarea: Tarea;
   opened: boolean;
   onClose: () => void;
-  onCompleted?: () => void;
 }) {
-  const { notifySuccess, notifyError } = useAppNotifications();
-  const modalBodegaId = useAuthStore((state) => state.activeBodegaId);
+  const navigate = useNavigate();
   const [entradas, setEntradas] = useState<TareaEntradaDetail[] | null>(null);
   const [loadingEntradas, setLoadingEntradas] = useState(false);
-  const [draft, setDraft] = useState<Record<string, string>>({});
-  const [saving, setSaving] = useState(false);
-  const [finalizing, setFinalizing] = useState(false);
-  // Unified pending attachments — images get an objectURL preview, other files don't
-  const [pendingFiles, setPendingFiles] = useState<{ file: File; previewUrl: string | null }[]>([]);
-  const [uploadingFiles, setUploadingFiles] = useState(false);
-  const imageInputRef = useRef<HTMLInputElement | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  const addPendingFiles = useCallback((files: File[]) => {
-    setPendingFiles((prev) => [
-      ...prev,
-      ...files.map((file) => ({
-        file,
-        previewUrl: file.type.startsWith("image/") ? URL.createObjectURL(file) : null,
-      })),
-    ]);
-  }, []);
-
-  const handlePickImages = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    if (files.length) addPendingFiles(files);
-    e.target.value = "";
-  }, [addPendingFiles]);
-
-  const handlePickFiles = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    if (files.length) addPendingFiles(files);
-    e.target.value = "";
-  }, [addPendingFiles]);
-
-  const removePendingFile = useCallback((idx: number) => {
-    setPendingFiles((prev) => {
-      const item = prev[idx];
-      if (item?.previewUrl) URL.revokeObjectURL(item.previewUrl);
-      return prev.filter((_, i) => i !== idx);
-    });
-  }, []);
 
   const asignacionId = tarea.tarea_asignacion?.[0]?.tarea_asignacion_id ?? null;
-  const isCompleted = normalizeEstado(tarea.estado) === "completado";
+  const estado = normalizeEstado(tarea.estado);
+  const isCompleted = estado === "completado";
+  const isCancelled = estado === "cancelado";
   const eventoConfig = getEventoConfigForTask(tarea);
+  const tareaId = String(tarea.tarea_id ?? tarea.id ?? "");
 
   const loadEntradas = () => {
     if ((tarea.tarea_asignacion?.length ?? 0) === 0) {
@@ -474,88 +459,8 @@ function TareaDetalleModal({
 
   useEffect(() => {
     if (opened && entradas === null) loadEntradas();
-    if (!opened) {
-      setDraft({});
-    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened]);
-
-
-  const setDraftField = (field: string, value: string) =>
-    setDraft((prev) => ({ ...prev, [field]: value }));
-
-  const hasDraftValues = eventoConfig
-    ? Object.values(draft).some((v) => v.trim() !== "")
-    : (draft["_notas"] ?? "").trim() !== "";
-
-  const handleRegister = async () => {
-    if (!asignacionId || !hasDraftValues) return;
-
-    let descripcion: string;
-    let notas: string;
-    if (eventoConfig) {
-      const filtered = Object.fromEntries(
-        Object.entries(draft).filter(([, v]) => v.trim() !== ""),
-      );
-      descripcion = JSON.stringify(filtered);
-      notas = Object.entries(filtered)
-        .map(([k, v]) => {
-          const label = eventoConfig.fields.find((f) => f.name === k)?.label ?? k;
-          return `${label}: ${v}`;
-        })
-        .join(", ");
-    } else {
-      const text = draft["_notas"] ?? "";
-      descripcion = text;
-      notas = text;
-    }
-
-    setSaving(true);
-    try {
-      const entry = await createTareaEntrada(asignacionId, { notas, descripcion }) as { entradaId?: string };
-      setDraft({});
-
-      // Upload pending files to the newly created entry
-      if (pendingFiles.length > 0 && entry?.entradaId) {
-        setUploadingFiles(true);
-        try {
-          await Promise.all(
-            pendingFiles.map(({ file }) => uploadEntradaAdjunto(entry.entradaId!, file)),
-          );
-          setPendingFiles((prev) => {
-            prev.forEach((p) => { if (p.previewUrl) URL.revokeObjectURL(p.previewUrl); });
-            return [];
-          });
-        } catch {
-          notifyError({ title: "Archivos no subidos", message: "El registro se guardó pero no se pudieron subir los archivos. Verificá la configuración del servidor IPFS." });
-        } finally {
-          setUploadingFiles(false);
-        }
-      }
-
-      notifySuccess({ title: "Registro guardado", message: "La entrada fue registrada correctamente." });
-      loadEntradas();
-    } catch (e) {
-      notifyError({ title: "Error al registrar", message: getApiErrorMessage(e) });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleFinalize = async () => {
-    if (!asignacionId || (entradas ?? []).length === 0) return;
-    setFinalizing(true);
-    try {
-      await finalizarTareaAsignacion(asignacionId);
-      notifySuccess({ title: "Tarea completada", message: "La tarea fue marcada como completada." });
-      onClose();
-      onCompleted?.();
-    } catch (e) {
-      notifyError({ title: "Error al finalizar", message: getApiErrorMessage(e) });
-    } finally {
-      setFinalizing(false);
-    }
-  };
 
   const fecha = fechaLabel(tarea);
 
@@ -596,70 +501,62 @@ function TareaDetalleModal({
         </span>
       }
       footer={
-        asignacionId && !isCompleted ? (
+        asignacionId && !isCompleted && !isCancelled ? (
           <div className="flex flex-wrap items-center gap-2">
-            <AppButton
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => void handleRegister()}
-              disabled={saving || !hasDraftValues}
-              loading={saving}
-            >
-              {saving ? "Guardando…" : "Registrar avance"}
-            </AppButton>
             <AppButton
               type="button"
               variant="primary"
               size="sm"
-              onClick={() => void handleFinalize()}
-              disabled={finalizing || (entradas ?? []).length === 0}
-              loading={finalizing}
-              title={(entradas ?? []).length === 0 ? "Registrá al menos un avance antes de finalizar" : undefined}
+              onClick={() => {
+                if (!tareaId || !asignacionId) return;
+                onClose();
+                navigate(`/operacion/registro?mode=task&tareaId=${encodeURIComponent(tareaId)}&asignacionId=${encodeURIComponent(asignacionId)}&from=campo`);
+              }}
             >
-              {finalizing ? "Finalizando…" : "Finalizar tarea"}
+              Completar tarea
             </AppButton>
           </div>
         ) : undefined
       }
     >
       <div className="space-y-5">
-        {/* Metadata badges */}
-        <div className="flex flex-wrap gap-2">
-          {tarea.prioridad && (
-            <span className="rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-2 py-0.5 text-xs capitalize text-[color:var(--text-ink-muted)]">
-              Prioridad: {tarea.prioridad}
-            </span>
-          )}
-          {eventoConfig && (
-            <span className="rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-2 py-0.5 text-xs text-[color:var(--accent-primary)]">
-              {eventoConfig.label}
-            </span>
-          )}
-        </div>
-
-        {/* Descripción */}
-        {tarea.descripcion && (
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--text-ink-muted)]">
-              Descripción
-            </p>
-            <p className="mt-1 text-sm text-[color:var(--text-ink)]">{tarea.descripcion}</p>
+        <div className="rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-4 py-4">
+          <div className="flex flex-wrap items-center gap-2">
+            {tarea.prioridad && (
+              <span className="rounded-full border border-[color:var(--border-shell)] bg-[color:var(--surface-base)] px-3 py-1 text-xs font-semibold capitalize text-[color:var(--text-ink-muted)]">
+                Prioridad: {tarea.prioridad}
+              </span>
+            )}
+            {eventoConfig && (
+              <span className="rounded-full border border-[color:var(--border-shell)] bg-[color:var(--surface-base)] px-3 py-1 text-xs font-semibold text-[color:var(--accent-primary)]">
+                {eventoConfig.label}
+              </span>
+            )}
           </div>
-        )}
-
-        {/* Imagen */}
-        {tarea.imagen_url && (
-          <img
-            src={tarea.imagen_url}
-            alt="Evidencia"
-            className="max-h-56 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] object-cover"
-          />
-        )}
+          {tarea.descripcion ? (
+            <p className="mt-3 text-sm leading-relaxed text-[color:var(--text-ink)]">{tarea.descripcion}</p>
+          ) : (
+            <p className="mt-3 text-sm text-[color:var(--text-ink-muted)]">Esta tarea no tiene descripción adicional cargada.</p>
+          )}
+          {tarea.imagen_url && (
+            <div className="mt-4 overflow-hidden rounded-[var(--radius-md)] border border-[color:var(--border-shell)]">
+              <img
+                src={tarea.imagen_url}
+                alt="Evidencia"
+                className="max-h-56 w-full object-cover"
+              />
+            </div>
+          )}
+          {!isCompleted && !isCancelled ? (
+            <p className="mt-3 text-sm text-[color:var(--text-ink-muted)]">
+              Revisá el contexto de la tarea y usá <span className="font-semibold text-[color:var(--text-ink)]">Completar tarea</span> para cargar la ejecución en la pantalla operativa completa.
+            </p>
+          ) : null}
+        </div>
 
         {/* Asignaciones */}
         {(tarea.tarea_asignacion?.length ?? 0) > 0 && (
-          <div>
+          <div className="rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-4 py-4">
             <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--text-ink-muted)]">
               Asignaciones
             </p>
@@ -667,7 +564,7 @@ function TareaDetalleModal({
               {tarea.tarea_asignacion!.map((a) => (
                 <div
                   key={a.tarea_asignacion_id}
-                  className="space-y-1 rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-3 py-2"
+                  className="space-y-1 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-base)] px-3 py-3"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-2">
@@ -699,7 +596,7 @@ function TareaDetalleModal({
         )}
 
         {/* Entradas guardadas */}
-        <div>
+        <div className="rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-4 py-4">
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--text-ink-muted)]">
             Registros guardados {entradas !== null ? `(${entradas.length})` : ""}
           </p>
@@ -709,6 +606,7 @@ function TareaDetalleModal({
             <div className="space-y-2">
               {entradas.map((e, i) => (
                   <EntradaItem
+                    tareaId={String(tarea.tarea_id ?? tarea.id ?? "")}
                     key={e.entradaId ?? i}
                     entrada={e}
                     index={i}
@@ -732,90 +630,6 @@ function TareaDetalleModal({
           ) : null}
         </div>
 
-        {/* Formulario de registro */}
-        {asignacionId && !isCompleted && (
-          <div className="space-y-3 border-t border-[color:var(--border-default)]/50 pt-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--text-ink-muted)]">
-              Registrar avance{eventoConfig ? ` — ${eventoConfig.label}` : ""}
-            </p>
-
-            <EventoFields eventoConfig={eventoConfig} draft={draft} onChange={setDraftField} />
-
-
-            {/* ── Adjuntos picker ─────────────────────────────────────── */}
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--text-ink-muted)]">
-                Adjuntos <span className="font-normal normal-case">(fotos y archivos — opcional)</span>
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {/* Pending previews */}
-                {pendingFiles.map(({ file, previewUrl }, idx) => (
-                  <div key={idx} className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] overflow-hidden">
-                    {previewUrl ? (
-                      <img src={previewUrl} alt={file.name} className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="flex flex-col items-center gap-0.5 px-1 text-center">
-                        <span className="text-xl leading-none">{fileIcon(file.type)}</span>
-                        <span className="line-clamp-2 text-[9px] font-medium text-[color:var(--text-ink-muted)]">{file.name}</span>
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => removePendingFile(idx)}
-                      className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow hover:bg-red-600"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-
-                {/* Add photo button */}
-                <button
-                  type="button"
-                  onClick={() => imageInputRef.current?.click()}
-                  className="flex h-20 w-20 shrink-0 flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] border border-dashed border-[color:var(--border-default)] bg-[color:var(--surface-soft)] text-[color:var(--text-ink-muted)] transition hover:border-[color:var(--accent-primary)] hover:text-[color:var(--text-ink)]"
-                >
-                  <span className="text-2xl leading-none">📷</span>
-                  <span className="text-[10px] font-semibold">Foto</span>
-                </button>
-
-                {/* Add file button */}
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex h-20 w-20 shrink-0 flex-col items-center justify-center gap-1 rounded-[var(--radius-md)] border border-dashed border-[color:var(--border-default)] bg-[color:var(--surface-soft)] text-[color:var(--text-ink-muted)] transition hover:border-[color:var(--accent-primary)] hover:text-[color:var(--text-ink)]"
-                >
-                  <span className="text-2xl leading-none">📎</span>
-                  <span className="text-[10px] font-semibold">Archivo</span>
-                </button>
-
-                {/* Hidden inputs */}
-                <input ref={imageInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePickImages} />
-                <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv" multiple className="hidden" onChange={handlePickFiles} />
-              </div>
-              {uploadingFiles && (
-                <p className="mt-2 text-xs text-[color:var(--text-ink-muted)]">Subiendo archivos a IPFS…</p>
-              )}
-            </div>
-
-            {(entradas ?? []).length === 0 && (
-              <p className="text-xs text-[color:var(--text-ink-muted)]">
-                Necesitás registrar al menos una entrada antes de poder finalizar la tarea.
-              </p>
-            )}
-          </div>
-        )}
-
-        {tarea.tarea_id && asignacionId && !isCompleted && (
-          <div className="border-t border-[color:var(--border-shell)]/50 pt-4">
-            <CostosActividadPanel
-              tareaId={tarea.tarea_id}
-              bodegaId={tarea.bodega_id ?? modalBodegaId}
-              esFertilizacion={eventoConfig?.label === "Fertilización"}
-            />
-          </div>
-        )}
-
         <p className="border-t border-[color:var(--border-shell)]/50 pt-3 text-xs text-[color:var(--text-ink-muted)]">
           Creada: {tarea.created_at ? new Date(tarea.created_at).toLocaleString("es-AR") : "—"}
           {tarea.updated_at ? ` · Actualizada: ${new Date(tarea.updated_at).toLocaleString("es-AR")}` : ""}
@@ -829,10 +643,8 @@ function TareaDetalleModal({
 
 function TareaRow({
   tarea,
-  onCompleted,
 }: {
   tarea: Tarea;
-  onCompleted?: () => void;
 }) {
   const [modalOpen, setModalOpen] = useState(false);
   const fecha = fechaLabel(tarea);
@@ -879,7 +691,6 @@ function TareaRow({
         tarea={tarea}
         opened={modalOpen}
         onClose={() => setModalOpen(false)}
-        onCompleted={onCompleted}
       />
     </>
   );
@@ -891,12 +702,10 @@ function FincaGroupCard({
   nombre,
   tareas,
   defaultOpen,
-  onCompleted,
 }: {
   nombre: string;
   tareas: Tarea[];
   defaultOpen: boolean;
-  onCompleted?: () => void;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const pendientes = tareas.filter(
@@ -931,7 +740,6 @@ function FincaGroupCard({
             <TareaRow
               key={String(tarea.tarea_id ?? tarea.id ?? "")}
               tarea={tarea}
-              onCompleted={onCompleted}
             />
           ))}
         </div>
@@ -1072,7 +880,7 @@ export default function CampoPage({ standalone = false }: { standalone?: boolean
           <SectionIntro
             eyebrow="Operaciones de campo"
             title="Actividad por finca"
-            description="Tareas registradas en las fincas vinculadas a esta bodega. Hacé click en una tarea para ver el detalle y registrar avances."
+            description="Tareas registradas en las fincas vinculadas a esta bodega. Las pendientes se completan en una pantalla operativa completa; las cerradas quedan disponibles para consulta."
           />
           {!standalone && (
             <Link to="/operacion/registro" className="shrink-0">
@@ -1197,7 +1005,6 @@ export default function CampoPage({ standalone = false }: { standalone?: boolean
               nombre={grupo.nombre}
               tareas={grupo.tareas}
               defaultOpen={expandirTodas}
-              onCompleted={loadTareas}
             />
           ));
         })()

@@ -45,6 +45,8 @@ type Props = {
   actividadClave?: string;
   /** En fertilización el insumo es el fertilizante: se resalta la sección Insumos. */
   esFertilizacion?: boolean;
+  /** En labores de suelo/culturales el tractor se carga acá (no en el detalle). */
+  esLaborConMaquina?: boolean;
   /** Permite recargar la vista padre cuando cambian los costos. */
   onChanged?: () => void;
 };
@@ -70,7 +72,7 @@ function NoAplicaNota({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function CostosActividadPanel({ tareaId, bodegaId, actividadClave, esFertilizacion, onChanged }: Props) {
+export default function CostosActividadPanel({ tareaId, bodegaId, actividadClave, esFertilizacion, esLaborConMaquina, onChanged }: Props) {
   const { notifySuccess, notifyError } = useAppNotifications();
   const [data, setData] = useState<CostosTarea | null>(null);
   const [tarifasMaq, setTarifasMaq] = useState<TarifaMaquinaria[]>([]);
@@ -528,6 +530,11 @@ export default function CostosActividadPanel({ tareaId, bodegaId, actividadClave
         {!aplicaMaquinaria ? (
           <NoAplicaNota>Esta labor es manual y normalmente no usa maquinaria.</NoAplicaNota>
         ) : null}
+        {esLaborConMaquina ? (
+          <p className="mb-3 rounded-[var(--radius-md)] border border-[color:var(--border-subtle)] bg-[color:var(--surface-accent-soft)] px-3 py-2 text-xs text-[color:var(--text-ink-muted)]">
+            Cargá acá el <strong>tractor / máquina</strong> desde tu catálogo (con horas y combustible). No hace falta escribirlo en el detalle.
+          </p>
+        ) : null}
         {(data?.maquinas ?? []).length > 0 ? (
           <ul className="mb-3 space-y-2">
             {data!.maquinas.map((m) => (
@@ -607,6 +614,7 @@ export default function CostosActividadPanel({ tareaId, bodegaId, actividadClave
         <InsumoPicker
           insumos={insumos}
           existencias={existencias}
+          superficieHa={Number(superficie) || 0}
           onAdd={handleAddInsumo}
           onError={(message) => notifyError({ title: "No se pudo agregar", message })}
         />

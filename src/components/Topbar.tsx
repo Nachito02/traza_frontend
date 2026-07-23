@@ -17,7 +17,7 @@ type ContextFieldProps = {
 };
 
 const ContextField = ({ label, children }: ContextFieldProps) => (
-  <div className="min-w-[170px] rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-white/5 px-3 py-2.5">
+  <div className="min-w-[170px] rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-base-soft)] px-3 py-2.5 shadow-[var(--shadow-inset-soft)]">
     <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-[color:var(--text-on-dark-muted)]">
       {label}
     </div>
@@ -76,13 +76,13 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
   }, [activeBodegaId, clearCampanias, loadCampanias]);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-[color:var(--border-shell)] bg-[color:var(--surface-shell)]/95 px-4 text-[color:var(--text-on-dark)] backdrop-blur-xl md:px-6">
+    <header className="sticky top-0 z-30 border-b border-[color:var(--border-shell)] bg-[color:var(--surface-shell)]/92 px-4 text-[color:var(--text-on-dark)] backdrop-blur-xl md:px-6">
       <div className="flex w-full items-center justify-between gap-4 py-4">
         <div className="flex min-w-0 items-center gap-3">
           <button
             type="button"
             onClick={onOpenMenu}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-white/10 text-[color:var(--text-on-dark)] transition hover:border-[color:var(--border-default)] hover:bg-white/15 md:hidden"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-base-soft)] text-[color:var(--text-on-dark)] transition hover:border-[color:var(--border-default)] hover:bg-[color:var(--action-ghost-hover)] md:hidden"
             aria-label="Abrir menú"
           >
             <Menu className="h-5 w-5" />
@@ -166,7 +166,7 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
             onClick={toggleTheme}
             title={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
             aria-label={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-shell-raised)] text-[color:var(--text-on-dark-muted)] transition hover:border-[color:var(--border-default)] hover:text-[color:var(--text-on-dark)]"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-base-soft)] text-[color:var(--text-on-dark-muted)] transition hover:border-[color:var(--border-default)] hover:bg-[color:var(--surface-operacion-card-strong)] hover:text-[color:var(--text-on-dark)]"
           >
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
@@ -238,7 +238,7 @@ const Topbar = ({ onOpenMenu }: TopbarProps) => {
               <button
                 type="button"
                 disabled={isLoading}
-                className="group inline-flex h-12 w-12 items-center justify-center rounded-full border border-[color:var(--border-shell)] bg-[color:var(--surface-shell-raised)] text-[color:var(--text-on-dark)] shadow-[var(--shadow-soft)] transition hover:border-[color:var(--border-default)] hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-60"
+                className="group inline-flex h-12 w-12 items-center justify-center rounded-full border border-[color:var(--border-shell)] bg-[color:var(--surface-base-soft)] text-[color:var(--text-on-dark)] shadow-[var(--shadow-soft)] transition hover:border-[color:var(--border-default)] hover:bg-[color:var(--surface-operacion-card-strong)] disabled:cursor-not-allowed disabled:opacity-60"
                 aria-label="Abrir menú de usuario"
                 title={user?.nombre ?? user?.email ?? "Usuario"}
               >

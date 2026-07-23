@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
+import { AppChip } from "../../components/ui";
 import type { Personal } from "../../features/personal/api";
 import PersonalTransitorios from "./PersonalTransitorios";
 import type { TransitorioDraft } from "./transitorios";
@@ -65,9 +66,9 @@ export default function PersonalSection({
                   {items.map((o) => {
                     const active = o.personal_bodega_id in personal;
                     return (
-                      <button
+                      <AppChip
                         key={o.personal_bodega_id}
-                        type="button"
+                        active={active}
                         onClick={() =>
                           setPersonal((prev) => {
                             const next = { ...prev };
@@ -76,14 +77,9 @@ export default function PersonalSection({
                             return next;
                           })
                         }
-                        className={`rounded-full border px-3 py-1 text-xs transition ${
-                          active
-                            ? "border-[color:var(--accent-primary)] bg-[color:var(--surface-accent-soft)] text-[color:var(--text-ink)]"
-                            : "border-[color:var(--border-shell)] text-[color:var(--text-ink-muted)] hover:border-[color:var(--border-default)]"
-                        }`}
                       >
-                        {active ? "✓ " : ""}{o.nombre}
-                      </button>
+                        {o.nombre}
+                      </AppChip>
                     );
                   })}
                 </div>

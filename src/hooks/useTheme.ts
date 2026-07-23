@@ -15,7 +15,8 @@ function applyTheme(theme: Theme) {
 export function useTheme() {
   const [theme, setThemeState] = useState<Theme>(() => {
     const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
-    return stored === "light" ? "light" : "dark";
+    // Menta claro por defecto; oscuro sólo si el usuario lo eligió.
+    return stored === "dark" ? "dark" : "light";
   });
 
   useEffect(() => {

@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AppButton,
   AppCard,
   AppInput,
   AppSelect,
+  AppTabs,
   NoticeBanner,
   SectionIntro,
   useAppNotifications,
@@ -13,7 +14,6 @@ import { useAuthStore } from "../../store/authStore";
 import {
   createRecurso,
   deleteRecurso,
-  fetchCategoriasMaestro,
   fetchMaestro,
   fetchRecursos,
   patchRecurso,
@@ -23,8 +23,19 @@ import {
   type RecursoMaestro,
 } from "../../features/recursos/api";
 
-const OTRA_CATEGORIA = "__otra__";
 const CARGA_MANUAL = "__manual__";
+const OTRO_USO = "__otro__";
+
+// Uso principal sugerido (con opción "Otros"). El valor guardado es la etiqueta.
+const USO_PRINCIPAL_OPTIONS = [
+  "Viñedos tradicionales",
+  "Labores generales",
+  "Pulverización, desmalezado",
+  "Pulverización pesada, fertilización",
+  "Rastras, cinceles, subsolado liviano",
+  "Subsolado, labores pesadas",
+  "Grandes implementos",
+];
 
 const AMBITOS: { value: AmbitoRecurso; label: string }[] = [
   { value: "finca", label: "Recursos de finca" },
@@ -39,18 +50,17 @@ const CLASES: { value: ClaseRecurso; label: string }[] = [
 ];
 
 const EMPTY = {
-  categoria: "",
-  categoria_otra: "",
+  categoria: "", // derivada del catálogo (Tractor / Cosecha / Movimiento…), no es un input.
   familia: "",
   nombre: "",
   potencia_hp: "",
   uso_principal: "",
+  uso_principal_otro: "",
   unidad_uso: "",
   consumo_descripcion: "",
   observaciones: "",
   costo_hora: "",
   consumo_lts_hora: "",
-  vigencia_desde: "",
 };
 
 type FormState = typeof EMPTY;
@@ -62,7 +72,6 @@ export default function RecursosAdmin() {
   const [ambito, setAmbito] = useState<AmbitoRecurso>("finca");
   const [clase, setClase] = useState<ClaseRecurso>("motriz");
   const [recursos, setRecursos] = useState<Recurso[]>([]);
-  const [categorias, setCategorias] = useState<string[]>([]);
   const [maestro, setMaestro] = useState<RecursoMaestro[]>([]);
   const [selectedMaestroId, setSelectedMaestroId] = useState<string>(CARGA_MANUAL);
   const [loading, setLoading] = useState(true);
@@ -70,6 +79,13 @@ export default function RecursosAdmin() {
   const [form, setForm] = useState<FormState>(EMPTY);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Carga guiada de máquinas motrices (clase = motriz): dos formas distintas.
+  const [motrizMode, setMotrizMode] = useState<"tractor" | "autopropulsada">("tractor");
+  const [tractorTipo, setTractorTipo] = useState("");     // familia (ej. "Tractor Viñatero Angosto")
+  const [tractorPotencia, setTractorPotencia] = useState(""); // potencia_hp (ej. "55–65")
+  const [autoCategoria, setAutoCategoria] = useState("");  // función (ej. "Cosecha", "Movimiento")
+  const [autoMaquina, setAutoMaquina] = useState("");      // nombre de la máquina
 
   const num = (v: string): number | null => {
     if (!v.trim()) return null;
@@ -94,11 +110,13 @@ export default function RecursosAdmin() {
     }
   }, [bodegaId, ambito, clase]);
 
-  const loadCategorias = useCallback(async () => {
+  // Catálogo maestro de esta clase (para autocompletar). Ya no depende de categoría.
+  const loadMaestro = useCallback(async () => {
+    if (!ambito) return;
     try {
-      setCategorias(await fetchCategoriasMaestro(ambito, clase));
+      setMaestro(await fetchMaestro(ambito, clase, ""));
     } catch {
-      setCategorias([]);
+      setMaestro([]);
     }
   }, [ambito, clase]);
 
@@ -107,14 +125,14 @@ export default function RecursosAdmin() {
   }, [loadRecursos]);
 
   useEffect(() => {
-    void loadCategorias();
-  }, [loadCategorias]);
+    void loadMaestro();
+  }, [loadMaestro]);
 
   const resetForm = () => {
     setForm(EMPTY);
     setEditingId(null);
-    setMaestro([]);
     setSelectedMaestroId(CARGA_MANUAL);
+    resetCascada();
   };
 
   const changeAmbito = (next: AmbitoRecurso) => {
@@ -129,20 +147,6 @@ export default function RecursosAdmin() {
     resetForm();
   };
 
-  const onChangeCategoria = async (value: string) => {
-    setSelectedMaestroId(CARGA_MANUAL);
-    setForm((prev) => ({ ...prev, categoria: value, categoria_otra: "" }));
-    if (!value || value === OTRA_CATEGORIA) {
-      setMaestro([]);
-      return;
-    }
-    try {
-      setMaestro(await fetchMaestro(ambito, clase, value));
-    } catch {
-      setMaestro([]);
-    }
-  };
-
   const onChangeMaestro = (maestroId: string) => {
     setSelectedMaestroId(maestroId);
     if (maestroId === CARGA_MANUAL) return;
@@ -150,6 +154,7 @@ export default function RecursosAdmin() {
     if (!m) return;
     setForm((prev) => ({
       ...prev,
+      categoria: m.categoria ?? "",
       familia: m.familia ?? "",
       nombre: m.nombre,
       potencia_hp: m.potencia_hp ?? "",
@@ -162,7 +167,57 @@ export default function RecursosAdmin() {
 
   const setField = (key: keyof FormState, value: string) => setForm((prev) => ({ ...prev, [key]: value }));
 
-  const categoriaFinal = form.categoria === OTRA_CATEGORIA ? form.categoria_otra.trim() : form.categoria;
+  // ── Cascadas del catálogo motriz ──────────────────────────────────────────
+  // Tractores: familia = tipo, potencia_hp = rango. Autopropulsadas: categoria = función.
+  const tractores = useMemo(() => maestro.filter((m) => (m.categoria ?? "") === "Tractor"), [maestro]);
+  const tiposTractor = useMemo(
+    () => [...new Set(tractores.map((m) => m.familia).filter((f): f is string => !!f))],
+    [tractores],
+  );
+  const potenciasTipo = useMemo(() => tractores.filter((m) => m.familia === tractorTipo), [tractores, tractorTipo]);
+  const autoprop = useMemo(() => maestro.filter((m) => m.categoria && m.categoria !== "Tractor"), [maestro]);
+  const categoriasAuto = useMemo(
+    () => [...new Set(autoprop.map((m) => m.categoria).filter((c): c is string => !!c))],
+    [autoprop],
+  );
+  const maquinasCat = useMemo(() => autoprop.filter((m) => m.categoria === autoCategoria), [autoprop, autoCategoria]);
+
+  const applyMaestroRow = (m: RecursoMaestro) => {
+    const usoConocido = !!m.uso_principal && USO_PRINCIPAL_OPTIONS.includes(m.uso_principal);
+    setForm((prev) => ({
+      ...prev,
+      categoria: m.categoria ?? "",
+      nombre: m.nombre,
+      familia: m.familia ?? "",
+      potencia_hp: m.potencia_hp ?? "",
+      uso_principal: m.uso_principal ? (usoConocido ? m.uso_principal : OTRO_USO) : "",
+      uso_principal_otro: m.uso_principal && !usoConocido ? m.uso_principal : "",
+      unidad_uso: m.unidad_uso ?? "",
+      consumo_descripcion: m.consumo_descripcion ?? "",
+    }));
+  };
+
+  const onPickTractorTipo = (tipo: string) => { setTractorTipo(tipo); setTractorPotencia(""); };
+  const onPickTractorPotencia = (pot: string) => {
+    setTractorPotencia(pot);
+    const row = tractores.find((m) => m.familia === tractorTipo && (m.potencia_hp ?? "") === pot);
+    if (row) applyMaestroRow(row);
+  };
+  const onPickAutoCategoria = (cat: string) => { setAutoCategoria(cat); setAutoMaquina(""); };
+  const onPickAutoMaquina = (nombre: string) => {
+    setAutoMaquina(nombre);
+    const row = autoprop.find((m) => m.categoria === autoCategoria && m.nombre === nombre);
+    if (row) applyMaestroRow(row);
+  };
+
+  const resetCascada = () => {
+    setTractorTipo("");
+    setTractorPotencia("");
+    setAutoCategoria("");
+    setAutoMaquina("");
+  };
+
+  const usoPrincipalFinal = form.uso_principal === OTRO_USO ? form.uso_principal_otro.trim() : form.uso_principal;
 
   const handleSave = async () => {
     if (!bodegaId) return;
@@ -170,20 +225,24 @@ export default function RecursosAdmin() {
       notifyError({ title: "Falta el nombre" });
       return;
     }
+    // En máquinas motrices la categoría surge del modo: Tractor → "Tractor",
+    // Autopropulsada → la función elegida. Así se guarda aunque cargues a mano.
+    const categoriaFinal = esMotriz
+      ? (motrizMode === "tractor" ? "Tractor" : (autoCategoria || form.categoria))
+      : form.categoria;
     const payload = {
       ambito,
       clase,
-      categoria: categoriaFinal || null,
+      categoria: categoriaFinal.trim() || null,
       familia: form.familia.trim() || null,
       nombre: form.nombre.trim(),
       potencia_hp: form.potencia_hp.trim() || null,
-      uso_principal: form.uso_principal.trim() || null,
+      uso_principal: usoPrincipalFinal || null,
       unidad_uso: form.unidad_uso.trim() || null,
       consumo_descripcion: form.consumo_descripcion.trim() || null,
       observaciones: form.observaciones.trim() || null,
       costo_hora: num(form.costo_hora),
       consumo_lts_hora: num(form.consumo_lts_hora),
-      vigencia_desde: form.vigencia_desde || null,
     };
     setSaving(true);
     try {
@@ -206,21 +265,21 @@ export default function RecursosAdmin() {
   const startEdit = (r: Recurso) => {
     setEditingId(r.tarifa_maquinaria_id);
     setSelectedMaestroId(CARGA_MANUAL);
-    setMaestro([]);
-    const catConocida = !!r.categoria && categorias.includes(r.categoria);
+    resetCascada();
+    setMotrizMode(r.potencia_hp ? "tractor" : "autopropulsada");
+    const usoConocido = !!r.uso_principal && USO_PRINCIPAL_OPTIONS.includes(r.uso_principal);
     setForm({
-      categoria: r.categoria ? (catConocida ? r.categoria : OTRA_CATEGORIA) : "",
-      categoria_otra: r.categoria && !catConocida ? r.categoria : "",
+      categoria: r.categoria ?? "",
       familia: r.familia ?? "",
       nombre: r.nombre,
       potencia_hp: r.potencia_hp ?? "",
-      uso_principal: r.uso_principal ?? "",
+      uso_principal: r.uso_principal ? (usoConocido ? r.uso_principal : OTRO_USO) : "",
+      uso_principal_otro: r.uso_principal && !usoConocido ? r.uso_principal : "",
       unidad_uso: r.unidad_uso ?? "",
       consumo_descripcion: r.consumo_descripcion ?? "",
       observaciones: r.observaciones ?? "",
       costo_hora: r.costo_hora ?? "",
       consumo_lts_hora: r.consumo_lts_hora ?? "",
-      vigencia_desde: r.vigencia_desde ? r.vigencia_desde.slice(0, 10) : "",
     });
   };
 
@@ -257,60 +316,63 @@ export default function RecursosAdmin() {
         />
 
         {/* Tabs de ámbito */}
-        <div className="inline-flex rounded-[var(--radius-md)] border border-[color:var(--border-shell)] p-1">
-          {AMBITOS.map((a) => (
-            <button
-              key={a.value}
-              type="button"
-              onClick={() => changeAmbito(a.value)}
-              className={`rounded-[var(--radius-sm)] px-4 py-1.5 text-sm font-medium transition ${
-                ambito === a.value
-                  ? "bg-[color:var(--accent-primary)] text-white"
-                  : "text-[color:var(--text-ink-muted)] hover:text-[color:var(--text-ink)]"
-              }`}
-            >
-              {a.label}
-            </button>
-          ))}
-        </div>
+        <AppTabs items={AMBITOS} value={ambito} onChange={changeAmbito} />
 
         {/* Sub-tabs de clase */}
-        <div className="flex flex-wrap gap-2">
-          {CLASES.map((c) => (
-            <button
-              key={c.value}
-              type="button"
-              onClick={() => changeClase(c.value)}
-              className={`rounded-[var(--radius-md)] border px-3 py-1.5 text-sm transition ${
-                clase === c.value
-                  ? "border-[color:var(--accent-primary)] text-[color:var(--accent-primary)]"
-                  : "border-[color:var(--border-shell)] text-[color:var(--text-ink-muted)] hover:text-[color:var(--text-ink)]"
-              }`}
-            >
-              {c.label}
-            </button>
-          ))}
-        </div>
+        <AppTabs items={CLASES} value={clase} onChange={changeClase} />
 
         {error ? <NoticeBanner tone="danger">{error}</NoticeBanner> : null}
 
         {/* Form de alta/edición */}
         <AppCard header={<h3 className="text-base font-semibold">{editingId ? "Editar recurso" : "Nuevo recurso"}</h3>}>
           <div className="grid gap-3 md:grid-cols-3">
-            <div>
-              <AppSelect label="Categoría" value={form.categoria} onChange={(e) => void onChangeCategoria(e.target.value)}>
-                <option value="">Seleccionar categoría</option>
-                {categorias.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-                <option value={OTRA_CATEGORIA}>Otra (especificar)…</option>
-              </AppSelect>
-              {form.categoria === OTRA_CATEGORIA ? (
-                <AppInput label="Especificá la categoría" value={form.categoria_otra} onChange={(e) => setField("categoria_otra", e.target.value)} className="mt-2" />
-              ) : null}
-            </div>
+            {/* Carga guiada de máquinas motrices: dos formas (Tractor / Autopropulsada). */}
+            {esMotriz ? (
+              <div className="rounded-[var(--radius-md)] border border-dashed border-[color:var(--border-shell)] p-3 md:col-span-3">
+                <AppTabs
+                  className="mb-3"
+                  size="sm"
+                  value={motrizMode}
+                  onChange={(m) => { setMotrizMode(m); resetCascada(); }}
+                  items={[
+                    { value: "tractor", label: "Tractor" },
+                    { value: "autopropulsada", label: "Autopropulsada" },
+                  ]}
+                />
+                {motrizMode === "tractor" ? (
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <AppSelect label="Tipo de tractor" value={tractorTipo} onChange={(e) => onPickTractorTipo(e.target.value)}>
+                      <option value="">Seleccionar…</option>
+                      {tiposTractor.map((t) => <option key={t} value={t}>{t}</option>)}
+                    </AppSelect>
+                    <AppSelect label="Potencia (HP)" value={tractorPotencia} onChange={(e) => onPickTractorPotencia(e.target.value)} disabled={!tractorTipo}>
+                      <option value="">{tractorTipo ? "Seleccionar…" : "Elegí un tipo primero"}</option>
+                      {potenciasTipo.map((m) => (
+                        <option key={m.recurso_maestro_id} value={m.potencia_hp ?? ""}>
+                          {m.potencia_hp} HP · {m.uso_principal}
+                        </option>
+                      ))}
+                    </AppSelect>
+                  </div>
+                ) : (
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <AppSelect label="Categoría / función" value={autoCategoria} onChange={(e) => onPickAutoCategoria(e.target.value)}>
+                      <option value="">Seleccionar…</option>
+                      {categoriasAuto.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </AppSelect>
+                    <AppSelect label="Máquina" value={autoMaquina} onChange={(e) => onPickAutoMaquina(e.target.value)} disabled={!autoCategoria}>
+                      <option value="">{autoCategoria ? "Seleccionar…" : "Elegí una categoría primero"}</option>
+                      {maquinasCat.map((m) => <option key={m.recurso_maestro_id} value={m.nombre}>{m.nombre}</option>)}
+                    </AppSelect>
+                  </div>
+                )}
+                <p className="mt-2 text-xs text-[color:var(--text-ink-muted)]">
+                  Elegí del catálogo para autocompletar; o completá los campos de abajo a mano (opción "otro").
+                </p>
+              </div>
+            ) : null}
 
-            {maestro.length > 0 ? (
+            {!esMotriz && maestro.length > 0 ? (
               <AppSelect label="Recurso del catálogo (autocompleta)" value={selectedMaestroId} onChange={(e) => onChangeMaestro(e.target.value)}>
                 <option value={CARGA_MANUAL}>Carga manual…</option>
                 {maestro.map((m) => (
@@ -327,7 +389,18 @@ export default function RecursosAdmin() {
             {esMotriz ? (
               <AppInput label="Potencia (HP)" value={form.potencia_hp} onChange={(e) => setField("potencia_hp", e.target.value)} placeholder="Ej. 75–85" />
             ) : null}
-            <AppInput label="Uso principal" value={form.uso_principal} onChange={(e) => setField("uso_principal", e.target.value)} placeholder="Opcional" />
+            <div>
+              <AppSelect label="Uso principal" value={form.uso_principal} onChange={(e) => setField("uso_principal", e.target.value)}>
+                <option value="">Seleccionar…</option>
+                {USO_PRINCIPAL_OPTIONS.map((u) => (
+                  <option key={u} value={u}>{u}</option>
+                ))}
+                <option value={OTRO_USO}>Otros (especificar)…</option>
+              </AppSelect>
+              {form.uso_principal === OTRO_USO ? (
+                <AppInput label="Especificá el uso" value={form.uso_principal_otro} onChange={(e) => setField("uso_principal_otro", e.target.value)} className="mt-2" />
+              ) : null}
+            </div>
             <AppInput label="Unidad de uso" value={form.unidad_uso} onChange={(e) => setField("unidad_uso", e.target.value)} placeholder="Hora, Día, Evento…" />
             <AppInput label="Consumo / energía" value={form.consumo_descripcion} onChange={(e) => setField("consumo_descripcion", e.target.value)} placeholder="l/h, kWh, Solar…" />
             <AppInput label="Observaciones" value={form.observaciones} onChange={(e) => setField("observaciones", e.target.value)} placeholder="Opcional" />
@@ -335,7 +408,6 @@ export default function RecursosAdmin() {
             {/* Costeo (opcional, lo consume el módulo de costos) */}
             <AppInput label="Costo por hora (opcional)" type="number" min="0" value={form.costo_hora} onChange={(e) => setField("costo_hora", e.target.value)} />
             <AppInput label="Consumo combustible (l/h)" type="number" min="0" value={form.consumo_lts_hora} onChange={(e) => setField("consumo_lts_hora", e.target.value)} />
-            <AppInput label="Vigencia del precio" type="date" value={form.vigencia_desde} onChange={(e) => setField("vigencia_desde", e.target.value)} />
           </div>
           <div className="mt-3 flex gap-2">
             <AppButton variant="primary" loading={saving} onClick={() => void handleSave()}>

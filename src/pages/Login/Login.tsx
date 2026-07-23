@@ -19,7 +19,7 @@ const Login = () => {
   const { handleSubmit, authError } = useLogin();
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-primary p-4">
+    <div className="min-h-screen flex items-center justify-center bg-[linear-gradient(180deg,var(--surface-shell)_0%,var(--surface-hero)_100%)] p-4">
       <div className="w-full max-w-lg">
         <div className="mb-10 mt-3 text-center">
           <div className="mx-auto mb-5 inline-flex w-full max-w-sm items-center justify-center px-6 py-4">

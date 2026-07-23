@@ -664,8 +664,8 @@ function HelpPanel({ focoOperativo }: { focoOperativo: { nombre: string } | null
         onClick={() => setOpen((v) => !v)}
         className={`flex items-center gap-2 rounded-[var(--radius-md)] border px-3 py-1.5 text-xs font-medium transition ${
           open
-            ? "border-[color:var(--border-default)] bg-white/10 text-[color:var(--text-on-dark)]"
-            : "border-[color:var(--border-shell)] bg-transparent text-[color:var(--text-on-dark-muted)] hover:bg-white/5 hover:text-[color:var(--text-on-dark)]"
+            ? "border-[color:var(--border-default)] bg-[color:var(--surface-accent-soft)] text-[color:var(--text-on-dark)]"
+            : "border-[color:var(--border-shell)] bg-transparent text-[color:var(--text-on-dark-muted)] hover:bg-[color:var(--action-ghost-hover)] hover:text-[color:var(--text-on-dark)]"
         }`}
       >
         <span className="flex h-4 w-4 items-center justify-center rounded-full border border-current text-[10px] font-bold leading-none">?</span>
@@ -674,7 +674,7 @@ function HelpPanel({ focoOperativo }: { focoOperativo: { nombre: string } | null
       </button>
 
       {open && (
-        <div className="mt-3 grid gap-4 rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-white/5 p-4 sm:grid-cols-3">
+        <div className="mt-3 grid gap-4 rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] p-4 sm:grid-cols-3">
           <div>
             <p className="text-xs font-semibold text-[color:var(--text-on-dark)]">Qué representa</p>
             <p className="mt-1 text-xs text-[color:var(--text-on-dark-muted)]">
@@ -1015,7 +1015,7 @@ export default function ProgresoPage() {
           </NoticeBanner>
 
           <div className="mt-5">
-            <div className="h-2.5 w-full rounded-full bg-white/15">
+            <div className="h-2.5 w-full rounded-full bg-[color:var(--surface-soft)]">
               <div
                 className="h-2.5 rounded-full bg-[color:var(--feedback-success)] transition-all"
                 style={{ width: `${pctCompleto}%` }}
@@ -1023,13 +1023,13 @@ export default function ProgresoPage() {
             </div>
             <div className="mt-3 flex flex-wrap gap-4 text-xs text-[color:var(--text-on-dark-muted)]">
               <span>
-                <span className="font-semibold text-[color:var(--brand-cream-50)]">{totales.completados}</span> completados
+                <span className="font-semibold text-[color:var(--text-ink)]">{totales.completados}</span> completados
               </span>
               <span>
-                <span className="font-semibold text-[color:var(--brand-cream-100)]">{totales.enProgreso}</span> en progreso
+                <span className="font-semibold text-[color:var(--text-ink)]">{totales.enProgreso}</span> en progreso
               </span>
               <span>
-                <span className="font-semibold text-white/90">{totales.sinTareas}</span> sin iniciar
+                <span className="font-semibold text-[color:var(--text-ink)]">{totales.sinTareas}</span> sin iniciar
               </span>
             </div>
           </div>

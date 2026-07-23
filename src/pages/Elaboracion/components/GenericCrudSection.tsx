@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import {
   createElaboracionResource,
   deleteElaboracionResource,
+  getElaboracionResource,
   listElaboracionResource,
   patchElaboracionResource,
   type ElaboracionEntity,
@@ -78,6 +79,8 @@ type GenericCrudSectionProps = {
   autoOpenForm?: boolean;
   defaultValues?: Record<string, string | boolean>;
   onCreated?: (item: ElaboracionEntity) => void | Promise<void>;
+  initialEditId?: string | null;
+  onCancel?: () => void;
 };
 
 const ID_KEYS = [
@@ -324,6 +327,8 @@ export default function GenericCrudSection({
   autoOpenForm = false,
   defaultValues,
   onCreated,
+  initialEditId = null,
+  onCancel,
 }: GenericCrudSectionProps) {
   const { notifyError, notifySuccess } = useAppNotifications();
   const [items, setItems] = useState<ElaboracionEntity[]>([]);
@@ -384,6 +389,67 @@ export default function GenericCrudSection({
     setFieldErrors({});
     setViewMode(separatedLayout && !hasDefaultValues ? "list" : "form");
   }, [defaultValues, fields, resource, separatedLayout]);
+
+  const applyEditItem = useCallback((item: ElaboracionEntity) => {
+    const recordId = idResolver ? idResolver(item) : resolveId(item, resource);
+    if (!recordId) return;
+
+    const nextValues = getInitialValues(fields);
+    for (const field of fields) {
+      const key = field.sourceKey ?? field.name;
+      const raw = item[key];
+      if (field.type === "checkbox") {
+        nextValues[field.name] = Boolean(raw);
+      } else if (field.type === "datetime-local") {
+        nextValues[field.name] = toDateTimeLocal(raw);
+      } else if (field.type === "number") {
+        nextValues[field.name] =
+          raw === null || raw === undefined || raw === "" ? "" : String(raw);
+      } else {
+        nextValues[field.name] = typeof raw === "string" ? raw : "";
+      }
+    }
+
+    setValues(nextValues);
+    setEditingId(recordId);
+    setEditingItem(item);
+    setError(null);
+    setFieldErrors({});
+    if (formInModal) {
+      setShowFormModal(true);
+    } else if (separatedLayout) {
+      setViewMode("form");
+    }
+  }, [fields, formInModal, idResolver, resource, separatedLayout]);
+
+  useEffect(() => {
+    if (!initialEditId) return;
+    if (!bodegaId && withBodegaId) return;
+
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    const loadInitialEdit = async () => {
+      try {
+        const item = await getElaboracionResource(resource, initialEditId);
+        if (cancelled) return;
+        applyEditItem(item);
+      } catch (requestError) {
+        if (cancelled) return;
+        setError(getApiErrorMessage(requestError));
+      } finally {
+        if (cancelled) return;
+        setLoading(false);
+      }
+    };
+
+    void loadInitialEdit();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [applyEditItem, bodegaId, initialEditId, resource, withBodegaId]);
 
   const autoOpenHandledRef = useRef(false);
   useEffect(() => {
@@ -533,35 +599,7 @@ export default function GenericCrudSection({
   };
 
   const onEdit = (item: ElaboracionEntity) => {
-    const recordId = idResolver ? idResolver(item) : resolveId(item, resource);
-    if (!recordId) return;
-
-    const nextValues = getInitialValues(fields);
-    for (const field of fields) {
-      const key = field.sourceKey ?? field.name;
-      const raw = item[key];
-      if (field.type === "checkbox") {
-        nextValues[field.name] = Boolean(raw);
-      } else if (field.type === "datetime-local") {
-        nextValues[field.name] = toDateTimeLocal(raw);
-      } else if (field.type === "number") {
-        nextValues[field.name] =
-          raw === null || raw === undefined || raw === "" ? "" : String(raw);
-      } else {
-        nextValues[field.name] = typeof raw === "string" ? raw : "";
-      }
-    }
-
-    setValues(nextValues);
-    setEditingId(recordId);
-    setEditingItem(item);
-    setError(null);
-    setFieldErrors({});
-    if (formInModal) {
-      setShowFormModal(true);
-    } else if (separatedLayout) {
-      setViewMode("form");
-    }
+    applyEditItem(item);
   };
 
   const onDeleteConfirm = async () => {
@@ -620,6 +658,10 @@ export default function GenericCrudSection({
   };
 
   const onCancelForm = () => {
+    if (onCancel) {
+      onCancel();
+      return;
+    }
     setEditingId(null);
     setEditingItem(null);
     setValues({ ...getInitialValues(fields), ...(defaultValues ?? {}) });
@@ -882,7 +924,7 @@ export default function GenericCrudSection({
                 type="button"
                 aria-label="Cerrar"
                 onClick={onCancelForm}
-                className="rounded-[var(--radius-md)] p-1.5 text-[color:var(--text-ink-muted)] transition-colors hover:bg-white/10 hover:text-[color:var(--text-ink)]"
+                className="rounded-[var(--radius-md)] p-1.5 text-[color:var(--text-ink-muted)] transition-colors hover:bg-[color:var(--action-ghost-hover)] hover:text-[color:var(--text-ink)]"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />

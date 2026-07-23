@@ -207,13 +207,13 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
 
   return (
     <aside
-      className={`flex h-full flex-col border-r border-[color:var(--border-shell)] bg-[color:var(--surface-shell)] px-4 py-5 text-[color:var(--text-on-dark)] ${className}`}
+      className={`flex h-full flex-col border-r border-[color:var(--border-shell)] bg-[linear-gradient(180deg,var(--surface-shell)_0%,var(--surface-operacion-panel)_100%)] px-4 py-5 text-[color:var(--text-on-dark)] ${className}`}
     >
-      <div className="mb-6 flex items-center justify-center px-3 py-4 border-b border-white/10">
+      <div className="mb-6 flex items-center justify-center rounded-[var(--radius-xl)] border border-[color:var(--border-shell)] bg-[color:var(--surface-base-soft)] px-3 py-4 shadow-[var(--shadow-soft)]">
         <img
           src={trazaLogo}
           alt="Traza"
-          className="h-14 w-auto object-contain drop-shadow-[0_0_12px_rgba(78,147,183,0.5)]"
+          className="h-14 w-auto object-contain drop-shadow-[0_0_12px_rgba(62,158,122,0.22)]"
         />
       </div>
 
@@ -247,8 +247,8 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
                   return [
                     "group block rounded-[var(--radius-lg)] border px-3 py-3 text-sm transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)]",
                     active
-                      ? "border-[color:var(--border-default)] border-l-2 border-l-[color:var(--accent-primary)] bg-[linear-gradient(135deg,rgba(78,147,183,0.22),rgba(18,43,58,0.92))] text-[color:var(--text-on-dark)] shadow-[var(--shadow-soft)]"
-                      : "border-transparent text-[color:var(--text-on-dark-muted)] hover:border-[color:var(--border-shell)] hover:bg-white/5 hover:text-[color:var(--text-on-dark)]",
+                      ? "border-[color:var(--border-default)] bg-[image:var(--nav-active-bg)] text-[color:var(--nav-active-text)] shadow-[var(--shadow-soft)]"
+                      : "border-transparent text-[color:var(--text-on-dark-muted)] hover:border-[color:var(--border-shell)] hover:bg-[color:var(--surface-base-soft)] hover:text-[color:var(--text-on-dark)]",
                   ].join(" ");
                 }}
               >
@@ -260,8 +260,8 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
                         className={[
                           "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] border transition-all",
                           active
-                            ? "border-[color:var(--border-default)] bg-white/10 text-[color:var(--accent-secondary)]"
-                            : "border-[color:transparent] bg-white/5 text-[color:var(--text-on-dark-muted)] group-hover:border-[color:var(--border-shell)] group-hover:text-[color:var(--text-on-dark)]",
+                            ? "border-[color:var(--border-default)] bg-[color:var(--nav-active-icon-bg)] text-[color:var(--nav-active-icon-text)]"
+                            : "border-[color:transparent] bg-[color:var(--surface-base-soft)] text-[color:var(--text-on-dark-muted)] group-hover:border-[color:var(--border-shell)] group-hover:bg-[color:var(--surface-operacion-card)] group-hover:text-[color:var(--text-on-dark)]",
                         ].join(" ")}
                       >
                         {link.icon}
@@ -277,7 +277,7 @@ const Aside = ({ className = "", onNavigate }: AsideProps) => {
                       <span
                         className={[
                           "h-2 w-2 rounded-full transition-all",
-                          active ? "bg-[color:var(--accent-secondary)]" : "bg-transparent",
+                          active ? "bg-[color:var(--nav-active-dot)]" : "bg-transparent",
                         ].join(" ")}
                       />
                     </div>

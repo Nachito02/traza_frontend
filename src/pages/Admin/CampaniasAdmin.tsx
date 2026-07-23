@@ -217,29 +217,19 @@ export default function CampaniasAdmin() {
                 title="Campañas"
                 description="Administrá campañas, revisá su vigencia y actualizá sus fechas sin salir del módulo."
                 actions={(
-                  <>
-                <AppButton
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  onClick={() => {
-                    setEditingId(null);
-                    setForm(emptyForm);
-                    setFormMode("create");
-                    setError(null);
-                  }}
-                >
-                  Nueva campaña
-                </AppButton>
-                <AppButton
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => void load()}
-                >
-                  Actualizar listado
-                </AppButton>
-                  </>
+                  <AppButton
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    onClick={() => {
+                      setEditingId(null);
+                      setForm(emptyForm);
+                      setFormMode("create");
+                      setError(null);
+                    }}
+                  >
+                    Nueva campaña
+                  </AppButton>
                 )}
               />
             )}

@@ -30,6 +30,10 @@
   --surface-soft: #172143;
   --surface-accent-soft: rgba(0, 212, 122, 0.12);
   --surface-overlay: rgba(5, 11, 47, 0.78);
+  --surface-operacion-page: var(--app-bg);
+  --surface-operacion-panel: var(--surface-shell-raised);
+  --surface-operacion-card: var(--surface-soft);
+  --surface-operacion-card-strong: var(--surface-muted);
 
   /* Form fields */
   --field-bg: #111c3a;
@@ -72,6 +76,11 @@
   --action-ghost-hover: rgba(255, 255, 255, 0.08);
   --action-danger-bg: rgba(184, 50, 50, 0.16);
   --action-danger-hover: rgba(184, 50, 50, 0.24);
+  --nav-active-bg: linear-gradient(135deg, rgba(0, 212, 122, 0.22), rgba(21, 58, 68, 0.92));
+  --nav-active-text: var(--text-on-dark);
+  --nav-active-icon-bg: var(--surface-accent-soft);
+  --nav-active-icon-text: var(--accent-secondary);
+  --nav-active-dot: var(--accent-secondary);
 
   /* Feedback */
   --feedback-success: var(--brand-success-500);
@@ -138,91 +147,104 @@
   --color-gold: var(--accent-secondary);
 }
 
-/* ── Light mode ─────────────────────────────────────────────────────────── */
+/* ── Light mode (paleta menta + verde) ──────────────────────────────────── */
 [data-theme="light"] {
   color-scheme: light;
 
   /* Surfaces */
-  --app-bg: #f0f4fa;
-  --surface-base: #dce8f5;
-  --surface-base-soft: rgba(220, 232, 245, 0.5);
-  --surface-shell: rgba(255, 255, 255, 0.98);
-  --surface-shell-raised: rgba(240, 244, 250, 0.97);
-  --surface-hero: #c8dcf0;
-  --surface-muted: #ffffff;
-  --surface-soft: #edf3fb;
-  --surface-accent-soft: rgba(0, 168, 98, 0.1);
-  --surface-overlay: rgba(10, 20, 60, 0.45);
+  --app-bg: #e7f3ec;                          /* fondo app (menta) */
+  --surface-base: #ffffff;
+  --surface-base-soft: rgba(62, 158, 122, 0.06);
+  --surface-shell: #edf5f0;
+  --surface-shell-raised: #e3efe8;
+  --surface-hero: #ddeee6;
+  --surface-muted: #ffffff;                    /* cards */
+  --surface-soft: #eaf4ef;                      /* superficie suave / chips */
+  --surface-accent-soft: rgba(62, 158, 122, 0.12);
+  --surface-overlay: rgba(21, 58, 68, 0.35);
+  --surface-operacion-page: #dcece3;
+  --surface-operacion-panel: #e8f3ed;
+  --surface-operacion-card: #f1f8f4;
+  --surface-operacion-card-strong: #d7e9df;
 
   /* Form fields */
   --field-bg: #ffffff;
-  --field-bg-hover: #f5f8ff;
-  --field-bg-focus: #f5f8ff;
-  --field-border: rgba(7, 19, 95, 0.18);
-  --field-border-hover: rgba(7, 19, 95, 0.32);
-  --field-border-focus: rgba(0, 168, 98, 0.7);
-  --field-text: #050b2f;
-  --field-placeholder: rgba(7, 19, 95, 0.38);
-  --field-label: rgba(7, 19, 95, 0.68);
-  --field-error: #c0392b;
-  --field-error-bg: rgba(192, 57, 43, 0.05);
+  --field-bg-hover: #f4faf7;
+  --field-bg-focus: #ffffff;
+  --field-border: #d4e6dc;
+  --field-border-hover: #b9d8c9;
+  --field-border-focus: rgba(62, 158, 122, 0.7);
+  --field-text: #173a2c;
+  --field-placeholder: rgba(23, 58, 44, 0.4);
+  --field-label: #5c7166;
+  --field-error: #c0473f;
+  --field-error-bg: rgba(192, 71, 63, 0.05);
 
   /* Text */
-  --text-primary: #050b2f;
-  --text-secondary: #4a6080;
-  --text-on-dark: #07135f;
-  --text-on-dark-muted: rgba(7, 19, 95, 0.65);
-  --text-ink: #07135f;
-  --text-ink-muted: rgba(7, 19, 95, 0.55);
-  --text-accent: #00a862;
+  --text-primary: #173a2c;
+  --text-secondary: #5c7166;
+  --text-on-dark: #173a2c;
+  --text-on-dark-muted: rgba(23, 58, 44, 0.65);
+  --text-ink: #173a2c;
+  --text-ink-muted: #5c7166;
+  --text-accent: #3e9e7a;
 
   /* Borders */
-  --border-subtle: rgba(0, 168, 98, 0.25);
-  --border-default: rgba(0, 168, 98, 0.45);
-  --border-strong: #00a862;
-  --border-shell: rgba(7, 19, 95, 0.1);
+  --border-subtle: rgba(62, 158, 122, 0.22);
+  --border-default: rgba(62, 158, 122, 0.4);
+  --border-strong: #3e9e7a;
+  --border-shell: #d9e8e0;
 
   /* Actions */
-  --accent-primary: #00a862;
-  --accent-primary-hover: #007d49;
-  --accent-secondary: #00a862;
-  --action-primary-bg: #00a862;
-  --action-primary-hover: #007d49;
+  --accent-primary: #3e9e7a;                    /* verde CTA */
+  --accent-primary-hover: #34866a;
+  --accent-secondary: #34866a;
+  --action-primary-bg: #3e9e7a;
+  --action-primary-hover: #34866a;
   --action-primary-text: #ffffff;
   --action-secondary-bg: #ffffff;
-  --action-secondary-hover: #edf3fb;
-  --action-ghost-bg: rgba(7, 19, 95, 0.04);
-  --action-ghost-hover: rgba(7, 19, 95, 0.08);
-  --action-danger-bg: rgba(192, 57, 43, 0.1);
-  --action-danger-hover: rgba(192, 57, 43, 0.18);
+  --action-secondary-hover: #eaf4ef;
+  --action-ghost-bg: rgba(23, 58, 44, 0.04);
+  --action-ghost-hover: rgba(23, 58, 44, 0.08);
+  --action-danger-bg: rgba(192, 71, 63, 0.1);
+  --action-danger-hover: rgba(192, 71, 63, 0.18);
+  --nav-active-bg: linear-gradient(135deg, rgba(62, 158, 122, 0.18), rgba(62, 158, 122, 0.32));
+  --nav-active-text: #173a2c;
+  --nav-active-icon-bg: rgba(62, 158, 122, 0.16);
+  --nav-active-icon-text: #34866a;
+  --nav-active-dot: #3e9e7a;
+
+  /* Acento oscuro (navy del "Consultar asistente" de la imagen) */
+  --accent-dark: #153a44;
+  --accent-dark-hover: #0f2c34;
 
   /* Feedback */
-  --feedback-success: #00a862;
-  --feedback-warning: #b07d1a;
-  --feedback-danger: #c0392b;
-  --feedback-neutral: #dce8f5;
-  --feedback-success-bg: rgba(0, 168, 98, 0.1);
-  --feedback-success-border: rgba(0, 168, 98, 0.4);
-  --feedback-success-text: #006b3e;
-  --feedback-warning-bg: rgba(176, 125, 26, 0.1);
-  --feedback-warning-border: rgba(176, 125, 26, 0.35);
-  --feedback-warning-text: #7a5210;
-  --feedback-danger-bg: rgba(192, 57, 43, 0.08);
-  --feedback-danger-border: rgba(192, 57, 43, 0.3);
-  --feedback-danger-text: #922b21;
-  --feedback-neutral-bg: rgba(220, 232, 245, 0.8);
-  --feedback-neutral-border: rgba(7, 19, 95, 0.15);
-  --feedback-neutral-text: rgba(7, 19, 95, 0.6);
+  --feedback-success: #2e9e6b;
+  --feedback-warning: #c6892b;
+  --feedback-danger: #c0473f;
+  --feedback-neutral: #eaf4ef;
+  --feedback-success-bg: rgba(46, 158, 107, 0.1);
+  --feedback-success-border: rgba(46, 158, 107, 0.4);
+  --feedback-success-text: #1e6b45;
+  --feedback-warning-bg: rgba(198, 137, 43, 0.1);
+  --feedback-warning-border: rgba(198, 137, 43, 0.35);
+  --feedback-warning-text: #8a5e15;
+  --feedback-danger-bg: rgba(192, 71, 63, 0.08);
+  --feedback-danger-border: rgba(192, 71, 63, 0.3);
+  --feedback-danger-text: #93332c;
+  --feedback-neutral-bg: #eaf4ef;
+  --feedback-neutral-border: #d4e6dc;
+  --feedback-neutral-text: #5c7166;
 
   /* Shadows */
-  --shadow-soft: 0 12px 28px rgba(7, 19, 95, 0.1);
-  --shadow-raised: 0 18px 40px rgba(7, 19, 95, 0.14);
+  --shadow-soft: 0 12px 28px rgba(21, 58, 44, 0.08);
+  --shadow-raised: 0 18px 40px rgba(21, 58, 44, 0.12);
   --shadow-inset-soft: inset 0 1px 0 rgba(255, 255, 255, 0.8);
 
   /* Legacy */
   --color-primary: var(--surface-base);
   --color-secondary: var(--app-bg);
   --color-wine: var(--accent-primary);
-  --color-wine-light: #00a862;
+  --color-wine-light: #3e9e7a;
   --color-gold: var(--accent-secondary);
 }

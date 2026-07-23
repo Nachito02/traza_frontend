@@ -40,10 +40,10 @@ const ChangePassword = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-primary p-4">
+    <div className="min-h-screen flex items-center justify-center bg-[linear-gradient(180deg,var(--surface-shell)_0%,var(--surface-hero)_100%)] p-4">
       <div className="w-full max-w-lg">
         <div className="mb-10 text-center">
-          <div className="mx-auto mb-5 inline-flex w-full max-w-sm items-center justify-center rounded-[var(--radius-lg)] border border-[color:var(--border-default)] bg-[color:var(--brand-white)] px-6 py-4 shadow-[var(--shadow-raised)]">
+          <div className="mx-auto mb-5 inline-flex w-full max-w-sm items-center justify-center px-6 py-4">
             <img src={trazaLogo} alt="Traza" className="h-auto w-full max-w-[280px] object-contain" />
           </div>
           <p className="text-cream text-sm">Primera vez que ingresás</p>

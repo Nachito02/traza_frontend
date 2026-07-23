@@ -5,7 +5,6 @@ import { resolveModuleAccess } from "../../../lib/permissions";
 import { useAuthStore } from "../../../store/authStore";
 import {
   fetchTareaAsignacionDetail,
-  patchTareaEntrada,
   validarTarea,
   eliminarTareaDefinitivo,
   type Tarea,
@@ -272,178 +271,103 @@ function parseDraftRecord(text: string | null): Record<string, string> {
   return {};
 }
 
+function getDraftFieldLabel(key: string, eventoConfig: EventoConfig | null) {
+  return eventoConfig?.fields.find((field) => field.name === key)?.label ?? formatFieldKey(key);
+}
+
+function summarizeDraftFields(
+  draft: Record<string, string>,
+  eventoConfig: EventoConfig | null,
+  maxItems = 3,
+) {
+  return Object.entries(draft)
+    .filter(([, value]) => value.trim() !== "")
+    .slice(0, maxItems)
+    .map(([key, value]) => ({
+      key,
+      label: getDraftFieldLabel(key, eventoConfig),
+      value,
+    }));
+}
+
 type EntradaRowProps = {
+  tareaId: string;
   entrada: TareaEntradaDetail;
   eventoConfig: EventoConfig | null;
-  onUpdated: (updated: TareaEntradaDetail) => void;
 };
 
-function EntradaRow({ entrada, eventoConfig, onUpdated }: EntradaRowProps) {
+function EntradaRow({ tareaId, entrada, eventoConfig }: EntradaRowProps) {
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [editFecha, setEditFecha] = useState("");
-  const [editDraft, setEditDraft] = useState<Record<string, string>>({});
-  const [saving, setSaving] = useState(false);
 
   const adj = entrada.adjuntos as AdjuntosPayload | null | undefined;
   const hasAdjuntos = adj != null && typeof adj === "object" && !Array.isArray(adj);
   const textContent = entrada.descripcion ?? entrada.notas ?? null;
   const hasContent = hasAdjuntos || Boolean(textContent);
-
-  const openEdit = () => {
-    const d = new Date(entrada.fecha);
-    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-    setEditFecha(local);
-    setEditDraft(parseDraftRecord(textContent));
-    setEditing(true);
-    setOpen(false);
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const newDesc = Object.keys(editDraft).length > 0 ? JSON.stringify(editDraft) : (textContent ?? "");
-      const updated = await patchTareaEntrada(entrada.entradaId, {
-        fecha: new Date(editFecha).toISOString(),
-        descripcion: newDesc,
-      });
-      onUpdated(updated);
-      setEditing(false);
-    } finally {
-      setSaving(false);
-    }
-  };
+  const draftSummary = summarizeDraftFields(parseDraftRecord(textContent), eventoConfig);
+  const previewText = draftSummary.length > 0
+    ? null
+    : hasAdjuntos
+      ? "Ver datos guardados y observaciones del registro."
+      : textContent
+        ? textContent
+        : "Sin datos adicionales.";
 
   return (
-    <div className="overflow-hidden rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)]">
+    <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
       {/* Cabecera */}
-      <div className="flex w-full items-center justify-between gap-3 px-4 py-3">
-        <button type="button" onClick={() => setOpen((v) => !v)} className="flex-1 text-left">
-          <p className="text-sm text-[color:var(--text-ink-muted)]">
-            {new Date(entrada.fecha).toLocaleString("es-AR")}
-            {entrada.creadoPor?.nombre ? ` · ${entrada.creadoPor.nombre}` : ""}
-          </p>
-        </button>
-        <div className="flex shrink-0 items-center gap-2">
-          {!editing && (
-            <button
-              type="button"
-              onClick={openEdit}
-              className="rounded px-2 py-0.5 text-xs text-[color:var(--accent-primary)] hover:bg-[color:var(--action-ghost-bg)]"
-            >
-              Editar
-            </button>
+      <div className="flex w-full items-start justify-between gap-3 px-4 py-3">
+        <button type="button" onClick={() => setOpen((v) => !v)} className="min-w-0 flex-1 text-left">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-[color:var(--border-shell)] bg-[color:var(--surface-base)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-[color:var(--text-ink-muted)]">
+              Registro
+            </span>
+            <p className="text-sm font-semibold text-[color:var(--text-ink)]">
+              {new Date(entrada.fecha).toLocaleString("es-AR")}
+            </p>
+            {entrada.creadoPor?.nombre ? (
+              <span className="text-sm text-[color:var(--text-ink-muted)]">
+                · {entrada.creadoPor.nombre}
+              </span>
+            ) : null}
+          </div>
+          {draftSummary.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {draftSummary.map((item) => (
+                <span
+                  key={item.key}
+                  className="rounded-full border border-[color:var(--border-shell)] bg-[color:var(--surface-base)] px-3 py-1 text-xs text-[color:var(--text-ink-muted)]"
+                >
+                  <strong className="font-semibold text-[color:var(--text-ink)]">{item.label}:</strong> {item.value}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-2 line-clamp-2 text-sm text-[color:var(--text-ink-muted)]">
+              {previewText}
+            </p>
           )}
-          <span className="cursor-pointer text-sm text-[color:var(--text-ink-muted)]" onClick={() => setOpen((v) => !v)} role="button">
-            {open ? "▲" : hasContent ? "▼" : "—"}
-          </span>
+        </button>
+        <div className="flex shrink-0 items-center gap-2 pt-0.5">
+          <Link
+            to={`/operacion/registro?mode=edit&tareaId=${encodeURIComponent(tareaId)}&entradaId=${encodeURIComponent(entrada.entradaId)}&from=ordenes`}
+            className="inline-flex min-h-9 cursor-pointer items-center justify-center rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] px-3 py-2 text-xs font-semibold text-[color:var(--accent-primary)] shadow-[var(--shadow-inset-soft)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)] hover:border-[color:var(--border-default)] hover:bg-[color:var(--action-secondary-hover)]"
+          >
+            Abrir editor
+          </Link>
+          <AppButton
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setOpen((v) => !v)}
+          >
+            {open ? "Ocultar" : hasContent ? "Ver detalle" : "Sin detalle"}
+          </AppButton>
         </div>
       </div>
 
-      {/* Modo edición */}
-      {editing && (
-        <div className="space-y-3 border-t border-[color:var(--border-shell)]/50 px-4 py-3">
-          {/* Fecha */}
-          <div>
-            <label className="mb-1 block text-xs font-semibold text-[color:var(--text-ink-muted)]">Fecha</label>
-            <input
-              type="datetime-local"
-              value={editFecha}
-              onChange={(e) => setEditFecha(e.target.value)}
-              className="rounded border border-[color:var(--border-default)] bg-[color:var(--surface-base)] px-2 py-1 text-sm text-[color:var(--text-ink)]"
-            />
-          </div>
-
-          {/* Campos del evento */}
-          {eventoConfig ? (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {eventoConfig.fields
-                .filter((f) => f.type !== "user_select" && f.type !== "date")
-                .filter((f) => !f.showWhen || editDraft[f.showWhen.field] === f.showWhen.value)
-                .map((field) => {
-                  const value = editDraft[field.name] ?? field.defaultValue ?? "";
-                  if (field.type === "textarea") {
-                    return (
-                      <div key={field.name} className="sm:col-span-2">
-                        <label className="mb-1 block text-xs font-semibold text-[color:var(--text-ink-muted)]">{field.label}</label>
-                        <textarea
-                          value={value}
-                          onChange={(e) => setEditDraft((p) => ({ ...p, [field.name]: e.target.value }))}
-                          placeholder={field.placeholder}
-                          rows={3}
-                          className="w-full rounded border border-[color:var(--border-default)] bg-[color:var(--surface-base)] px-2 py-1.5 text-sm text-[color:var(--text-ink)]"
-                        />
-                      </div>
-                    );
-                  }
-                  if (field.type === "select" && field.options) {
-                    return (
-                      <div key={field.name}>
-                        <label className="mb-1 block text-xs font-semibold text-[color:var(--text-ink-muted)]">{field.label}</label>
-                        <select
-                          value={value}
-                          onChange={(e) => setEditDraft((p) => ({ ...p, [field.name]: e.target.value }))}
-                          className="w-full rounded border border-[color:var(--border-default)] bg-[color:var(--surface-base)] px-2 py-1.5 text-sm text-[color:var(--text-ink)]"
-                        >
-                          <option value="">Seleccionar...</option>
-                          {field.options.map((opt) => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                          ))}
-                        </select>
-                      </div>
-                    );
-                  }
-                  return (
-                    <div key={field.name}>
-                      <label className="mb-1 block text-xs font-semibold text-[color:var(--text-ink-muted)]">{field.label}</label>
-                      <input
-                        type={field.type === "number" ? "number" : "text"}
-                        value={value}
-                        step={field.step}
-                        placeholder={field.placeholder}
-                        onChange={(e) => setEditDraft((p) => ({ ...p, [field.name]: e.target.value }))}
-                        className="w-full rounded border border-[color:var(--border-default)] bg-[color:var(--surface-base)] px-2 py-1.5 text-sm text-[color:var(--text-ink)]"
-                      />
-                    </div>
-                  );
-                })}
-            </div>
-          ) : (
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-[color:var(--text-ink-muted)]">Notas</label>
-              <textarea
-                value={editDraft["_notas"] ?? (textContent ?? "")}
-                onChange={(e) => setEditDraft({ _notas: e.target.value })}
-                rows={3}
-                className="w-full rounded border border-[color:var(--border-default)] bg-[color:var(--surface-base)] px-2 py-1.5 text-sm text-[color:var(--text-ink)]"
-              />
-            </div>
-          )}
-
-          {/* Acciones */}
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => void handleSave()}
-              disabled={saving}
-              className="rounded bg-[color:var(--accent-primary)] px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
-            >
-              {saving ? "Guardando…" : "Guardar cambios"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setEditing(false)}
-              className="rounded border border-[color:var(--border-shell)] px-3 py-1 text-xs text-[color:var(--text-ink-muted)]"
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Modo lectura */}
-      {open && !editing && (
-        <div className="border-t border-[color:var(--border-shell)]/50 px-4 py-3">
+      {open && (
+        <div className="border-t border-[color:var(--border-shell)]/60 bg-[color:var(--surface-base)] px-4 py-4">
           {hasAdjuntos ? (
             <AdjuntosContent adj={adj} />
           ) : textContent ? (
@@ -526,11 +450,6 @@ export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, 
     }
   };
 
-  const handleEntradaUpdated = (updated: TareaEntradaDetail) => {
-    setEntradas((prev) =>
-      prev ? prev.map((e) => (e.entradaId === updated.entradaId ? { ...e, ...updated } : e)) : prev,
-    );
-  };
   const [loadingEntradas, setLoadingEntradas] = useState(false);
   const user = useAuthStore((state) => state.user);
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
@@ -561,6 +480,10 @@ export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, 
   const fecha = fechaLabel(task);
   const isFincaTask = Boolean(task.finca_id ?? task.finca?.finca_id);
   const catalogTaskId = getMatchedCatalogTaskId(task.titulo, task.evento_tipo ?? null);
+  const eventoConfig = (() => {
+    const et = task.evento_tipo ?? task.protocolo_proceso?.evento_tipo;
+    return et ? (EVENTO_CONFIG[et] ?? null) : null;
+  })();
   const operativoHref = isFincaTask
     ? (access.canAccessOperacionBodega ? "/operacion/campo" : "/campo")
     : (OPERACION_TASK_ROUTES[catalogTaskId ?? ""] ?? "/operacion/recepcion");
@@ -583,7 +506,7 @@ export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, 
             type="button"
             aria-label="Cerrar"
             onClick={onClose}
-            className="ml-3 shrink-0 rounded-[var(--radius-md)] p-1.5 text-[color:var(--text-ink-muted)] transition-colors hover:bg-white/10 hover:text-[color:var(--text-ink)]"
+            className="ml-3 shrink-0 rounded-[var(--radius-md)] p-1.5 text-[color:var(--text-ink-muted)] transition-colors hover:bg-[color:var(--action-ghost-hover)] hover:text-[color:var(--text-ink)]"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
@@ -595,60 +518,90 @@ export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, 
       showHeaderDivider
     >
       <div className="space-y-5">
+        <div className="grid gap-3 md:grid-cols-[minmax(0,1.6fr)_minmax(280px,1fr)]">
+          <div className="rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-4 py-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--text-ink-muted)]">
+              Contexto de la orden
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <EstadoBadge estado={effectiveEstado} />
+              {task.prioridad ? (
+                <span className="rounded-full border border-[color:var(--border-shell)] bg-[color:var(--surface-base)] px-3 py-1 text-xs font-semibold capitalize text-[color:var(--text-ink-muted)]">
+                  Prioridad: {task.prioridad}
+                </span>
+              ) : null}
+              {eventoConfig ? (
+                <span className="rounded-full border border-[color:var(--border-shell)] bg-[color:var(--surface-base)] px-3 py-1 text-xs font-semibold text-[color:var(--accent-primary)]">
+                  {eventoConfig.label}
+                </span>
+              ) : null}
+            </div>
+            {task.descripcion ? (
+              <p className="mt-3 text-sm leading-relaxed text-[color:var(--text-ink)]">
+                {task.descripcion}
+              </p>
+            ) : (
+              <p className="mt-3 text-sm text-[color:var(--text-ink-muted)]">
+                Esta orden no tiene una descripción adicional cargada.
+              </p>
+            )}
+            {(task.finca || task.cuartel) && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {task.finca?.nombre_finca && (
+                  <span className="rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-base)] px-3 py-1.5 text-sm text-[color:var(--text-ink-muted)]">
+                    <strong className="font-semibold text-[color:var(--text-ink)]">Finca:</strong> {task.finca.nombre_finca}
+                  </span>
+                )}
+                {task.cuartel?.codigo_cuartel && (
+                  <span className="rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-base)] px-3 py-1.5 text-sm text-[color:var(--text-ink-muted)]">
+                    <strong className="font-semibold text-[color:var(--text-ink)]">Cuartel:</strong> {task.cuartel.codigo_cuartel}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
 
-        {/* Estado + fecha + prioridad */}
-        <div className="flex flex-wrap items-center gap-3">
-          <EstadoBadge estado={effectiveEstado} />
-          {fecha && (
-            <span className={`text-sm font-medium ${fecha.overdue ? "font-semibold text-red-400" : "text-[color:var(--text-ink-muted)]"}`}>
-              {fecha.text}
-            </span>
-          )}
-          {task.prioridad && (
-            <span className="text-sm capitalize text-[color:var(--text-ink-muted)]">
-              Prioridad: {task.prioridad}
-            </span>
-          )}
+          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-1">
+            <div className="rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--text-ink-muted)]">
+                Estado y vencimiento
+              </p>
+              <p className="mt-2 text-sm font-semibold text-[color:var(--text-ink)]">
+                {fecha ? fecha.text : "Sin fecha comprometida"}
+              </p>
+              {fecha?.overdue ? (
+                <p className="mt-1 text-xs font-semibold text-red-400">
+                  Requiere revisión por vencimiento.
+                </p>
+              ) : null}
+            </div>
+            <div className="rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--text-ink-muted)]">
+                Historial
+              </p>
+              <p className="mt-2 text-sm text-[color:var(--text-ink)]">
+                Creada: {task.created_at ? new Date(task.created_at).toLocaleDateString("es-AR") : "—"}
+              </p>
+              <p className="mt-1 text-sm text-[color:var(--text-ink-muted)]">
+                {task.updated_at ? `Última actualización: ${new Date(task.updated_at).toLocaleDateString("es-AR")}` : "Sin actualizaciones recientes"}
+              </p>
+            </div>
+          </div>
         </div>
 
-        {/* Descripción */}
-        {task.descripcion && (
-          <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-[color:var(--text-ink-muted)]">
-              Descripción
-            </p>
-            <p className="text-base text-[color:var(--text-ink)]">{task.descripcion}</p>
-          </div>
-        )}
-
-        {/* Finca / Cuartel */}
-        {(task.finca || task.cuartel) && (
-          <div className="flex flex-wrap gap-2">
-            {task.finca?.nombre_finca && (
-              <span className="rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-1 text-sm text-[color:var(--text-ink-muted)]">
-                Finca: {task.finca.nombre_finca}
-              </span>
-            )}
-            {task.cuartel?.codigo_cuartel && (
-              <span className="rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-1 text-sm text-[color:var(--text-ink-muted)]">
-                Cuartel: {task.cuartel.codigo_cuartel}
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Imagen */}
         {task.imagen_url && (
-          <img
-            src={task.imagen_url}
-            alt="Evidencia"
-            className="w-full max-h-56 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] object-cover"
-          />
+          <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)]">
+            <img
+              src={task.imagen_url}
+              alt="Evidencia"
+              className="w-full max-h-56 object-cover"
+            />
+          </div>
         )}
 
         {/* Asignaciones */}
         {(task.tarea_asignacion?.length ?? 0) > 0 && (
-          <div>
+          <div className="rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-4 py-4">
             <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-[color:var(--text-ink-muted)]">
               Asignaciones
             </p>
@@ -656,7 +609,7 @@ export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, 
               {task.tarea_asignacion!.map((a) => (
                 <div
                   key={a.tarea_asignacion_id}
-                  className="space-y-1.5 rounded border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-4 py-3"
+                  className="space-y-1.5 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-base)] px-4 py-3"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-2">
@@ -694,7 +647,7 @@ export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, 
           <p className="text-sm text-[color:var(--text-ink-muted)]">Cargando registros…</p>
         )}
         {entradas && entradas.length > 0 && (
-          <div>
+          <div className="rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-4 py-4">
             <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-[color:var(--text-ink-muted)]">
               Registros guardados ({entradas.length})
             </p>
@@ -706,12 +659,9 @@ export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, 
               {entradas.map((entrada) => (
                 <EntradaRow
                   key={entrada.entradaId}
+                  tareaId={String(task.tarea_id ?? task.id ?? "")}
                   entrada={entrada}
-                  eventoConfig={(() => {
-                    const et = task.evento_tipo ?? task.protocolo_proceso?.evento_tipo;
-                    return et ? (EVENTO_CONFIG[et] ?? null) : null;
-                  })()}
-                  onUpdated={handleEntradaUpdated}
+                  eventoConfig={eventoConfig}
                 />
               ))}
             </div>

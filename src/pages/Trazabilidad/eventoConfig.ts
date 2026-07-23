@@ -1,4 +1,5 @@
 import { ENFERMEDADES_VID, PLAGAS_VID } from "./vidReferencias";
+import { SISTEMA_RIEGO_OPTIONS, OTRO_RIEGO_VALUE } from "../../domain/viticultura/catalogos";
 
 export type FieldType = "date" | "text" | "number" | "textarea" | "select" | "user_select";
 
@@ -46,7 +47,20 @@ export const EVENTO_CONFIG: Record<string, EventoConfig> = {
       { name: "cultivo", label: "Cultivo", type: "text", required: true },
       { name: "variedad", label: "Variedad", type: "text", required: true },
       { name: "sistema_productivo", label: "Manejo de cultivo", type: "text" },
-      { name: "sistema_riego", label: "Sistema de riego", type: "text" },
+      {
+        name: "sistema_riego",
+        label: "Sistema de riego",
+        type: "select",
+        // Mismo catálogo que la carga de cuarteles (dominio de viticultura).
+        options: [...SISTEMA_RIEGO_OPTIONS, { value: OTRO_RIEGO_VALUE, label: "Otro (especificar)…" }],
+      },
+      {
+        name: "sistema_riego_otro",
+        label: "Especificá el sistema de riego",
+        type: "text",
+        placeholder: "Ej. Riego por mangas",
+        showWhen: { field: "sistema_riego", value: OTRO_RIEGO_VALUE },
+      },
       { name: "sistema_conduccion", label: "Sistema de conducción", type: "text" },
       { name: "coordenadas", label: "Coordenadas / polígono", type: "textarea" },
       { name: "responsable_user_id", label: "Responsable", type: "user_select" },
@@ -73,12 +87,15 @@ export const EVENTO_CONFIG: Record<string, EventoConfig> = {
         name: "sistema_riego",
         label: "Sistema de riego",
         type: "select",
-        options: [
-          { value: "goteo", label: "Goteo" },
-          { value: "aspersion", label: "Aspersión" },
-          { value: "surco", label: "Surco" },
-          { value: "otro", label: "Otro" },
-        ],
+        // Mismo catálogo que la carga de cuarteles (dominio de viticultura).
+        options: [...SISTEMA_RIEGO_OPTIONS, { value: OTRO_RIEGO_VALUE, label: "Otro (especificar)…" }],
+      },
+      {
+        name: "sistema_riego_otro",
+        label: "Especificá el sistema de riego",
+        type: "text",
+        placeholder: "Ej. Riego por mangas",
+        showWhen: { field: "sistema_riego", value: OTRO_RIEGO_VALUE },
       },
       { name: "responsable_user_id", label: "Responsable", type: "user_select" },
     ],
@@ -159,9 +176,39 @@ export const EVENTO_CONFIG: Record<string, EventoConfig> = {
         placeholder: "Describí la labor realizada",
         showWhen: { field: "tipo_labor", value: "otro" },
       },
-      { name: "tractor", label: "Tractor", type: "text" },
-      { name: "combustible_litros", label: "Combustible (litros)", type: "number", step: "0.01" },
-      { name: "horas", label: "Horas", type: "number", step: "0.01" },
+      // El tractor/máquina, sus horas y combustible se cargan en "Máquinas y equipos"
+      // (desde el catálogo de recursos), no acá — así no se ingresa dos veces.
+      { name: "observaciones", label: "Observaciones", type: "textarea" },
+      { name: "responsable_user_id", label: "Responsable", type: "user_select" },
+    ],
+  },
+  labores_culturales: {
+    // Mismo formulario que "Labor de suelo", con el catálogo de labores culturales mecanizadas.
+    label: "Labores culturales",
+    fields: [
+      { name: "fecha", label: "Fecha", type: "date", required: true },
+      {
+        name: "tipo_labor",
+        label: "Tipo de labor",
+        type: "select",
+        required: true,
+        options: [
+          { value: "zanjear", label: "Zanjear" },
+          { value: "armado_de_estructura", label: "Armado de estructura" },
+          { value: "plantacion_mecanica", label: "Plantación mecánica" },
+          { value: "desorillar", label: "Desorillar" },
+          { value: "arar", label: "Arar" },
+          { value: "subsolar", label: "Subsolar" },
+          { value: "triturar_ramas", label: "Triturar ramas" },
+          { value: "nivelar", label: "Nivelar" },
+          { value: "barbecho_mecanico", label: "Barbecho mecánico" },
+          { value: "desmalezar", label: "Desmalezar" },
+          { value: "sacar_ramas_sarmientos", label: "Sacar ramas / sarmientos" },
+          { value: "hoyar", label: "Hoyar" },
+        ],
+      },
+      // El tractor/máquina, sus horas y combustible se cargan en "Máquinas y equipos"
+      // (desde el catálogo de recursos), no acá — así no se ingresa dos veces.
       { name: "observaciones", label: "Observaciones", type: "textarea" },
       { name: "responsable_user_id", label: "Responsable", type: "user_select" },
     ],

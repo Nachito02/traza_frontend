@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   AppButton,
   AppCard,
@@ -17,17 +17,30 @@ import { useOperacionStore } from "../../store/operacionStore";
 import { useFincasStore } from "../../features/fincas/store";
 import { fetchCuartelesByFinca, type Cuartel } from "../../features/cuarteles/api";
 import { fetchProtocolos, fetchProtocoloById } from "../../features/protocolos/api";
-import { registrarActividad, uploadEntradaAdjunto } from "../../features/encargos/api";
+import {
+  createTareaEntrada,
+  fetchPendientesByScope,
+  fetchTareaAsignacionDetail,
+  finalizarTareaAsignacion,
+  fetchTareasByBodega,
+  patchTareaEntrada,
+  registrarActividad,
+  uploadEntradaAdjunto,
+} from "../../features/encargos/api";
+import CostosActividadPanel from "../Costos/CostosActividadPanel";
 import PersonalSection from "../Costos/PersonalSection";
-import { buildPersonalAsignado, type TransitorioDraft } from "../Costos/transitorios";
+import { buildPersonalAsignado, payloadToTransitorio, type TransitorioDraft } from "../Costos/transitorios";
 import InsumoPicker, { type AddInsumoLine } from "../Costos/InsumoPicker";
 import { fetchOperariosByBodega, type Operario } from "../../features/operarios/api";
 import { fetchPersonal, type Personal } from "../../features/personal/api";
 import { fetchExistencias, type Existencia } from "../../features/inventario/api";
 import {
+  fetchCostosTarea,
   fetchTarifasMaquinaria,
   fetchInsumosCatalogo,
   fetchSugerencia,
+  putEjecucion,
+  type ClaseMaquinaria,
   type TarifaMaquinaria,
   type InsumoCatalogo,
   type ActividadSugerencia,
@@ -53,6 +66,40 @@ function fileIcon(mimeType: string): string {
   return "📎";
 }
 
+/** Indicador de pasos del wizard (segmentado, mismo acento que la plataforma). */
+function Stepper({ steps, current, onStep }: { steps: string[]; current: number; onStep: (n: number) => void }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {steps.map((label, i) => {
+        const active = i === current;
+        const done = i < current;
+        return (
+          <div key={label} className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => onStep(i)}
+              disabled={i > current}
+              className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition ${
+                active
+                  ? "bg-[color:var(--accent-primary)] text-white"
+                  : i > current
+                    ? "cursor-not-allowed text-[color:var(--text-ink-muted)]"
+                    : "text-[color:var(--text-ink)] hover:bg-[color:var(--surface-soft)]"
+              }`}
+            >
+              <span className={`flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold ${active ? "bg-white/25" : "bg-[color:var(--surface-soft)] text-[color:var(--text-ink-muted)]"}`}>
+                {done ? "✓" : i + 1}
+              </span>
+              <span className="hidden sm:inline">{label}</span>
+            </button>
+            {i < steps.length - 1 ? <span className="h-px w-4 bg-[color:var(--border-shell)]" /> : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /** Aviso para secciones de costo que normalmente no aplican a la labor. */
 function NoAplicaNota({ children }: { children: React.ReactNode }) {
   return (
@@ -68,18 +115,59 @@ const MODALIDADES: { value: ModalidadEjecucion; label: string }[] = [
   { value: "mixta", label: "Mixta" },
 ];
 
+const UNIDADES_EJECUCION = [
+  { value: "plantas", label: "Plantas" },
+  { value: "kg", label: "Kilos" },
+  { value: "l", label: "Litros" },
+  { value: "ton", label: "Tonelada" },
+  { value: "rollos", label: "Rollos" },
+];
+
+const CLASES_MAQUINARIA: { value: ClaseMaquinaria; label: string }[] = [
+  { value: "motriz", label: "Motriz" },
+  { value: "implemento", label: "Implemento" },
+];
+
 const numOrNull = (v: string): number | null => {
   if (!v.trim()) return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 };
 
+function parseDraftRecord(text: string | null | undefined): Record<string, string> {
+  if (!text) return {};
+  try {
+    const parsed = JSON.parse(text) as unknown;
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return Object.fromEntries(
+        Object.entries(parsed as Record<string, unknown>).map(([key, value]) => [
+          key,
+          value == null ? "" : String(value),
+        ]),
+      );
+    }
+  } catch {
+    /* texto plano */
+  }
+  return { _notas: text };
+}
+
 export default function RegistroActividadPage() {
   const { notifySuccess, notifyError } = useAppNotifications();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const bodegaId = useAuthStore((state) => state.activeBodegaId);
   const activeProtocoloId = useOperacionStore((state) => state.activeProtocoloId);
   const fincas = useFincasStore((state) => state.fincas);
   const loadFincas = useFincasStore((state) => state.loadFincas);
+  const mode = searchParams.get("mode");
+  const tareaId = searchParams.get("tareaId");
+  const entradaId = searchParams.get("entradaId");
+  const tareaAsignacionId = searchParams.get("asignacionId");
+  const from = searchParams.get("from");
+  const isEditMode = mode === "edit" && Boolean(tareaId) && Boolean(entradaId);
+  const isTaskMode = mode === "task" && Boolean(tareaId) && Boolean(tareaAsignacionId);
+  const returnHref = from === "campo" ? "/operacion/campo" : "/ordenes";
 
   // Catálogos
   const [procesos, setProcesos] = useState<ProcesoOption[]>([]);
@@ -112,6 +200,7 @@ export default function RegistroActividadPage() {
 
   // Listas de costo (draft, sin guardar hasta el submit final)
   const [maquinas, setMaquinas] = useState<MaquinaDraft[]>([]);
+  const [maqClase, setMaqClase] = useState<ClaseMaquinaria | "">("");
   const [maqTarifaId, setMaqTarifaId] = useState("");
   const [maqCantidad, setMaqCantidad] = useState("");
   const [maqHoras, setMaqHoras] = useState("");
@@ -126,6 +215,11 @@ export default function RegistroActividadPage() {
 
   const [transitorios, setTransitorios] = useState<TransitorioDraft[]>([]);
   const [saving, setSaving] = useState(false);
+  const [loadingEdit, setLoadingEdit] = useState(false);
+  const [step, setStep] = useState(0); // 0: qué/dónde · 1: ejecución · 2: costos/adjuntos
+  const [draftRestored, setDraftRestored] = useState(false);
+  const [expandMaq, setExpandMaq] = useState(false);   // mostrar maquinaria aunque no aplique
+  const [expandIns, setExpandIns] = useState(false);   // mostrar insumos aunque no apliquen
 
   // Adjuntos (fotos y archivos) — se suben a IPFS tras registrar la actividad.
   const [pendingFiles, setPendingFiles] = useState<{ file: File; previewUrl: string | null }[]>([]);
@@ -256,14 +350,95 @@ export default function RegistroActividadPage() {
   const requiresContratista = modalidad === "contratada" || modalidad === "mixta";
   // En fertilización el fertilizante es el insumo: se carga en la sección Insumos.
   const esFertilizacion = selectedProceso?.evento_tipo === "fertilizacion";
+  const esLaborConMaquina = selectedProceso?.evento_tipo === "labor_suelo" || selectedProceso?.evento_tipo === "labores_culturales";
+
+  // Validez por paso del wizard (habilita "Siguiente").
+  const step0Valid = Boolean(procesoId && fincaId && cuartelId);
+  const step1Valid = Number(superficie) > 0;
+  const currentStepValid = step === 0 ? step0Valid : step === 1 ? step1Valid : true;
+  const STEPS = ["Qué y dónde", "Ejecución", "Costos y adjuntos"];
+
+  // ── Autoguardado del borrador (localStorage), por bodega ──
+  const draftKey = bodegaId ? `reg-actividad:${bodegaId}` : null;
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (isEditMode || isTaskMode) return;
+    if (restoredRef.current || !draftKey) return;
+    restoredRef.current = true;
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (!raw) return;
+      const d = JSON.parse(raw) as Record<string, unknown>;
+      if (typeof d.procesoId === "string") setProcesoId(d.procesoId);
+      if (typeof d.fincaId === "string") setFincaId(d.fincaId);
+      if (typeof d.cuartelId === "string") setCuartelId(d.cuartelId);
+      if (d.draft && typeof d.draft === "object") setDraft(d.draft as Record<string, string>);
+      if (typeof d.modalidad === "string") setModalidad(d.modalidad as ModalidadEjecucion);
+      if (typeof d.superficie === "string") setSuperficie(d.superficie);
+      if (typeof d.fechaInicio === "string") setFechaInicio(d.fechaInicio);
+      if (typeof d.fechaFin === "string") setFechaFin(d.fechaFin);
+      if (typeof d.cantEjec === "string") setCantEjec(d.cantEjec);
+      if (typeof d.unidadEjec === "string") setUnidadEjec(d.unidadEjec);
+      if (typeof d.responsableId === "string") setResponsableId(d.responsableId);
+      if (d.personal && typeof d.personal === "object") setPersonal(d.personal as Record<string, string>);
+      if (Array.isArray(d.transitorios)) setTransitorios(d.transitorios as TransitorioDraft[]);
+      if (Array.isArray(d.maquinas)) setMaquinas(d.maquinas as MaquinaDraft[]);
+      if (Array.isArray(d.insumos)) setInsumos(d.insumos as InsumoDraft[]);
+      if (Array.isArray(d.contratistas)) setContratistas(d.contratistas as ContratistaDraft[]);
+      if (typeof d.obs === "string") setObs(d.obs);
+      setDraftRestored(true);
+    } catch {
+      /* borrador corrupto: se ignora */
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey, isTaskMode, isEditMode]);
+
+  useEffect(() => {
+    if (isEditMode || isTaskMode) return;
+    if (!draftKey || !restoredRef.current) return;
+    const hasData = Boolean(procesoId || fincaId || superficie || insumos.length || maquinas.length || Object.keys(personal).length);
+    try {
+      if (hasData) {
+        localStorage.setItem(draftKey, JSON.stringify({
+          procesoId, fincaId, cuartelId, draft, modalidad, superficie, fechaInicio, fechaFin,
+          cantEjec, unidadEjec, responsableId, personal, transitorios, maquinas, insumos, contratistas, obs,
+        }));
+      } else {
+        localStorage.removeItem(draftKey);
+      }
+    } catch {
+      /* cuota llena u otro: se ignora */
+    }
+  }, [draftKey, procesoId, fincaId, cuartelId, draft, modalidad, superficie, fechaInicio, fechaFin, cantEjec, unidadEjec, responsableId, personal, transitorios, maquinas, insumos, contratistas, obs, isEditMode, isTaskMode]);
   // Secciones que la labor normalmente no usa (se atenúan, no se ocultan).
   const aplicaMaquinaria = !sugerencia || sugerencia.aplica_maquinaria;
   const aplicaInsumos = !sugerencia || sugerencia.aplica_insumos;
+  const cuartelSeleccionado = useMemo(
+    () => cuarteles.find((c) => String(c.cuartel_id ?? c.id) === cuartelId) ?? null,
+    [cuarteles, cuartelId],
+  );
+  const superficieCuartel = cuartelSeleccionado ? Number(cuartelSeleccionado.superficie_ha) : Number.NaN;
+  const superficieCuartelLabel = useMemo(() => {
+    if (!Number.isFinite(superficieCuartel)) return null;
+    return new Intl.NumberFormat("es-AR", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(superficieCuartel);
+  }, [superficieCuartel]);
+  const superficieCuartelHint = superficieCuartelLabel
+    ? `Superficie total del cuartel: ${superficieCuartelLabel} ha.`
+    : cuartelId
+      ? "Cargando la superficie total del cuartel…"
+      : "Seleccioná un cuartel para ver su superficie total.";
   const horasHombre = useMemo(
     () => Object.values(personal).reduce((acc, h) => acc + (Number(h) > 0 ? Number(h) : 0), 0),
     [personal],
   );
   const jornalesAuto = horasHombre > 0 ? Math.round((horasHombre / 8) * 100) / 100 : 0;
+  const tarifasMaqFiltradas = useMemo(
+    () => (maqClase ? tarifasMaq.filter((t) => t.clase === maqClase) : tarifasMaq),
+    [maqClase, tarifasMaq],
+  );
 
   const addMaquina = () => {
     const t = tarifasMaq.find((x) => x.tarifa_maquinaria_id === maqTarifaId);
@@ -296,6 +471,19 @@ export default function RegistroActividadPage() {
     return draft["_notas"] ?? "";
   };
 
+  const buildNotas = (): string => {
+    if (eventoConfig) {
+      const filtered = Object.fromEntries(Object.entries(draft).filter(([, v]) => v.trim() !== ""));
+      return Object.entries(filtered)
+        .map(([k, v]) => {
+          const label = eventoConfig.fields.find((f) => f.name === k)?.label ?? k;
+          return `${label}: ${v}`;
+        })
+        .join(", ");
+    }
+    return draft["_notas"] ?? "";
+  };
+
   const resetAll = () => {
     setProcesoId(""); setFincaId(""); setCuartelId(""); setDraft({});
     setModalidad("propia"); setFechaInicio(""); setFechaFin(""); setSuperficie("");
@@ -305,7 +493,87 @@ export default function RegistroActividadPage() {
       prev.forEach((p) => { if (p.previewUrl) URL.revokeObjectURL(p.previewUrl); });
       return [];
     });
+    setStep(0);
+    setDraftRestored(false);
+    setExpandMaq(false);
+    setExpandIns(false);
+    if (draftKey) { try { localStorage.removeItem(draftKey); } catch { /* ignore */ } }
   };
+
+  useEffect(() => {
+    if ((!isEditMode && !isTaskMode) || !bodegaId || !tareaId) return;
+    let mounted = true;
+    setLoadingEdit(true);
+    (async () => {
+      try {
+        const [allTasks, mineTasks, costos] = await Promise.all([
+          fetchTareasByBodega(String(bodegaId)),
+          fetchPendientesByScope({ bodegaId: String(bodegaId), mode: "mine" }),
+          fetchCostosTarea(tareaId),
+        ]);
+        if (!mounted) return;
+        const tareas = [...allTasks, ...mineTasks].filter((item, index, arr) => {
+          const itemId = String(item.tarea_id ?? item.id ?? "");
+          return itemId && arr.findIndex((x) => String(x.tarea_id ?? x.id ?? "") === itemId) === index;
+        });
+        const tarea = tareas.find((item) => String(item.tarea_id ?? item.id ?? "") === tareaId);
+        if (!tarea) throw new Error("No se encontró la tarea seleccionada.");
+
+        setProcesoId(String(tarea.proceso_id ?? ""));
+        setFincaId(String(tarea.finca_id ?? ""));
+        setCuartelId(String(tarea.cuartel_id ?? ""));
+
+        if (isEditMode) {
+          const entradas = (
+            await Promise.all(
+              (tarea.tarea_asignacion ?? []).map((asignacion) => fetchTareaAsignacionDetail(asignacion.tarea_asignacion_id)),
+            )
+          ).flat();
+          const entrada = entradas.find((item) => item.entradaId === entradaId);
+          if (!entrada) throw new Error("No se encontró el registro a editar.");
+          setDraft(parseDraftRecord(entrada.descripcion ?? entrada.notas ?? ""));
+        } else {
+          setDraft({});
+        }
+
+        const ejecucion = costos.ejecucion;
+        if (ejecucion) {
+          setModalidad(ejecucion.modalidad);
+          setFechaInicio(ejecucion.fecha_inicio ? ejecucion.fecha_inicio.slice(0, 10) : "");
+          setFechaFin(ejecucion.fecha_fin ? ejecucion.fecha_fin.slice(0, 10) : "");
+          setSuperficie(ejecucion.superficie_intervenida ?? "");
+          setCantEjec(ejecucion.cantidad_ejecutada ?? "");
+          setUnidadEjec(ejecucion.unidad_ejecutada ?? "");
+          setResponsableId(ejecucion.responsable_user_id ?? "");
+          setPersonal(
+            Object.fromEntries(
+              (ejecucion.personal_asignado ?? [])
+                .filter((item) => item.personal_id)
+                .map((item) => [String(item.personal_id), item.horas != null ? String(item.horas) : ""]),
+            ),
+          );
+          setTransitorios(
+            (ejecucion.personal_asignado ?? [])
+              .filter((item) => item.transitorio || !item.personal_id)
+              .map(payloadToTransitorio),
+          );
+          setObs(ejecucion.observaciones ?? "");
+        }
+        setStep(0);
+      } catch (error) {
+        if (!mounted) return;
+        notifyError({
+          title: "No se pudo abrir el editor",
+          message: getApiErrorMessage(error),
+        });
+      } finally {
+        if (mounted) setLoadingEdit(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [bodegaId, entradaId, isEditMode, isTaskMode, notifyError, tareaId]);
 
   const handleSubmit = async () => {
     if (!bodegaId) return;
@@ -324,6 +592,67 @@ export default function RegistroActividadPage() {
 
     setSaving(true);
     try {
+      if (isEditMode && tareaId && entradaId) {
+        await patchTareaEntrada(entradaId, {
+          descripcion: buildDescripcion(),
+        });
+        await putEjecucion(tareaId, {
+          modalidad,
+          fecha_inicio: fechaInicio || null,
+          fecha_fin: fechaFin || null,
+          superficie_intervenida: sup,
+          cantidad_ejecutada: numOrNull(cantEjec),
+          unidad_ejecutada: unidadEjec.trim() || null,
+          responsable_user_id: responsableId || null,
+          personal_asignado: buildPersonalAsignado(personal, personalList, transitorios),
+          observaciones: obs.trim() || null,
+        });
+        if (pendingFiles.length > 0) {
+          setUploadingFiles(true);
+          try {
+            await Promise.all(pendingFiles.map(({ file }) => uploadEntradaAdjunto(entradaId, file)));
+          } finally {
+            setUploadingFiles(false);
+          }
+        }
+        notifySuccess({ title: "Registro actualizado" });
+        navigate(returnHref);
+        return;
+      }
+
+      if (isTaskMode && tareaId && tareaAsignacionId) {
+        const result = await createTareaEntrada(tareaAsignacionId, {
+          notas: buildNotas(),
+          descripcion: buildDescripcion(),
+        }) as { entradaId?: string };
+
+        await putEjecucion(tareaId, {
+          modalidad,
+          fecha_inicio: fechaInicio || null,
+          fecha_fin: fechaFin || null,
+          superficie_intervenida: sup,
+          cantidad_ejecutada: numOrNull(cantEjec),
+          unidad_ejecutada: unidadEjec.trim() || null,
+          responsable_user_id: responsableId || null,
+          personal_asignado: buildPersonalAsignado(personal, personalList, transitorios),
+          observaciones: obs.trim() || null,
+        });
+
+        if (pendingFiles.length > 0 && result?.entradaId) {
+          setUploadingFiles(true);
+          try {
+            await Promise.all(pendingFiles.map(({ file }) => uploadEntradaAdjunto(result.entradaId!, file)));
+          } finally {
+            setUploadingFiles(false);
+          }
+        }
+
+        await finalizarTareaAsignacion(tareaAsignacionId);
+        notifySuccess({ title: "Tarea completada", message: "El registro quedó guardado y la tarea se marcó como completada." });
+        navigate(returnHref);
+        return;
+      }
+
       const result = await registrarActividad({
         bodegaId: String(bodegaId),
         procesoId, fincaId, cuartelId,
@@ -393,15 +722,42 @@ export default function RegistroActividadPage() {
     <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-5xl space-y-6">
         <SectionIntro
-          eyebrow="Carga rápida"
-          title="Registrar actividad"
-          description="Cargá la actividad y sus costos en un solo paso. Queda completada a tu nombre."
+          eyebrow={isEditMode ? "Edición operativa" : isTaskMode ? "Ejecución de tarea" : "Carga rápida"}
+          title={isEditMode ? "Editar registro" : isTaskMode ? "Completar tarea" : "Registrar actividad"}
+          description={isEditMode ? "Actualizá el registro, la ejecución y los costos de la tarea en una pantalla completa." : isTaskMode ? "Registrá el avance final de la tarea en una pantalla completa y marcala como completada al guardar." : "Cargá la actividad y sus costos en un solo paso. Queda completada a tu nombre."}
         />
 
-        {/* Actividad */}
-        <AppCard padding="lg" header={<h3 className="text-base font-semibold">Datos de la actividad</h3>}>
+        {isEditMode || isTaskMode ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <Link to={returnHref}>
+              <AppButton variant="ghost">Volver</AppButton>
+            </Link>
+            <span className="text-sm text-[color:var(--text-ink-muted)]">
+              {isEditMode ? "Estás editando un registro ya guardado." : "Estás ejecutando una tarea pendiente desde Operación de campo."}
+            </span>
+          </div>
+        ) : null}
+
+        {loadingEdit ? (
+          <NoticeBanner tone="info">Cargando el registro para edición…</NoticeBanner>
+        ) : null}
+
+        <Stepper steps={STEPS} current={step} onStep={(n) => { if (n <= step) setStep(n); }} />
+
+        {draftRestored ? (
+          <NoticeBanner tone="info">
+            Se restauró un borrador sin terminar.{" "}
+            <button type="button" onClick={resetAll} className="font-medium underline">Descartar</button>
+          </NoticeBanner>
+        ) : null}
+
+        {step === 0 ? (
+        <AppCard
+          padding="lg"
+          header={<h3 className="text-base font-semibold">Datos de la actividad</h3>}
+        >
           <div className="grid gap-3 md:grid-cols-3">
-            <AppSelect label="Actividad" value={procesoId} onChange={(e) => { setProcesoId(e.target.value); setDraft({}); }}>
+            <AppSelect label="Actividad *" value={procesoId} onChange={(e) => { setProcesoId(e.target.value); setDraft({}); }} disabled={isTaskMode}>
               <option value="">{loadingProcesos ? "Cargando…" : "Seleccionar…"}</option>
               {procesosPorEtapa.map(([etapa, items]) => (
                 <optgroup key={etapa} label={etapa}>
@@ -409,15 +765,20 @@ export default function RegistroActividadPage() {
                 </optgroup>
               ))}
             </AppSelect>
-            <AppSelect label="Finca" value={fincaId} onChange={(e) => { setFincaId(e.target.value); setCuartelId(""); }}>
+            <AppSelect label="Finca *" value={fincaId} onChange={(e) => { setFincaId(e.target.value); setCuartelId(""); }} disabled={isTaskMode}>
               <option value="">Seleccionar…</option>
               {fincas.filter((f) => f.finca_id).map((f) => <option key={f.finca_id} value={f.finca_id}>{f.nombre_finca ?? f.finca_id}</option>)}
             </AppSelect>
-            <AppSelect label="Cuartel" value={cuartelId} onChange={(e) => setCuartelId(e.target.value)}>
+            <AppSelect label="Cuartel *" value={cuartelId} onChange={(e) => setCuartelId(e.target.value)} disabled={isTaskMode}>
               <option value="">Seleccionar…</option>
               {cuarteles.filter((c) => c.cuartel_id ?? c.id).map((c) => <option key={c.cuartel_id ?? c.id} value={String(c.cuartel_id ?? c.id)}>{c.codigo_cuartel}</option>)}
             </AppSelect>
           </div>
+          {isTaskMode ? (
+            <div className="mt-3 rounded-[var(--radius-md)] border border-[color:var(--border-subtle)] bg-[color:var(--surface-accent-soft)] px-3 py-2 text-xs text-[color:var(--text-ink-muted)]">
+              La actividad, la finca y el cuartel vienen definidos por la orden seleccionada. Acá solo completás el detalle de ejecución.
+            </div>
+          ) : null}
           {sugerencia && (sugerencia.productividad_label || sugerencia.equipos_sugeridos.length || sugerencia.insumos_sugeridos.length) ? (
             <div className="mt-3 rounded-[var(--radius-md)] border border-[color:var(--border-subtle)] bg-[color:var(--surface-accent-soft)] px-3 py-2 text-xs text-[color:var(--text-ink-muted)]">
               {sugerencia.productividad_label ? <div>Productividad: <span className="font-semibold text-[color:var(--text-ink)]">{sugerencia.productividad_label}</span></div> : null}
@@ -432,18 +793,38 @@ export default function RegistroActividadPage() {
             </div>
           ) : null}
         </AppCard>
+        ) : null}
 
-        {/* Superficie y mano de obra */}
-        <AppCard padding="lg" header={<h3 className="text-base font-semibold">Superficie y mano de obra</h3>}>
+        {step === 1 ? (
+        <AppCard
+          padding="lg"
+          header={<h3 className="text-base font-semibold">Superficie y mano de obra</h3>}
+        >
           <div className="grid gap-3 md:grid-cols-2">
             <AppSelect label="Modalidad de ejecución" value={modalidad} onChange={(e) => setModalidad(e.target.value as ModalidadEjecucion)}>
               {MODALIDADES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
             </AppSelect>
-            <AppInput label="Superficie intervenida (ha)" type="number" min="0" value={superficie} onChange={(e) => setSuperficie(nonNeg(e.target.value))} />
+            <div className="space-y-2.5">
+              <AppInput
+                label="Superficie intervenida (ha) *"
+                type="number"
+                min="0"
+                value={superficie}
+                onChange={(e) => setSuperficie(nonNeg(e.target.value))}
+              />
+              <p className="text-xs text-[color:var(--text-ink-muted)]">{superficieCuartelHint}</p>
+            </div>
             <AppInput label="Fecha de inicio" type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} />
             <AppInput label="Fecha de fin" type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} />
             <AppInput label="Cantidad ejecutada" type="number" min="0" value={cantEjec} onChange={(e) => setCantEjec(nonNeg(e.target.value))} placeholder="ej. 4500" />
-            <AppInput label="Unidad (plantas, kg…)" value={unidadEjec} onChange={(e) => setUnidadEjec(e.target.value)} />
+            <AppSelect label="Unidad" value={unidadEjec} onChange={(e) => setUnidadEjec(e.target.value)}>
+              <option value="">Seleccionar…</option>
+              {UNIDADES_EJECUCION.map((unidad) => (
+                <option key={unidad.value} value={unidad.value}>
+                  {unidad.label}
+                </option>
+              ))}
+            </AppSelect>
             <AppSelect label="Responsable de ejecución" value={responsableId} onChange={(e) => setResponsableId(e.target.value)}>
               <option value="">Sin responsable</option>
               {operarios.map((o) => <option key={o.user_id} value={o.user_id}>{o.nombre}</option>)}
@@ -464,11 +845,42 @@ export default function RegistroActividadPage() {
             <AppTextarea label="Observaciones" value={obs} onChange={(e) => setObs(e.target.value)} />
           </div>
         </AppCard>
+        ) : null}
 
+        {step === 2 ? (
+        <>
+        {(isEditMode || isTaskMode) && tareaId ? (
+          <AppCard padding="lg" header={<h3 className="text-base font-semibold">Costos y recursos de la tarea</h3>}>
+            <p className="mb-4 text-sm text-[color:var(--text-ink-muted)]">
+              Gestioná maquinaria, insumos, contratistas y ejecución detallada con más espacio de trabajo que en el modal.
+            </p>
+            <CostosActividadPanel
+              tareaId={tareaId}
+              bodegaId={bodegaId}
+              actividadClave={selectedProceso?.nombre}
+              esFertilizacion={esFertilizacion}
+              esLaborConMaquina={esLaborConMaquina}
+            />
+          </AppCard>
+        ) : null}
+        {!isEditMode && !isTaskMode ? (
+        <>
         {/* Máquinas y equipos */}
-        <AppCard padding="lg" className={!aplicaMaquinaria ? "opacity-70" : undefined} header={<h3 className="text-base font-semibold">Máquinas y equipos</h3>}>
-          {!aplicaMaquinaria ? (
-            <NoAplicaNota>Esta labor es manual y normalmente no usa maquinaria.</NoAplicaNota>
+        <AppCard
+          padding="lg"
+          header={<h3 className="text-base font-semibold">Máquinas y equipos</h3>}
+        >
+          {!aplicaMaquinaria && !expandMaq ? (
+            <div>
+              <NoAplicaNota>Esta labor es manual y normalmente no usa maquinaria.</NoAplicaNota>
+              <AppButton variant="ghost" size="sm" onClick={() => setExpandMaq(true)}>Agregar de todas formas</AppButton>
+            </div>
+          ) : (
+          <>
+          {esLaborConMaquina ? (
+            <p className="mb-3 rounded-[var(--radius-md)] border border-[color:var(--border-subtle)] bg-[color:var(--surface-accent-soft)] px-3 py-2 text-xs text-[color:var(--text-ink-muted)]">
+              Cargá acá el <strong>tractor / máquina</strong> desde tu catálogo (con sus horas y combustible). No hace falta escribirlo en el detalle.
+            </p>
           ) : null}
           {maquinas.length ? (
             <ul className="mb-3 space-y-2">
@@ -481,21 +893,45 @@ export default function RegistroActividadPage() {
             </ul>
           ) : null}
           <div className="grid gap-3 md:grid-cols-4">
+            <AppSelect
+              label="Clase"
+              value={maqClase}
+              onChange={(e) => {
+                setMaqClase(e.target.value as ClaseMaquinaria | "");
+                setMaqTarifaId("");
+              }}
+            >
+              <option value="">Todas</option>
+              {CLASES_MAQUINARIA.map((clase) => (
+                <option key={clase.value} value={clase.value}>
+                  {clase.label}
+                </option>
+              ))}
+            </AppSelect>
             <AppSelect label="Máquina / equipo" value={maqTarifaId} onChange={(e) => setMaqTarifaId(e.target.value)}>
-              <option value="">Seleccionar…</option>
-              {tarifasMaq.map((t) => <option key={t.tarifa_maquinaria_id} value={t.tarifa_maquinaria_id}>{t.nombre} ({t.clase})</option>)}
+              <option value="">{maqClase ? "Seleccionar…" : "Elegí una clase primero o ver todas"}</option>
+              {tarifasMaqFiltradas.map((t) => <option key={t.tarifa_maquinaria_id} value={t.tarifa_maquinaria_id}>{t.nombre} ({t.clase})</option>)}
             </AppSelect>
             <AppInput label="Cantidad" type="number" value={maqCantidad} onChange={(e) => setMaqCantidad(e.target.value)} placeholder="opcional" />
             <AppInput label="Horas de uso" type="number" value={maqHoras} onChange={(e) => setMaqHoras(e.target.value)} />
             <div className="flex items-end"><AppButton variant="secondary" onClick={addMaquina}>Agregar</AppButton></div>
           </div>
+          </>
+          )}
         </AppCard>
 
         {/* Insumos */}
-        <AppCard padding="lg" className={!aplicaInsumos ? "opacity-70" : undefined} header={<h3 className="text-base font-semibold">{esFertilizacion ? "Fertilizante / insumos" : "Insumos"}</h3>}>
-          {!aplicaInsumos ? (
-            <NoAplicaNota>Esta labor normalmente no lleva insumos.</NoAplicaNota>
-          ) : null}
+        <AppCard
+          padding="lg"
+          header={<h3 className="text-base font-semibold">{esFertilizacion ? "Fertilizante / insumos" : "Insumos"}</h3>}
+        >
+          {!aplicaInsumos && !expandIns ? (
+            <div>
+              <NoAplicaNota>Esta labor normalmente no lleva insumos.</NoAplicaNota>
+              <AppButton variant="ghost" size="sm" onClick={() => setExpandIns(true)}>Agregar de todas formas</AppButton>
+            </div>
+          ) : (
+          <>
           {esFertilizacion ? (
             <p className="mb-3 rounded-[var(--radius-md)] border border-[color:var(--border-subtle)] bg-[color:var(--surface-accent-soft)] px-3 py-2 text-xs text-[color:var(--text-ink-muted)]">
               Cargá acá el fertilizante desde tu catálogo: se registra el insumo y <strong>descuenta stock</strong> automáticamente.
@@ -514,15 +950,21 @@ export default function RegistroActividadPage() {
           <InsumoPicker
             insumos={insumosCat}
             existencias={existencias}
+            superficieHa={Number(superficie) || 0}
             reservado={(id) => insumos.filter((i) => i.insumo_id === id).reduce((acc, i) => acc + (Number(i.cantidad_total) || 0), 0)}
             onAdd={addInsumo}
             onError={(message) => notifyError({ title: "No se pudo agregar", message })}
           />
+          </>
+          )}
         </AppCard>
 
         {/* Mano de obra contratada */}
         {requiresContratista ? (
-          <AppCard padding="lg" header={<h3 className="text-base font-semibold">Mano de obra contratada</h3>}>
+          <AppCard
+            padding="lg"
+            header={<h3 className="text-base font-semibold">Mano de obra contratada</h3>}
+          >
             {contratistas.length ? (
               <ul className="mb-3 space-y-2">
                 {contratistas.map((c, idx) => (
@@ -542,9 +984,14 @@ export default function RegistroActividadPage() {
             <div className="mt-3"><AppButton variant="secondary" onClick={addContratista}>Agregar cuadrilla</AppButton></div>
           </AppCard>
         ) : null}
+        </>
+        ) : null}
 
         {/* Adjuntos (fotos y archivos) */}
-        <AppCard padding="lg" header={<h3 className="text-base font-semibold">Adjuntos <span className="text-sm font-normal text-[color:var(--text-ink-muted)]">(fotos y archivos — opcional)</span></h3>}>
+        <AppCard
+          padding="lg"
+          header={<h3 className="text-base font-semibold">Adjuntos <span className="text-sm font-normal text-[color:var(--text-ink-muted)]">(fotos y archivos — opcional)</span></h3>}
+        >
           <div className="flex flex-wrap gap-2">
             {pendingFiles.map(({ file, previewUrl }, idx) => (
               <div key={idx} className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)]">
@@ -589,12 +1036,34 @@ export default function RegistroActividadPage() {
           ) : null}
         </AppCard>
 
-        {/* Acción final */}
-        <div className="flex flex-wrap items-center gap-2">
-          <AppButton variant="primary" size="lg" loading={saving || uploadingFiles} onClick={() => void handleSubmit()}>
-            Registrar actividad y costos
-          </AppButton>
-          <Link to="/operacion/campo"><AppButton variant="ghost">Ir a Operación de campo</AppButton></Link>
+        </>
+        ) : null}
+      </div>
+
+      {/* Barra de acción fija */}
+      <div className="fixed inset-x-0 bottom-0 border-t border-[color:var(--border-shell)] bg-[color:var(--surface-shell)]/95 px-6 py-3 backdrop-blur md:left-[280px]">
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3">
+          {step > 0 ? (
+            <AppButton variant="ghost" onClick={() => setStep((s) => Math.max(0, s - 1))}>Atrás</AppButton>
+          ) : (
+            <Link to="/operacion/campo"><AppButton variant="ghost">Ir a Operación de campo</AppButton></Link>
+          )}
+          <div className="flex items-center gap-2">
+            {step < 2 && !currentStepValid ? (
+              <span className="hidden text-xs text-[color:var(--text-ink-muted)] sm:inline">
+                {step === 0 ? "Elegí actividad, finca y cuartel" : "Ingresá la superficie"}
+              </span>
+            ) : null}
+            {step < 2 ? (
+              <AppButton variant="primary" disabled={!currentStepValid} onClick={() => setStep((s) => s + 1)}>
+                Siguiente
+              </AppButton>
+            ) : (
+              <AppButton variant="primary" size="lg" loading={saving || uploadingFiles} onClick={() => void handleSubmit()}>
+                {isEditMode ? "Guardar cambios" : isTaskMode ? "Guardar y completar tarea" : "Registrar actividad y costos"}
+              </AppButton>
+            )}
+          </div>
         </div>
       </div>
     </div>

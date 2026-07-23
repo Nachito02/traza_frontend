@@ -4,6 +4,7 @@ import {
   AppCard,
   AppInput,
   AppSelect,
+  AppTabs,
   NoticeBanner,
   SectionIntro,
   useAppNotifications,
@@ -34,8 +35,6 @@ const EMPTY = {
   principio_activo: "",
   nombre_comercial: "",
   unidad_base: "",
-  dosis_min: "",
-  dosis_max: "",
   unidad_dosis: "",
   proveedor: "",
   costo_unitario: "",
@@ -147,8 +146,6 @@ export default function InsumosPage() {
       principio_activo: m.principio_activo ?? "",
       nombre_comercial: m.nombre_comercial,
       unidad_base: m.unidad ?? prev.unidad_base,
-      dosis_min: m.dosis_min ?? "",
-      dosis_max: m.dosis_max ?? "",
       unidad_dosis: m.unidad_dosis ?? "",
     }));
   };
@@ -170,8 +167,6 @@ export default function InsumosPage() {
       nombre_comercial: form.nombre_comercial.trim(),
       principio_activo: form.principio_activo.trim() || null,
       unidad_base: form.unidad_base.trim(),
-      dosis_min: num(form.dosis_min),
-      dosis_max: num(form.dosis_max),
       unidad_dosis: form.unidad_dosis.trim() || null,
       proveedor: form.proveedor.trim() || null,
       costo_unitario: num(form.costo_unitario),
@@ -211,8 +206,6 @@ export default function InsumosPage() {
       principio_activo: i.principio_activo ?? "",
       nombre_comercial: i.nombre_comercial,
       unidad_base: i.unidad_base,
-      dosis_min: i.dosis_min ?? "",
-      dosis_max: i.dosis_max ?? "",
       unidad_dosis: i.unidad_dosis ?? "",
       proveedor: i.proveedor ?? "",
       costo_unitario: i.costo_unitario ?? "",
@@ -264,22 +257,7 @@ export default function InsumosPage() {
         />
 
         {/* Tabs de ámbito: finca / bodega */}
-        <div className="inline-flex rounded-[var(--radius-md)] border border-[color:var(--border-shell)] p-1">
-          {AMBITOS.map((a) => (
-            <button
-              key={a.value}
-              type="button"
-              onClick={() => changeAmbito(a.value)}
-              className={`rounded-[var(--radius-sm)] px-4 py-1.5 text-sm font-medium transition ${
-                ambito === a.value
-                  ? "bg-[color:var(--accent-primary)] text-white"
-                  : "text-[color:var(--text-ink-muted)] hover:text-[color:var(--text-ink)]"
-              }`}
-            >
-              {a.label}
-            </button>
-          ))}
-        </div>
+        <AppTabs items={AMBITOS} value={ambito} onChange={changeAmbito} />
 
         {error ? <NoticeBanner tone="danger">{error}</NoticeBanner> : null}
 
@@ -328,8 +306,6 @@ export default function InsumosPage() {
             <AppInput label="Principio activo" value={form.principio_activo} onChange={(e) => setField("principio_activo", e.target.value)} placeholder="Opcional" />
             <AppInput label="Nombre comercial" value={form.nombre_comercial} onChange={(e) => setField("nombre_comercial", e.target.value)} />
             <AppInput label="Unidad" value={form.unidad_base} onChange={(e) => setField("unidad_base", e.target.value)} placeholder="kg, L, unidad…" />
-            <AppInput label="Dosis mínima" type="number" min="0" value={form.dosis_min} onChange={(e) => setField("dosis_min", e.target.value)} />
-            <AppInput label="Dosis máxima" type="number" min="0" value={form.dosis_max} onChange={(e) => setField("dosis_max", e.target.value)} />
             <AppInput label="Unidad de dosis" value={form.unidad_dosis} onChange={(e) => setField("unidad_dosis", e.target.value)} placeholder="kg/ha, L/ha…" />
 
             {esBodega ? (
