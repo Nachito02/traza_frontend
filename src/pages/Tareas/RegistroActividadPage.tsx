@@ -721,11 +721,13 @@ export default function RegistroActividadPage() {
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
       <div className="mx-auto w-full max-w-5xl space-y-6">
-        <SectionIntro
-          eyebrow={isEditMode ? "Edición operativa" : isTaskMode ? "Ejecución de tarea" : "Carga rápida"}
-          title={isEditMode ? "Editar registro" : isTaskMode ? "Completar tarea" : "Registrar actividad"}
-          description={isEditMode ? "Actualizá el registro, la ejecución y los costos de la tarea en una pantalla completa." : isTaskMode ? "Registrá el avance final de la tarea en una pantalla completa y marcala como completada al guardar." : "Cargá la actividad y sus costos en un solo paso. Queda completada a tu nombre."}
-        />
+        {isEditMode || isTaskMode ? (
+          <SectionIntro
+            eyebrow={isEditMode ? "Edición operativa" : "Ejecución de tarea"}
+            title={isEditMode ? "Editar registro" : "Completar tarea"}
+            description={isEditMode ? "Actualizá el registro, la ejecución y los costos de la tarea en una pantalla completa." : "Registrá el avance final de la tarea en una pantalla completa y marcala como completada al guardar."}
+          />
+        ) : null}
 
         {isEditMode || isTaskMode ? (
           <div className="flex flex-wrap items-center gap-3">
