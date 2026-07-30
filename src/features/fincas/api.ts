@@ -9,6 +9,9 @@ export type Finca = {
   rut?: string | null;
   renspa?: string | null;
   catastro?: string | null;
+  nro_inscripto_inv?: string | null;
+  cuit?: string | null;
+  razon_social?: string | null;
   created_at?: string;
   vinculo?: {
     bodega_id?: string;
@@ -38,6 +41,9 @@ export type CreateFincaPayload = {
   renspa?: string | null;
   catastro?: string | null;
   ubicacion_texto?: string | null;
+  nro_inscripto_inv?: string | null;
+  cuit?: string | null;
+  razon_social?: string | null;
 };
 
 export type UpdateFincaPayload = {
@@ -46,6 +52,9 @@ export type UpdateFincaPayload = {
   renspa?: string | null;
   catastro?: string | null;
   ubicacion_texto?: string | null;
+  nro_inscripto_inv?: string | null;
+  cuit?: string | null;
+  razon_social?: string | null;
 };
 
 export async function createFinca(payload: CreateFincaPayload) {

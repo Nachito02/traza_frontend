@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  fetchImpactoBorradoRecepcion,
+  fetchImpactoBorradoRemito,
   listElaboracionResource,
   type ElaboracionEntity,
 } from "../../features/elaboracion/api";
@@ -16,6 +18,54 @@ function resolveStringId(item: ElaboracionEntity, keys: string[]) {
     .map((key) => item[key])
     .find((value) => typeof value === "string" || typeof value === "number");
   return id === undefined || id === null ? "" : String(id);
+}
+
+function describeLoteImpacto(lote: {
+  codigo: string;
+  esUnicoOrigen: boolean;
+  volumenVasijaL: number;
+  bloqueado: boolean;
+}) {
+  if (lote.volumenVasijaL > 0) {
+    return `⚠ el lote ${lote.codigo} ya tiene ${lote.volumenVasijaL} l registrados en vasija — el borrado se va a rechazar (corregí esa operación de vasija primero)`;
+  }
+  if (lote.bloqueado) {
+    return `⚠ el lote ${lote.codigo} ya se usó como componente de otro lote (blend) — el borrado se va a rechazar`;
+  }
+  if (!lote.esUnicoOrigen) {
+    return `su lugar en el lote ${lote.codigo}`;
+  }
+  return `el lote ${lote.codigo} (queda sin origen)`;
+}
+
+async function buildRemitoDeleteWarning(item: ElaboracionEntity): Promise<string | null> {
+  const remitoId = resolveStringId(item, ["remito_uva_id", "id_remito", "remito_id", "id"]);
+  if (!remitoId) return null;
+  const impacto = await fetchImpactoBorradoRemito(remitoId);
+  const partes: string[] = [];
+  if (impacto.recepciones > 0) partes.push(`${impacto.recepciones} recepción(es)`);
+  if (impacto.tieneAnalisis) partes.push("su análisis");
+  if (impacto.cius.length > 0) partes.push(`el CIU ${impacto.cius.join(", ")}`);
+  for (const lote of impacto.lotes) partes.push(describeLoteImpacto(lote));
+  if (partes.length === 0) return null;
+  return `También se va a borrar: ${partes.join(", ")}.`;
+}
+
+async function buildRecepcionDeleteWarning(item: ElaboracionEntity): Promise<string | null> {
+  const recepcionId = resolveStringId(item, [
+    "recepcion_bodega_id",
+    "id_recepcion",
+    "recepcion_id",
+    "id",
+  ]);
+  if (!recepcionId) return null;
+  const impacto = await fetchImpactoBorradoRecepcion(recepcionId);
+  const partes: string[] = [];
+  if (impacto.tieneAnalisis) partes.push("su análisis");
+  if (impacto.ciu) partes.push(`el CIU ${impacto.ciu.codigo_ciu}`);
+  if (impacto.lote) partes.push(describeLoteImpacto(impacto.lote));
+  if (partes.length === 0) return null;
+  return `También se va a borrar: ${partes.join(", ")}.`;
 }
 
 function formatRecepcionOption(item: ElaboracionEntity): SelectOption | null {
@@ -212,19 +262,36 @@ export default function RecepcionPage({
       return;
     }
 
-    const [remitos, recepciones] = await Promise.all([
+    const [remitos, recepciones, analisis] = await Promise.all([
       listElaboracionResource("remitos-uva", { bodegaId: String(activeBodegaId) }),
       listElaboracionResource("recepciones-bodega", { bodegaId: String(activeBodegaId) }),
+      listElaboracionResource("analisis-recepcion", { bodegaId: String(activeBodegaId) }),
     ]);
+
+    // Un remito que ya tiene recepción, o una recepción que ya tiene análisis, no
+    // se pueden volver a elegir para cargar otro — se muestran en gris.
+    const remitosConRecepcion = new Set(
+      recepciones
+        .map((r) => r.remito_uva_id)
+        .filter((id): id is string => typeof id === "string"),
+    );
+    const recepcionesConAnalisis = new Set(
+      analisis
+        .map((a) => a.recepcion_bodega_id)
+        .filter((id): id is string => typeof id === "string"),
+    );
+
     setRemitoOptions(
       remitos
         .map(formatRemitoOption)
-        .filter((option): option is SelectOption => option !== null),
+        .filter((option): option is SelectOption => option !== null)
+        .map((option) => ({ ...option, disabled: remitosConRecepcion.has(option.value) })),
     );
     setRecepcionOptions(
       recepciones
         .map(formatRecepcionOption)
-        .filter((option): option is SelectOption => option !== null),
+        .filter((option): option is SelectOption => option !== null)
+        .map((option) => ({ ...option, disabled: recepcionesConAnalisis.has(option.value) })),
     );
   }, [activeBodegaId]);
 
@@ -329,6 +396,8 @@ export default function RecepcionPage({
       { name: "llegada_bodega", label: "Llegada bodega", type: "datetime-local", required: true },
       { name: "transportista", label: "Transportista", type: "text" },
       { name: "patente", label: "Patente", type: "text" },
+      { name: "modelo_vehiculo", label: "Modelo del vehículo", type: "text", placeholder: "ej. -FORD 1985" },
+      { name: "cuit_conductor", label: "CUIT/CUIL del conductor", type: "text" },
       { name: "kg_declarados", label: "Kg declarados o tachos", type: "number" },
       { name: "kg_bruto", label: "Kg brutos", type: "number" },
       { name: "kg_tara", label: "Kg tara (peso del camión)", type: "number" },
@@ -520,6 +589,7 @@ export default function RecepcionPage({
           fields={remitoFields}
           validate={validateRemito}
           onCreated={handleRemitoCreated}
+          getDeleteWarning={buildRemitoDeleteWarning}
         />
       ) : null}
 
@@ -535,6 +605,7 @@ export default function RecepcionPage({
           fields={recepcionFields}
           defaultValues={recepcionDefaultValues ?? recepcionDefaults}
           onCreated={handleRecepcionCreated}
+          getDeleteWarning={buildRecepcionDeleteWarning}
         />
       ) : null}
 

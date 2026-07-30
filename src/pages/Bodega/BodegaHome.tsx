@@ -12,6 +12,13 @@ import {
 
 const RESOURCES = [
   {
+    title: "Datos de la bodega",
+    description: "Nombre, razón social, CUIT y código corto (usado en el código de lote).",
+    to: "/bodega/configuracion",
+    action: "Editar datos",
+    enabled: true,
+  },
+  {
     title: "Fincas",
     description: "Alta, edición y baja de fincas de la bodega activa.",
     to: "/fincas",

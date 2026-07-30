@@ -30,6 +30,9 @@ type FormState = {
   rut: string;
   renspa: string;
   catastro: string;
+  nro_inscripto_inv: string;
+  cuit: string;
+  razon_social: string;
 };
 
 const emptyForm: FormState = {
@@ -38,6 +41,9 @@ const emptyForm: FormState = {
   rut: "",
   renspa: "",
   catastro: "",
+  nro_inscripto_inv: "",
+  cuit: "",
+  razon_social: "",
 };
 
 type VinculoFormState = {
@@ -128,6 +134,9 @@ export default function FincasAdmin() {
         rut: form.rut.trim() || null,
         renspa: form.renspa.trim() || null,
         catastro: form.catastro.trim() || null,
+        nro_inscripto_inv: form.nro_inscripto_inv.trim() || null,
+        cuit: form.cuit.trim() || null,
+        razon_social: form.razon_social.trim() || null,
       };
       let targetFincaId = editingId ?? "";
       if (editingId) {
@@ -175,6 +184,9 @@ export default function FincasAdmin() {
         rut: item.rut ?? "",
         renspa: item.renspa ?? "",
         catastro: item.catastro ?? "",
+        nro_inscripto_inv: item.nro_inscripto_inv ?? "",
+        cuit: item.cuit ?? "",
+        razon_social: item.razon_social ?? "",
       });
       const vinculo = vinculosByFincaId[id];
       setVinculoForm({
@@ -365,6 +377,27 @@ export default function FincasAdmin() {
                     value={form.catastro}
                     onChange={(e) => setForm((p) => ({ ...p, catastro: e.target.value }))}
                     placeholder="CAT-789"
+                    uiSize="lg"
+                  />
+                <AppInput
+                  label="Nro de inscripto INV (viñatero)"
+                    value={form.nro_inscripto_inv}
+                    onChange={(e) => setForm((p) => ({ ...p, nro_inscripto_inv: e.target.value }))}
+                    placeholder="ej. D00067"
+                    uiSize="lg"
+                  />
+                <AppInput
+                  label="CUIT del viñatero"
+                    value={form.cuit}
+                    onChange={(e) => setForm((p) => ({ ...p, cuit: e.target.value }))}
+                    placeholder="30-71138299-9"
+                    uiSize="lg"
+                  />
+                <AppInput
+                  label="Razón social del viñatero"
+                    value={form.razon_social}
+                    onChange={(e) => setForm((p) => ({ ...p, razon_social: e.target.value }))}
+                    placeholder="ej. CINCO CEPAS S.R.L."
                     uiSize="lg"
                   />
                 <AppSelect

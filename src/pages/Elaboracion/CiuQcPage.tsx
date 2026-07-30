@@ -76,13 +76,21 @@ export default function CiuQcPage({
       setRecepcionOptions([]);
       return;
     }
-    const recepciones = await listElaboracionResource("recepciones-bodega", {
-      bodegaId: String(activeBodegaId),
-    });
+    const [recepciones, cius] = await Promise.all([
+      listElaboracionResource("recepciones-bodega", { bodegaId: String(activeBodegaId) }),
+      listElaboracionResource("cius", { bodegaId: String(activeBodegaId) }),
+    ]);
+    // Una recepción que ya tiene CIU cargado no se puede volver a elegir para otro.
+    const recepcionesConCiu = new Set(
+      cius
+        .map((c) => c.recepcion_bodega_id)
+        .filter((id): id is string => typeof id === "string"),
+    );
     setRecepcionOptions(
       recepciones
         .map(formatRecepcionOption)
-        .filter((option): option is SelectOption => option !== null),
+        .filter((option): option is SelectOption => option !== null)
+        .map((option) => ({ ...option, disabled: recepcionesConCiu.has(option.value) })),
     );
   }, [activeBodegaId]);
 
@@ -97,7 +105,7 @@ export default function CiuQcPage({
     <div className="space-y-4">
       <GenericCrudSection
         title="CIU"
-        description="Comprobante de ingreso de uva. Cada CIU corresponde a un ingreso (recepción) específico."
+        description="Datos del viaje para declarar el CIU. El número lo asigna la bodega. Estos datos arman el lote y generan el archivo .txt que después se carga en el Sistema de Cosecha del INV para declararlo."
         resource="cius"
         bodegaId={activeBodegaId}
         hidePrimaryAction={hidePrimaryAction}
@@ -112,9 +120,22 @@ export default function CiuQcPage({
             options: recepcionOptions,
             sourceKey: "recepcion_bodega_id",
           },
-          { name: "codigo_ciu", label: "Código CIU", type: "text", required: true },
-          { name: "emitido_at", label: "Emitido", type: "datetime-local", required: true },
-          { name: "estado", label: "Estado", type: "text" },
+          { name: "codigo_ciu", label: "Número de CIU", type: "text", required: true },
+          { name: "emitido_at", label: "Fecha del CIU", type: "datetime-local", required: true },
+          {
+            name: "variedad_codigo_inv",
+            label: "Variedad — código INV",
+            type: "text",
+            placeholder: "ej. 120",
+          },
+          {
+            name: "variedad_nombre",
+            label: "Variedad — nombre",
+            type: "text",
+            placeholder: "ej. SYRAH (SHIRAZ-SIRAH)",
+          },
+          { name: "tenor_azucarino_gl", label: "Tenor azucarino (g/l)", type: "number" },
+          { name: "uva_organica", label: "Uva orgánica", type: "checkbox" },
           { name: "observaciones", label: "Observaciones", type: "textarea" },
         ]}
         defaultValues={ciuDefaultValues}

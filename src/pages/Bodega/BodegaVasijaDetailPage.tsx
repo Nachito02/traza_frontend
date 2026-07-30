@@ -3,14 +3,19 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   AppButton,
   AppCard,
+  AppModal,
   AppSelect,
   NoticeBanner,
   SectionIntro,
+  useAppNotifications,
 } from "../../components/ui";
 import {
+  deleteElaboracionResource,
+  fetchImpactoBorradoOperacionVasija,
   getElaboracionResource,
   listElaboracionResource,
   type ElaboracionEntity,
+  type ImpactoBorradoOperacionVasija,
 } from "../../features/elaboracion/api";
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
@@ -111,6 +116,7 @@ export default function BodegaVasijaDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
+  const { notifySuccess, notifyError } = useAppNotifications();
 
   const [vasija, setVasija] = useState<ElaboracionEntity | null>(null);
   const [operaciones, setOperaciones] = useState<ElaboracionEntity[]>([]);
@@ -118,9 +124,15 @@ export default function BodegaVasijaDetailPage() {
   const [fermentaciones, setFermentaciones] = useState<ElaboracionEntity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [tipoFilter, setTipoFilter] = useState<TipoFilter>("todos");
+
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [impacto, setImpacto] = useState<ImpactoBorradoOperacionVasija | null>(null);
+  const [impactoLoading, setImpactoLoading] = useState(false);
+  const [eliminando, setEliminando] = useState(false);
 
   useEffect(() => {
     if (!id || !activeBodegaId) return;
@@ -161,7 +173,32 @@ export default function BodegaVasijaDetailPage() {
     return () => {
       mounted = false;
     };
-  }, [id, activeBodegaId]);
+  }, [id, activeBodegaId, reloadKey]);
+
+  const openDeleteConfirm = (operacionVasijaId: string) => {
+    setConfirmDeleteId(operacionVasijaId);
+    setImpacto(null);
+    setImpactoLoading(true);
+    fetchImpactoBorradoOperacionVasija(operacionVasijaId)
+      .then(setImpacto)
+      .catch(() => setImpacto(null))
+      .finally(() => setImpactoLoading(false));
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!confirmDeleteId) return;
+    setEliminando(true);
+    try {
+      await deleteElaboracionResource("operaciones-vasija", confirmDeleteId);
+      notifySuccess({ title: "Operación eliminada" });
+      setConfirmDeleteId(null);
+      setReloadKey((k) => k + 1);
+    } catch (err) {
+      notifyError({ title: "No se pudo eliminar", message: getApiErrorMessage(err) });
+    } finally {
+      setEliminando(false);
+    }
+  };
 
   const events = useMemo<TimelineEvent[]>(() => {
     const ops = operaciones.map<TimelineEvent>((op, idx) => ({
@@ -208,8 +245,8 @@ export default function BodegaVasijaDetailPage() {
     vasija && vasija.capacidad_litros !== null && vasija.capacidad_litros !== undefined
       ? `${vasija.capacidad_litros} l`
       : "Sin definir";
-  const etapa = vasija ? stringVal(vasija.etapa, "Sin etapa") : "";
-  const ubicacion = vasija ? stringVal(vasija.ubicacion, "Sin ubicación") : "";
+  const estadoActual = vasija ? stringVal(vasija.etapa, "Sin estado") : "";
+  const uso = vasija ? stringVal(vasija.uso, "Sin uso definido") : "";
 
   return (
     <div className="min-h-screen bg-secondary px-6 py-10">
@@ -258,8 +295,8 @@ export default function BodegaVasijaDetailPage() {
               {[
                 { label: "Tipo", value: tipo },
                 { label: "Capacidad", value: capacidad },
-                { label: "Etapa", value: etapa },
-                { label: "Ubicación", value: ubicacion },
+                { label: "Uso", value: uso },
+                { label: "Etapa", value: estadoActual },
               ].map(({ label, value }) => (
                 <div key={label} className="rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-3 py-2">
                   <div className="text-xs text-[color:var(--text-ink-muted)]">{label}</div>
@@ -357,6 +394,15 @@ export default function BodegaVasijaDetailPage() {
                             <p className="mt-0.5 text-xs text-[color:var(--text-ink-muted)]">{obs}</p>
                           ) : null}
                         </div>
+                        {ev.tipo === "operacion" ? (
+                          <AppButton
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openDeleteConfirm(ev.id)}
+                          >
+                            Eliminar
+                          </AppButton>
+                        ) : null}
                       </div>
                     );
                   })}
@@ -367,6 +413,44 @@ export default function BodegaVasijaDetailPage() {
         </AppCard>
 
       </div>
+
+      <AppModal
+        opened={confirmDeleteId !== null}
+        onClose={() => setConfirmDeleteId(null)}
+        title="¿Eliminar esta operación?"
+        size="sm"
+        footer={(
+          <div className="flex justify-end gap-2">
+            <AppButton type="button" variant="secondary" size="sm" onClick={() => setConfirmDeleteId(null)}>
+              Cancelar
+            </AppButton>
+            <AppButton
+              type="button"
+              variant="danger"
+              size="sm"
+              loading={eliminando}
+              disabled={impactoLoading || impacto?.reversible === false}
+              onClick={() => void handleConfirmDelete()}
+            >
+              Eliminar
+            </AppButton>
+          </div>
+        )}
+      >
+        <div className="space-y-2">
+          {impactoLoading ? (
+            <p className="text-xs text-[color:var(--text-ink-muted)]">Revisando qué más se ve afectado…</p>
+          ) : impacto && !impacto.reversible ? (
+            <NoticeBanner tone="danger">{impacto.motivoNoReversible}</NoticeBanner>
+          ) : impacto && impacto.vasijaContenidoVinculado.length > 0 ? (
+            <NoticeBanner tone="warning">
+              Esta operación generó {impacto.vasijaContenidoVinculado.map((v) => `${v.volumen_l} l`).join(", ")}{" "}
+              en la vasija — al eliminarla, ese volumen también se borra del registro.
+            </NoticeBanner>
+          ) : null}
+          <p className="text-xs text-[color:var(--text-ink-muted)]">Esta acción no se puede deshacer.</p>
+        </div>
+      </AppModal>
     </div>
   );
 }

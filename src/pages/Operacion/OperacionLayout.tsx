@@ -18,6 +18,7 @@ const NAV_GROUPS = [
     links: [
       { to: "/operacion/recepcion", label: "Ingreso de uva" },
       { to: "/operacion/vasijas", label: "Vasijas y Proceso" },
+      { to: "/operacion/lotes", label: "Lotes" },
       { to: "/operacion/cortes", label: "Cortes y Producto" },
       { to: "/operacion/fraccionamiento", label: "Fraccionamiento y Despacho" },
       { to: "/operacion/qr", label: "Producto y Trazabilidad" },
