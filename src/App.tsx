@@ -32,6 +32,8 @@ import Tareas from "./pages/Tareas/Tareas";
 import IngresoUvaFlowPage from "./pages/Elaboracion/IngresoUvaFlowPage";
 import VasijasProcesoPage from "./pages/Elaboracion/VasijasProcesoPage";
 import CortesProductoPage from "./pages/Elaboracion/CortesProductoPage";
+import LotesPage from "./pages/Elaboracion/LotesPage";
+import LoteDetailPage from "./pages/Elaboracion/LoteDetailPage";
 import FraccionamientoDespachoPage from "./pages/Elaboracion/FraccionamientoDespachoPage";
 import QrInversaPage from "./pages/Elaboracion/QrInversaPage";
 import CampoPage from "./pages/Elaboracion/CampoPage";
@@ -48,6 +50,7 @@ import InventarioPage from "./pages/Inventario/InventarioPage";
 import PersonalPage from "./pages/Personal/PersonalPage";
 import TrazabilidadPublica from "./pages/Public/TrazabilidadPublica";
 import BodegaHome from "./pages/Bodega/BodegaHome";
+import BodegaConfigPage from "./pages/Bodega/BodegaConfigPage";
 import BodegaVasijasPage from "./pages/Bodega/BodegaVasijasPage";
 import BodegaVasijaFormPage from "./pages/Bodega/BodegaVasijaFormPage";
 import BodegaVasijaDetailPage from "./pages/Bodega/BodegaVasijaDetailPage";
@@ -186,6 +189,7 @@ export default function App() {
         <Route path="/inventario" element={access.canAccessBodega ? <InventarioPage /> : <Navigate to="/dashboard" replace />} />
         <Route path="/personal" element={access.canAccessBodega ? <PersonalPage /> : <Navigate to="/dashboard" replace />} />
         <Route path="/bodega" element={access.canAccessBodega ? <BodegaHome /> : <Navigate to="/fincas" replace />} />
+        <Route path="/bodega/configuracion" element={access.canAccessBodega ? <BodegaConfigPage /> : <Navigate to="/fincas" replace />} />
         <Route path="/bodega/vasijas" element={access.canAccessBodega ? <BodegaVasijasPage /> : <Navigate to="/fincas" replace />} />
         <Route path="/bodega/vasijas/nueva" element={access.canAccessBodega ? <BodegaVasijaFormPage mode="create" /> : <Navigate to="/fincas" replace />} />
         <Route path="/bodega/vasijas/:id/editar" element={access.canAccessBodega ? <BodegaVasijaFormPage mode="edit" /> : <Navigate to="/fincas" replace />} />
@@ -211,6 +215,8 @@ export default function App() {
           <Route path="ciu-qc" element={<Navigate to="/operacion/recepcion?paso=ciu" replace />} />
           <Route path="vasijas" element={<VasijasProcesoPage />} />
           <Route path="cortes" element={<CortesProductoPage />} />
+          <Route path="lotes" element={<LotesPage />} />
+          <Route path="lotes/:id" element={<LoteDetailPage />} />
           <Route path="fraccionamiento" element={<FraccionamientoDespachoPage />} />
           <Route path="qr" element={<QrInversaPage />} />
           <Route path="campo" element={<CampoPage />} />

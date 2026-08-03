@@ -85,7 +85,7 @@ export default function BodegaVasijaFormPage({ mode }: BodegaVasijaFormPageProps
                 <SectionIntro
                   eyebrow="Ficha operativa"
                   title={mode === "edit" ? "Ajustar datos de la vasija" : "Registrar vasija"}
-                  description="Definí el código, tipo, capacidad, etapa y ubicación para que quede disponible en toda la operación."
+                  description="Definí el código, tipo, capacidad, uso y etapa para que quede disponible en toda la operación."
                   actions={(
                     <Link to="/bodega/vasijas">
                       <AppButton variant="secondary" size="sm">Volver al listado</AppButton>

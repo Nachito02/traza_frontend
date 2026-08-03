@@ -26,6 +26,8 @@ import { getApiErrorMessage } from "../../../lib/api";
 export type SelectOption = {
   label: string;
   value: string;
+  /** Se muestra en gris y no se puede elegir (ej. un ingreso que ya tiene análisis/CIU cargado). */
+  disabled?: boolean;
 };
 
 type FieldType = "text" | "textarea" | "number" | "date" | "datetime-local" | "checkbox" | "select";
@@ -35,6 +37,8 @@ type ValidationResult = string | { fieldErrors?: FieldErrors; formError?: string
 export type CrudField = {
   name: string;
   label: string;
+  /** Texto breve debajo del label, para aclarar un término de jerga o dar contexto. */
+  description?: string;
   type: FieldType;
   required?: boolean;
   placeholder?: string;
@@ -42,6 +46,8 @@ export type CrudField = {
   getOptions?: (values: Record<string, string | boolean>) => SelectOption[];
   sourceKey?: string;
   clearOnChange?: string[];
+  /** Campo bloqueado (se muestra pero no se puede editar); igual se envía en el payload. */
+  disabled?: boolean;
   /**
    * Cuando se define, el campo es de solo lectura y su valor se calcula a partir
    * de los demás valores del formulario. No se envía en el payload (lo calcula el
@@ -78,7 +84,16 @@ type GenericCrudSectionProps = {
   /** When true (with formInModal), auto-opens the create modal on mount if defaultValues are provided. */
   autoOpenForm?: boolean;
   defaultValues?: Record<string, string | boolean>;
+  /**
+   * Antes de confirmar un borrado, consulta qué más se va a ver afectado (registros
+   * hijos que se borran en cascada, lotes que se eliminan o quedan bloqueados) y lo
+   * muestra en el modal de confirmación en vez de solo "esta acción no se puede
+   * deshacer".
+   */
+  getDeleteWarning?: (item: ElaboracionEntity) => Promise<string | null>;
   onCreated?: (item: ElaboracionEntity) => void | Promise<void>;
+  /** Se dispara cada vez que cambian los valores del formulario (para paneles auxiliares fuera del form). */
+  onValuesChange?: (values: Record<string, string | boolean>) => void;
   initialEditId?: string | null;
   onCancel?: () => void;
 };
@@ -326,7 +341,9 @@ export default function GenericCrudSection({
   formInModal = false,
   autoOpenForm = false,
   defaultValues,
+  getDeleteWarning,
   onCreated,
+  onValuesChange,
   initialEditId = null,
   onCancel,
 }: GenericCrudSectionProps) {
@@ -337,9 +354,16 @@ export default function GenericCrudSection({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<ElaboracionEntity | null>(null);
   const [values, setValues] = useState<Record<string, string | boolean>>(() => getInitialValues(fields));
+
+  useEffect(() => {
+    onValuesChange?.(values);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [values]);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [confirmDelete, setConfirmDelete] = useState<ElaboracionEntity | null>(null);
+  const [deleteWarning, setDeleteWarning] = useState<string | null>(null);
+  const [deleteWarningLoading, setDeleteWarningLoading] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "form">(separatedLayout ? "list" : "form");
   const [showFormModal, setShowFormModal] = useState(false);
 
@@ -451,15 +475,32 @@ export default function GenericCrudSection({
     };
   }, [applyEditItem, bodegaId, initialEditId, resource, withBodegaId]);
 
+  // Si un select obligatorio se quedó sin ninguna opción elegible (todas ya usadas
+  // en otro registro), no tiene sentido dejar arrancar un registro nuevo. Esto se
+  // deriva siempre de la data real (qué opciones ya vinieron marcadas `disabled`
+  // por quien arma la lista), no de un valor "recordado" del wizard — eso evita
+  // bloqueos falsos cuando ese valor recordado quedó desactualizado.
+  const sinOpcionesField = useMemo(() => {
+    const blank = getInitialValues(fields);
+    return fields.find((field) => {
+      if (field.type !== "select" || !field.required) return false;
+      const opts = field.getOptions ? field.getOptions(blank) : (field.options ?? []);
+      return opts.length > 0 && opts.every((option) => option.disabled);
+    });
+  }, [fields]);
+
+  const bloqueado = Boolean(sinOpcionesField);
+
   const autoOpenHandledRef = useRef(false);
   useEffect(() => {
     if (autoOpenHandledRef.current) return;
     if (!autoOpenForm || !formInModal) return;
     const hasDefaultValues = defaultValues && Object.keys(defaultValues).length > 0;
     if (!hasDefaultValues) return;
+    if (bloqueado) return;
     autoOpenHandledRef.current = true;
     setShowFormModal(true);
-  }, [autoOpenForm, formInModal, defaultValues]);
+  }, [autoOpenForm, formInModal, defaultValues, bloqueado]);
 
   const onSubmit = async () => {
     if (!bodegaId && withBodegaId) {
@@ -607,6 +648,7 @@ export default function GenericCrudSection({
     const item = confirmDelete;
     const recordId = idResolver ? idResolver(item) : resolveId(item, resource);
     setConfirmDelete(null);
+    setDeleteWarning(null);
 
     setSaving(true);
     setError(null);
@@ -642,6 +684,14 @@ export default function GenericCrudSection({
       return;
     }
     setConfirmDelete(item);
+    setDeleteWarning(null);
+    if (getDeleteWarning) {
+      setDeleteWarningLoading(true);
+      getDeleteWarning(item)
+        .then((warning) => setDeleteWarning(warning))
+        .catch(() => setDeleteWarning(null))
+        .finally(() => setDeleteWarningLoading(false));
+    }
   };
 
   const onStartCreate = () => {
@@ -829,16 +879,18 @@ export default function GenericCrudSection({
                 return (
                   <AppSelect
                     label={field.label}
+                    description={field.description}
                     error={fieldErrors[field.name]}
                     value={String(values[field.name] ?? "")}
+                    disabled={field.disabled}
                     onChange={(event) =>
                       setFieldValue(field, event.target.value)
                     }
                   >
                     <option value="">Seleccionar...</option>
                     {options.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
+                      <option key={option.value} value={option.value} disabled={option.disabled}>
+                        {option.disabled ? `${option.label} · no disponible` : option.label}
                       </option>
                     ))}
                   </AppSelect>
@@ -850,6 +902,7 @@ export default function GenericCrudSection({
                 type={field.type}
                 error={fieldErrors[field.name]}
                 value={String(values[field.name] ?? "")}
+                disabled={field.disabled}
                 onChange={(event) =>
                   setFieldValue(field, event.target.value)
                 }
@@ -895,7 +948,18 @@ export default function GenericCrudSection({
           description={description}
           actions={
             ((separatedLayout && viewMode === "list") || formInModal) && !hidePrimaryAction ? (
-              <AppButton type="button" variant="primary" size="sm" onClick={onStartCreate}>
+              <AppButton
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={onStartCreate}
+                disabled={bloqueado}
+                title={
+                  sinOpcionesField
+                    ? `No hay opciones disponibles para "${sinOpcionesField.label}"`
+                    : undefined
+                }
+              >
                 Nuevo registro
               </AppButton>
             ) : undefined
@@ -903,6 +967,13 @@ export default function GenericCrudSection({
         />
       )}
     >
+
+      {sinOpcionesField ? (
+        <NoticeBanner tone="info" className="mt-3">
+          No hay ningún "{sinOpcionesField.label}" disponible todavía — ya están todos usados en
+          otro registro.
+        </NoticeBanner>
+      ) : null}
 
       {formInModal
         ? renderList()
@@ -942,7 +1013,10 @@ export default function GenericCrudSection({
       {confirmDelete && (
         <AppModal
           opened
-          onClose={() => setConfirmDelete(null)}
+          onClose={() => {
+            setConfirmDelete(null);
+            setDeleteWarning(null);
+          }}
           title="¿Eliminar registro?"
           size="sm"
           footer={(
@@ -951,7 +1025,10 @@ export default function GenericCrudSection({
                 type="button"
                 variant="secondary"
                 size="sm"
-                onClick={() => setConfirmDelete(null)}
+                onClick={() => {
+                  setConfirmDelete(null);
+                  setDeleteWarning(null);
+                }}
               >
                 Cancelar
               </AppButton>
@@ -966,9 +1043,18 @@ export default function GenericCrudSection({
             </div>
           )}
         >
-          <p className="text-xs text-[color:var(--text-ink-muted)]">
-            Esta acción no se puede deshacer.
-          </p>
+          <div className="space-y-2">
+            {deleteWarningLoading ? (
+              <p className="text-xs text-[color:var(--text-ink-muted)]">
+                Revisando qué más se ve afectado…
+              </p>
+            ) : deleteWarning ? (
+              <NoticeBanner tone="warning">{deleteWarning}</NoticeBanner>
+            ) : null}
+            <p className="text-xs text-[color:var(--text-ink-muted)]">
+              Esta acción no se puede deshacer.
+            </p>
+          </div>
         </AppModal>
       )}
     </AppCard>

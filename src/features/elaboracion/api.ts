@@ -151,6 +151,73 @@ export async function deleteElaboracionResource(
   await apiClient.delete(`/elaboracion/${resource}/${encodeURIComponent(id)}`);
 }
 
+type LoteImpacto = { codigo: string; esUnicoOrigen: boolean; volumenVasijaL: number; bloqueado: boolean };
+
+export type ImpactoBorradoRecepcion = {
+  tieneAnalisis: boolean;
+  ciu: { codigo_ciu: string } | null;
+  lote: LoteImpacto | null;
+};
+
+export type ImpactoBorradoRemito = {
+  recepciones: number;
+  tieneAnalisis: boolean;
+  cius: string[];
+  lotes: LoteImpacto[];
+};
+
+export async function fetchImpactoBorradoRecepcion(recepcionBodegaId: string) {
+  const response = await apiClient.get<ImpactoBorradoRecepcion>(
+    `/elaboracion/recepciones-bodega/${encodeURIComponent(recepcionBodegaId)}/impacto-borrado`,
+  );
+  return response.data;
+}
+
+export async function fetchImpactoBorradoRemito(remitoUvaId: string) {
+  const response = await apiClient.get<ImpactoBorradoRemito>(
+    `/elaboracion/remitos-uva/${encodeURIComponent(remitoUvaId)}/impacto-borrado`,
+  );
+  return response.data;
+}
+
+export type ImpactoBorradoOperacionVasija = {
+  tipo: string;
+  vasijaContenidoVinculado: Array<{ volumen_l: number; activo: boolean }>;
+  reversible: boolean;
+  motivoNoReversible: string | null;
+};
+
+export async function fetchImpactoBorradoOperacionVasija(operacionVasijaId: string) {
+  const response = await apiClient.get<ImpactoBorradoOperacionVasija>(
+    `/elaboracion/operaciones-vasija/${encodeURIComponent(operacionVasijaId)}/impacto-borrado`,
+  );
+  return response.data;
+}
+
+export type ComposicionActualVasija = {
+  vasija_id: string;
+  codigo: string;
+  capacidad_litros: number | string | null;
+  volumen_disponible_l: number;
+  composicion: Array<{
+    vasija_contenido_id: string;
+    lote_id: string;
+    lote_codigo: string;
+    lote_origen: string;
+    lote_variedad: string | null;
+    volumen_l: number;
+    porcentaje: number;
+    desde: string;
+  }>;
+};
+
+export async function fetchComposicionActualVasija(vasijaId: string) {
+  const response = await apiClient.get<ComposicionActualVasija>(
+    `/elaboracion/vasijas/${encodeURIComponent(vasijaId)}/composicion-actual`,
+  );
+  return response.data;
+}
+
 export async function fetchTrazabilidadInversaPorQr(codigoQr: string) {
   const response = await apiClient.get<TrazabilidadQrResponse>(
     `/trazabilidades/codigo-envase/${encodeURIComponent(codigoQr)}/inversa`,

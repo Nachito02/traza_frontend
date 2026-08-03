@@ -186,14 +186,14 @@ export default function BodegaVasijasPage() {
                     typeof item.tipo === "string" && item.tipo.trim()
                       ? item.tipo
                       : "Tipo sin definir";
-                  const etapa =
+                  const estadoActual =
                     typeof item.etapa === "string" && item.etapa.trim()
                       ? item.etapa
-                      : "Sin etapa";
-                  const ubicacion =
-                    typeof item.ubicacion === "string" && item.ubicacion.trim()
-                      ? item.ubicacion
-                      : "Ubicación sin definir";
+                      : "Sin estado";
+                  const uso =
+                    typeof item.uso === "string" && item.uso.trim()
+                      ? item.uso
+                      : "Sin uso definido";
                   const capacidad =
                     item.capacidad_litros === null ||
                     item.capacidad_litros === undefined ||
@@ -223,15 +223,15 @@ export default function BodegaVasijasPage() {
                           </div>
                           <div>
                             <span className="font-semibold text-[color:var(--text-on-dark)]">
-                              Estado:
+                              Uso:
                             </span>{" "}
-                            {etapa}
+                            {uso}
                           </div>
                           <div>
                             <span className="font-semibold text-[color:var(--text-ink)]">
-                              Ubicación:
+                              Etapa:
                             </span>{" "}
-                            {ubicacion}
+                            {estadoActual}
                           </div>
                         </div>
                       </div>

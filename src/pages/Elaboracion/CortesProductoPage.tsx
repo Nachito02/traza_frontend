@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
-  createElaboracionResource,
   deleteElaboracionResource,
   listElaboracionResource,
   patchElaboracionResource,
   type ElaboracionEntity,
 } from "../../features/elaboracion/api";
+import { crearCorteConVasijas, type CorteBlendResult } from "../../features/lotes/api";
 import {
   AppButton,
   AppCard,
@@ -23,22 +23,28 @@ import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
 import GenericCrudSection, { type SelectOption } from "./components/GenericCrudSection";
 import SectionSelector from "./components/SectionSelector";
+import VasijaComposicionPanel from "./components/VasijaComposicionPanel";
 
-type CorteComponenteForm = {
+type FuenteForm = {
   vasijaId: string;
-  loteCosechaId: string;
-  volumen_l: string;
-  porcentaje: string;
+  volumenL: string;
 };
 
-type CorteForm = {
+type CorteMetaForm = {
   fecha: string;
   objetivo: string;
   campaniaId: string;
   responsableUserId: string;
   observaciones: string;
-  componentes: CorteComponenteForm[];
 };
+
+function emptyMeta(): CorteMetaForm {
+  return { fecha: "", objetivo: "", campaniaId: "", responsableUserId: "", observaciones: "" };
+}
+
+function emptyFuente(): FuenteForm {
+  return { vasijaId: "", volumenL: "" };
+}
 
 function toOptions(items: ElaboracionEntity[], idKeys: string[], labelKeys: string[]): SelectOption[] {
   return items
@@ -53,17 +59,6 @@ function toOptions(items: ElaboracionEntity[], idKeys: string[], labelKeys: stri
       return { value: String(id), label: String(label ?? id) };
     })
     .filter((option): option is SelectOption => option !== null);
-}
-
-function emptyCorteForm(): CorteForm {
-  return {
-    fecha: "",
-    objetivo: "",
-    campaniaId: "",
-    responsableUserId: "",
-    observaciones: "",
-    componentes: [{ vasijaId: "", loteCosechaId: "", volumen_l: "", porcentaje: "" }],
-  };
 }
 
 function resolveCorteId(item: ElaboracionEntity) {
@@ -90,12 +85,15 @@ export default function CortesProductoPage({
 
   const [vasijaOptions, setVasijaOptions] = useState<SelectOption[]>([]);
   const [cortes, setCortes] = useState<ElaboracionEntity[]>([]);
-  const [form, setForm] = useState<CorteForm>(emptyCorteForm());
+  const [meta, setMeta] = useState<CorteMetaForm>(emptyMeta());
+  const [fuentes, setFuentes] = useState<FuenteForm[]>([emptyFuente()]);
+  const [destinoVasijaId, setDestinoVasijaId] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [ultimoBlend, setUltimoBlend] = useState<CorteBlendResult | null>(null);
 
   useEffect(() => {
     if (hideSectionSelector) {
@@ -133,59 +131,62 @@ export default function CortesProductoPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeBodegaId]);
 
+  const closeModal = () => {
+    setShowCorteModal(false);
+    setEditingId(null);
+    setMeta(emptyMeta());
+    setFuentes([emptyFuente()]);
+    setDestinoVasijaId("");
+  };
+
   const submitCorte = async () => {
     if (!activeBodegaId) {
       setError("Seleccioná una bodega.");
       return;
     }
-    if (!form.fecha) {
+    if (!meta.fecha) {
       setError("La fecha del corte es obligatoria.");
       return;
     }
-    if (form.componentes.length === 0) {
-      setError("Debes agregar al menos un componente.");
-      return;
-    }
-
-    const componentesPayload = form.componentes.map((componente) => ({
-      vasijaId: componente.vasijaId || undefined,
-      loteCosechaId: componente.loteCosechaId || undefined,
-      volumen_l: componente.volumen_l ? Number(componente.volumen_l) : undefined,
-      porcentaje: componente.porcentaje ? Number(componente.porcentaje) : undefined,
-    }));
-
-    const invalid = componentesPayload.find(
-      (componente) => !componente.vasijaId && !componente.loteCosechaId,
-    );
-    if (invalid) {
-      setError("Cada componente debe tener al menos vasijaId o loteCosechaId.");
-      return;
-    }
-
-    const payload: Record<string, unknown> = {
-      bodegaId: String(activeBodegaId),
-      fecha: form.fecha,
-      objetivo: form.objetivo || undefined,
-      campaniaId: form.campaniaId || undefined,
-      responsableUserId: form.responsableUserId || undefined,
-      observaciones: form.observaciones || undefined,
-      componentes: componentesPayload,
-    };
 
     setSaving(true);
     setError(null);
     setSuccess(null);
     try {
       if (editingId) {
-        await patchElaboracionResource("cortes", editingId, payload);
+        // Editar solo actualiza los datos del corte, no vuelve a mover litros de las vasijas.
+        await patchElaboracionResource("cortes", editingId, {
+          fecha: meta.fecha,
+          objetivo: meta.objetivo || undefined,
+          campaniaId: meta.campaniaId || undefined,
+          responsableUserId: meta.responsableUserId || undefined,
+          observaciones: meta.observaciones || undefined,
+        });
         setSuccess("Corte actualizado.");
+        closeModal();
       } else {
-        await createElaboracionResource("cortes", payload);
-        setSuccess("Corte creado.");
+        const fuentesValidas = fuentes
+          .filter((f) => f.vasijaId && Number(f.volumenL) > 0)
+          .map((f) => ({ vasijaId: f.vasijaId, volumenL: Number(f.volumenL) }));
+        if (fuentesValidas.length === 0) {
+          setError("Elegí al menos una vasija de origen con un volumen mayor a 0.");
+          setSaving(false);
+          return;
+        }
+        const blend = await crearCorteConVasijas({
+          bodegaId: String(activeBodegaId),
+          fecha: meta.fecha,
+          objetivo: meta.objetivo || undefined,
+          campaniaId: meta.campaniaId || undefined,
+          responsableUserId: meta.responsableUserId || undefined,
+          observaciones: meta.observaciones || undefined,
+          fuentes: fuentesValidas,
+          destinoVasijaId: destinoVasijaId || undefined,
+        });
+        setUltimoBlend(blend);
+        setSuccess(`Corte creado. Lote resultado: ${blend.lote_creado[0]?.codigo ?? "—"}`);
+        closeModal();
       }
-      setForm(emptyCorteForm());
-      setEditingId(null);
-      setShowCorteModal(false);
       await loadData();
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
@@ -197,33 +198,14 @@ export default function CortesProductoPage({
   const editCorte = (item: ElaboracionEntity) => {
     const id = resolveCorteId(item);
     if (!id) return;
-    const componentesRaw = Array.isArray(item.componentes)
-      ? item.componentes
-      : Array.isArray(item.corte_componentes)
-        ? item.corte_componentes
-        : [];
-
-    const componentes = componentesRaw.length
-      ? componentesRaw.map((componente) => {
-          const row = componente as Record<string, unknown>;
-          return {
-            vasijaId: String(row.vasijaId ?? row.id_vasija ?? ""),
-            loteCosechaId: String(row.loteCosechaId ?? row.id_lote_cosecha ?? ""),
-            volumen_l: row.volumen_l === undefined || row.volumen_l === null ? "" : String(row.volumen_l),
-            porcentaje: row.porcentaje === undefined || row.porcentaje === null ? "" : String(row.porcentaje),
-          };
-        })
-      : [{ vasijaId: "", loteCosechaId: "", volumen_l: "", porcentaje: "" }];
-
     setEditingId(id);
     setShowCorteModal(true);
-    setForm({
+    setMeta({
       fecha: typeof item.fecha === "string" ? item.fecha.slice(0, 10) : "",
       objetivo: String(item.objetivo ?? ""),
       campaniaId: String(item.campania_id ?? item.campaniaId ?? ""),
       responsableUserId: String(item.responsable_user_id ?? item.responsableUserId ?? ""),
       observaciones: String(item.observaciones ?? ""),
-      componentes,
     });
   };
 
@@ -239,6 +221,14 @@ export default function CortesProductoPage({
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
     }
+  };
+
+  const setFuenteField = (index: number, patch: Partial<FuenteForm>) => {
+    setFuentes((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], ...patch };
+      return next;
+    });
   };
 
   return (
@@ -285,7 +275,7 @@ export default function CortesProductoPage({
           header={(
             <SectionIntro
               title="Cortes"
-              description="Registro de cortes de elaboración. Cada componente requiere vasija o lote de cosecha."
+              description="Elegí de qué vasijas sacar y cuánto volumen: el sistema calcula la composición del blend."
               actions={
                 !hidePrimaryAction ? (
                   <AppButton
@@ -293,8 +283,7 @@ export default function CortesProductoPage({
                     variant="primary"
                     size="sm"
                     onClick={() => {
-                      setEditingId(null);
-                      setForm(emptyCorteForm());
+                      closeModal();
                       setShowCorteModal(true);
                     }}
                   >
@@ -383,20 +372,28 @@ export default function CortesProductoPage({
 
           {error ? <NoticeBanner tone="danger" className="mt-3">{error}</NoticeBanner> : null}
           {success ? <NoticeBanner tone="success" className="mt-3">{success}</NoticeBanner> : null}
+          {ultimoBlend?.lote_creado[0] ? (
+            <NoticeBanner tone="info" className="mt-3">
+              Composición del lote {ultimoBlend.lote_creado[0].codigo}:{" "}
+              {ultimoBlend.lote_creado[0].composicion_hijo
+                .map((c) => `${c.lote_padre.codigo} (${Math.round(Number(c.porcentaje ?? 0))}%)`)
+                .join(", ")}
+            </NoticeBanner>
+          ) : null}
         </AppCard>
       ) : null}
 
       {/* ── Modal: formulario de corte ───────────────────────────── */}
       <AppModal
         opened={showCorteModal}
-        onClose={() => { setShowCorteModal(false); setEditingId(null); setForm(emptyCorteForm()); }}
+        onClose={closeModal}
         title={(
           <div className="flex w-full items-center justify-between">
             <span>{editingId ? "Editar corte" : "Nuevo corte"}</span>
             <button
               type="button"
               aria-label="Cerrar"
-              onClick={() => { setShowCorteModal(false); setEditingId(null); setForm(emptyCorteForm()); }}
+              onClick={closeModal}
               className="rounded-[var(--radius-md)] p-1.5 text-[color:var(--text-ink-muted)] transition-colors hover:bg-[color:var(--action-ghost-hover)] hover:text-[color:var(--text-ink)]"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -412,148 +409,121 @@ export default function CortesProductoPage({
           <AppInput
             label="Fecha"
             type="date"
-            value={form.fecha}
-            onChange={(event) => setForm((prev) => ({ ...prev, fecha: event.target.value }))}
+            value={meta.fecha}
+            onChange={(event) => setMeta((prev) => ({ ...prev, fecha: event.target.value }))}
             uiSize="lg"
           />
           <AppInput
             label="Objetivo"
             type="text"
             placeholder="Opcional"
-            value={form.objetivo}
-            onChange={(event) => setForm((prev) => ({ ...prev, objetivo: event.target.value }))}
+            value={meta.objetivo}
+            onChange={(event) => setMeta((prev) => ({ ...prev, objetivo: event.target.value }))}
             uiSize="lg"
           />
           <AppInput
             label="Campaña ID"
             type="text"
             placeholder="Opcional"
-            value={form.campaniaId}
-            onChange={(event) => setForm((prev) => ({ ...prev, campaniaId: event.target.value }))}
+            value={meta.campaniaId}
+            onChange={(event) => setMeta((prev) => ({ ...prev, campaniaId: event.target.value }))}
             uiSize="lg"
           />
           <AppInput
             label="Responsable User ID"
             type="text"
             placeholder="Opcional"
-            value={form.responsableUserId}
-            onChange={(event) => setForm((prev) => ({ ...prev, responsableUserId: event.target.value }))}
+            value={meta.responsableUserId}
+            onChange={(event) => setMeta((prev) => ({ ...prev, responsableUserId: event.target.value }))}
             uiSize="lg"
           />
         </div>
         <AppTextarea
           label="Observaciones"
-          value={form.observaciones}
-          onChange={(event) => setForm((prev) => ({ ...prev, observaciones: event.target.value }))}
+          value={meta.observaciones}
+          onChange={(event) => setMeta((prev) => ({ ...prev, observaciones: event.target.value }))}
           placeholder="Opcional"
           className="mt-3"
           uiSize="lg"
         />
 
-        {/* Componentes */}
-        <div className="mt-4 space-y-2">
-          <p className="text-xs font-semibold text-[color:var(--text-ink-muted)]">Componentes</p>
-          {form.componentes.map((componente, index) => (
-            <div
-              key={`comp-${index}`}
-              className="rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] p-3"
-            >
-              <div className="grid gap-2 md:grid-cols-2">
-                <AppSelect
-                  label="Vasija"
-                  value={componente.vasijaId}
-                  onChange={(event) =>
-                    setForm((prev) => {
-                      const componentes = [...prev.componentes];
-                      componentes[index] = { ...componentes[index], vasijaId: event.target.value };
-                      return { ...prev, componentes };
-                    })
-                  }
+        {editingId ? (
+          <NoticeBanner tone="info" className="mt-4">
+            Editar acá solo actualiza estos datos del corte — no vuelve a mover litros entre vasijas.
+          </NoticeBanner>
+        ) : (
+          <>
+            {/* Fuentes (de dónde sale el vino y cuánto) */}
+            <div className="mt-4 space-y-2">
+              <p className="text-xs font-semibold text-[color:var(--text-ink-muted)]">
+                Vasijas de origen — elegí de dónde sacar y cuánto
+              </p>
+              {fuentes.map((fuente, index) => (
+                <div
+                  key={`fuente-${index}`}
+                  className="space-y-2 rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] p-3"
                 >
-                  <option value="">Seleccionar vasija (opcional)</option>
-                  {vasijaOptions.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </AppSelect>
-                <AppInput
-                  label="Lote cosecha ID"
-                  type="text"
-                  placeholder="Opcional"
-                  value={componente.loteCosechaId}
-                  onChange={(event) =>
-                    setForm((prev) => {
-                      const componentes = [...prev.componentes];
-                      componentes[index] = { ...componentes[index], loteCosechaId: event.target.value };
-                      return { ...prev, componentes };
-                    })
-                  }
-                  uiSize="lg"
-                />
-                <AppInput
-                  label="Volumen (l)"
-                  type="number"
-                  placeholder="Opcional"
-                  value={componente.volumen_l}
-                  onChange={(event) =>
-                    setForm((prev) => {
-                      const componentes = [...prev.componentes];
-                      componentes[index] = { ...componentes[index], volumen_l: event.target.value };
-                      return { ...prev, componentes };
-                    })
-                  }
-                  uiSize="lg"
-                />
-                <AppInput
-                  label="Porcentaje"
-                  type="number"
-                  placeholder="Opcional"
-                  value={componente.porcentaje}
-                  onChange={(event) =>
-                    setForm((prev) => {
-                      const componentes = [...prev.componentes];
-                      componentes[index] = { ...componentes[index], porcentaje: event.target.value };
-                      return { ...prev, componentes };
-                    })
-                  }
-                  uiSize="lg"
-                />
-              </div>
-              {form.componentes.length > 1 ? (
-                <div className="mt-2">
-                  <AppButton
-                    type="button"
-                    variant="danger"
-                    size="sm"
-                    onClick={() =>
-                      setForm((prev) => ({
-                        ...prev,
-                        componentes: prev.componentes.filter((_, i) => i !== index),
-                      }))
-                    }
-                  >
-                    Quitar componente
-                  </AppButton>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <AppSelect
+                      label="Vasija origen"
+                      value={fuente.vasijaId}
+                      onChange={(event) => setFuenteField(index, { vasijaId: event.target.value })}
+                    >
+                      <option value="">Seleccionar…</option>
+                      {vasijaOptions.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </AppSelect>
+                    <AppInput
+                      label="Volumen a sacar (l)"
+                      type="number"
+                      min="0"
+                      placeholder="ej. 300"
+                      value={fuente.volumenL}
+                      onChange={(event) => setFuenteField(index, { volumenL: event.target.value })}
+                      uiSize="lg"
+                    />
+                  </div>
+                  {fuente.vasijaId ? <VasijaComposicionPanel vasijaId={fuente.vasijaId} /> : null}
+                  {fuentes.length > 1 ? (
+                    <AppButton
+                      type="button"
+                      variant="danger"
+                      size="sm"
+                      onClick={() => setFuentes((prev) => prev.filter((_, i) => i !== index))}
+                    >
+                      Quitar vasija
+                    </AppButton>
+                  ) : null}
                 </div>
-              ) : null}
+              ))}
+              <AppButton
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setFuentes((prev) => [...prev, emptyFuente()])}
+              >
+                + Agregar vasija de origen
+              </AppButton>
             </div>
-          ))}
-          <AppButton
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() =>
-              setForm((prev) => ({
-                ...prev,
-                componentes: [
-                  ...prev.componentes,
-                  { vasijaId: "", loteCosechaId: "", volumen_l: "", porcentaje: "" },
-                ],
-              }))
-            }
-          >
-            + Agregar componente
-          </AppButton>
-        </div>
+
+            <div className="mt-4">
+              <AppSelect
+                label="Vasija destino (opcional)"
+                value={destinoVasijaId}
+                onChange={(event) => setDestinoVasijaId(event.target.value)}
+              >
+                <option value="">Sin destino (solo registrar el corte)</option>
+                {vasijaOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </AppSelect>
+              <p className="mt-1 text-xs text-[color:var(--text-ink-muted)]">
+                Si elegís destino, ahí queda cargado el lote resultado del blend, con la composición calculada.
+              </p>
+            </div>
+          </>
+        )}
 
         {error ? <NoticeBanner tone="danger" className="mt-3">{error}</NoticeBanner> : null}
 
@@ -567,11 +537,7 @@ export default function CortesProductoPage({
           >
             {editingId ? "Guardar" : "Crear"}
           </AppButton>
-          <AppButton
-            type="button"
-            variant="ghost"
-            onClick={() => { setShowCorteModal(false); setEditingId(null); setForm(emptyCorteForm()); }}
-          >
+          <AppButton type="button" variant="ghost" onClick={closeModal}>
             Cancelar
           </AppButton>
         </div>

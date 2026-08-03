@@ -2,10 +2,12 @@ import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { AppButton, AppCard, AppModal, NoticeBanner, SectionIntro } from "../../components/ui";
 import type { ElaboracionEntity } from "../../features/elaboracion/api";
+import { useAuthStore } from "../../store/authStore";
 import CiuQcPage from "./CiuQcPage";
 import RecepcionPage from "./RecepcionPage";
 import VasijasProcesoPage from "./VasijasProcesoPage";
 import SectionSelector from "./components/SectionSelector";
+import LoteSelectorPanel from "./components/LoteSelectorPanel";
 
 type IngresoUvaStep = "remito" | "recepcion" | "analisis" | "ciu" | "vasija";
 
@@ -24,7 +26,7 @@ const STEPS: StepConfig[] = [
   { key: "remito",   label: "Remito de uva" },
   { key: "recepcion", label: "Recepción y pesaje" },
   { key: "analisis", label: "Análisis de recepción" },
-  { key: "ciu",     label: "Emitir CIU" },
+  { key: "ciu",     label: "Registrar CIU" },
   { key: "vasija",  label: "Enviar a vasija" },
 ];
 
@@ -40,6 +42,7 @@ function resolveStringId(item: ElaboracionEntity, keys: string[]) {
 }
 
 export default function IngresoUvaFlowPage() {
+  const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const [searchParams, setSearchParams] = useSearchParams();
   const [recepcionDefaults, setRecepcionDefaults] = useState<Record<string, string | boolean>>({});
   const [analisisDefaults, setAnalisisDefaults] = useState<Record<string, string | boolean>>({});
@@ -48,9 +51,15 @@ export default function IngresoUvaFlowPage() {
   // Solo se abre el modal automáticamente cuando se llega a un paso vía "Continuar".
   // Si el usuario navega manualmente por los tabs para consultar registros, no se abre.
   const [autoOpenStep, setAutoOpenStep] = useState<IngresoUvaStep | null>(null);
+  const [loteReady, setLoteReady] = useState<{ lote_id: string; codigo: string } | null>(null);
+  // Después de armar el lote, primero se ofrece descargar el .txt para el INV y
+  // recién con "Continuar a vasija" se muestra el form de destino.
+  const [vasijaConfirmado, setVasijaConfirmado] = useState(false);
+  // Fuerza que LoteSelectorPanel se vuelva a montar (lista y selección desde cero)
+  // al arrancar un lote nuevo, sin depender del "ingreso actual" del wizard — ese
+  // contexto se pierde en cuanto se navega manualmente entre pasos.
+  const [loteSelectorKey, setLoteSelectorKey] = useState(0);
   const activeStep = getStepFromParams(searchParams.get("paso") ?? searchParams.get("section"));
-  // La recepción activa del flujo viaja en los defaults de análisis (recepcionBodegaId).
-  const currentRecepcionId = String(analisisDefaults.recepcionBodegaId ?? "");
 
   const goToStep = (step: IngresoUvaStep) => {
     setSearchParams((prev) => {
@@ -84,7 +93,7 @@ export default function IngresoUvaFlowPage() {
     if (!ciuId) return;
     setReferenceOptionsVersion((current) => current + 1);
     setPendingCiuNextStep({
-      title: "CIU emitido",
+      title: "CIU registrado",
       description:
         "El CIU quedó asociado al ingreso correspondiente. Podés continuar con el ingreso a vasija o volver más tarde si todavía no está definido el destino.",
       primaryLabel: "Continuar a vasija",
@@ -159,9 +168,10 @@ export default function IngresoUvaFlowPage() {
 
       {activeStep === "ciu" ? (
         <div className="space-y-3">
-          <NoticeBanner tone="info" title="El CIU se asocia al ingreso">
-            Cada CIU queda vinculado al ingreso (recepción) que elijas. No puede emitirse un CIU
-            suelto, y cada ingreso admite un único CIU.
+          <NoticeBanner tone="info" title="Datos para declarar el CIU">
+            El número de CIU lo asigna la bodega. Estos datos, junto con los del resto de los viajes
+            del mismo cuartel, arman el lote y generan el archivo que se carga en el Sistema de
+            Cosecha del INV para declararlos. Cada ingreso admite un único CIU.
           </NoticeBanner>
           <CiuQcPage
             hideSectionSelector
@@ -174,21 +184,55 @@ export default function IngresoUvaFlowPage() {
 
       {activeStep === "vasija" ? (
         <div className="space-y-3">
-          <VasijasProcesoPage
-            initialSection="operaciones"
-            hideSectionSelector
-            inlineOperacionForm
-            operacionDefaultValues={{
-              ...(currentRecepcionId ? { recepcionBodegaId: currentRecepcionId } : {}),
-              tipo: "ingreso",
-            }}
-          />
+          {!vasijaConfirmado && activeBodegaId ? (
+            <LoteSelectorPanel
+              key={loteSelectorKey}
+              bodegaId={String(activeBodegaId)}
+              onLoteReady={setLoteReady}
+              onContinuarAVasija={() => setVasijaConfirmado(true)}
+            />
+          ) : null}
+
+          {loteReady && vasijaConfirmado ? (
+            <VasijasProcesoPage
+              initialSection="operaciones"
+              hideSectionSelector
+              inlineOperacionForm
+              operacionDefaultValues={{
+                tipo: "ingreso",
+                loteId: loteReady.lote_id,
+              }}
+            />
+          ) : null}
+
+          {loteReady && vasijaConfirmado ? (
+            <AppButton
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setLoteReady(null);
+                setVasijaConfirmado(false);
+                setLoteSelectorKey((current) => current + 1);
+              }}
+            >
+              Armar otro lote
+            </AppButton>
+          ) : null}
 
           <div className="flex flex-wrap gap-2">
             <Link to="/operacion/vasijas">
               <AppButton variant="secondary">Abrir vasijas y proceso</AppButton>
             </Link>
-            <AppButton type="button" variant="ghost" onClick={() => goToStep("remito")}>
+            <AppButton
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setLoteReady(null);
+                setVasijaConfirmado(false);
+                setLoteSelectorKey((current) => current + 1);
+                goToStep("remito");
+              }}
+            >
               Registrar otro ingreso
             </AppButton>
           </div>
