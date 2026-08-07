@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   listElaboracionResource,
   type ElaboracionEntity,
 } from "../../features/elaboracion/api";
+import { AppButton, AppCard } from "../../components/ui";
 import { useAuthStore } from "../../store/authStore";
 import GenericCrudSection, { type SelectOption } from "./components/GenericCrudSection";
 
@@ -39,6 +40,9 @@ function formatRecepcionOption(item: ElaboracionEntity): SelectOption | null {
   const patente = typeof remito.patente === "string" && remito.patente.trim()
     ? `Patente ${remito.patente}`
     : null;
+  const transportista = typeof remito.transportista === "string" && remito.transportista.trim()
+    ? remito.transportista.trim()
+    : null;
 
   return {
     value: String(id),
@@ -47,6 +51,7 @@ function formatRecepcionOption(item: ElaboracionEntity): SelectOption | null {
       [fincaLabel, cuartelLabel].filter(Boolean).join(" / "),
       kgPesados,
       patente,
+      transportista,
     ].filter(Boolean).join(" · "),
   };
 }
@@ -70,6 +75,12 @@ export default function CiuQcPage({
 }: CiuQcPageProps) {
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const [recepcionOptions, setRecepcionOptions] = useState<SelectOption[]>([]);
+  // Ingreso elegido haciendo clic en la lista de "pendientes" (en vez de entrar
+  // por "Nuevo registro" y buscarlo en el desplegable). `formKey` fuerza que
+  // GenericCrudSection se vuelva a montar para que tome el nuevo default y
+  // reabra el form — el auto-open normal solo se dispara una vez por montaje.
+  const [recepcionElegidaId, setRecepcionElegidaId] = useState<string | null>(null);
+  const [formKey, setFormKey] = useState(0);
 
   const loadReferenceOptions = useCallback(async () => {
     if (!activeBodegaId) {
@@ -101,16 +112,42 @@ export default function CiuQcPage({
     void run();
   }, [loadReferenceOptions, referenceOptionsVersion]);
 
+  const pendientes = useMemo(() => recepcionOptions.filter((o) => !o.disabled), [recepcionOptions]);
+
+  const elegirRecepcion = (recepcionBodegaId: string) => {
+    setRecepcionElegidaId(recepcionBodegaId);
+    setFormKey((k) => k + 1);
+  };
+
   return (
     <div className="space-y-4">
+      {pendientes.length > 0 ? (
+        <AppCard padding="lg" header={<h3 className="text-base font-semibold">Ingresos pendientes de CIU</h3>}>
+          <ul className="space-y-2">
+            {pendientes.map((r) => (
+              <li
+                key={r.value}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-3 py-2 text-sm"
+              >
+                <span className="text-[color:var(--text-ink)]">{r.label}</span>
+                <AppButton type="button" variant="secondary" size="sm" onClick={() => elegirRecepcion(r.value)}>
+                  Registrar CIU
+                </AppButton>
+              </li>
+            ))}
+          </ul>
+        </AppCard>
+      ) : null}
+
       <GenericCrudSection
+        key={formKey}
         title="CIU"
         description="Datos del viaje para declarar el CIU. El número lo asigna la bodega. Estos datos arman el lote y generan el archivo .txt que después se carga en el Sistema de Cosecha del INV para declararlo."
         resource="cius"
         bodegaId={activeBodegaId}
         hidePrimaryAction={hidePrimaryAction}
         formInModal={!hidePrimaryAction}
-        autoOpenForm={autoOpenForm}
+        autoOpenForm={autoOpenForm || recepcionElegidaId !== null}
         fields={[
           {
             name: "recepcionBodegaId",
@@ -138,8 +175,13 @@ export default function CiuQcPage({
           { name: "uva_organica", label: "Uva orgánica", type: "checkbox" },
           { name: "observaciones", label: "Observaciones", type: "textarea" },
         ]}
-        defaultValues={ciuDefaultValues}
+        defaultValues={
+          recepcionElegidaId
+            ? { ...(ciuDefaultValues ?? {}), recepcionBodegaId: recepcionElegidaId }
+            : ciuDefaultValues
+        }
         onCreated={async (item) => {
+          setRecepcionElegidaId(null);
           await loadReferenceOptions();
           await onCiuCreated?.(item);
         }}

@@ -110,6 +110,9 @@ function formatRecepcionOption(item: ElaboracionEntity): SelectOption | null {
   const patente = typeof remito.patente === "string" && remito.patente.trim()
     ? `Patente ${remito.patente}`
     : null;
+  const transportista = typeof remito.transportista === "string" && remito.transportista.trim()
+    ? remito.transportista.trim()
+    : null;
 
   return {
     value: String(id),
@@ -118,6 +121,7 @@ function formatRecepcionOption(item: ElaboracionEntity): SelectOption | null {
       [fincaLabel, cuartelLabel].filter(Boolean).join(" / "),
       kgPesados ?? cantidad,
       patente ?? loteId,
+      transportista,
     ].filter(Boolean).join(" · "),
   };
 }
@@ -523,6 +527,14 @@ export default function RecepcionPage({
     [loadOperationalOptions],
   );
 
+  // Sin este refresh, el select de "Recepción" del propio form de Análisis
+  // seguía ofreciendo como disponible una recepción a la que se le acababa de
+  // cargar un análisis en la misma visita — el flag `disabled` se calcula una
+  // sola vez al montar y no se enteraba de lo recién creado.
+  const handleAnalisisCreated = useCallback(async () => {
+    await loadOperationalOptions();
+  }, [loadOperationalOptions]);
+
   const continuePendingStep = () => {
     if (!pendingNextStep) return;
     if (pendingNextStep.from === "remito") {
@@ -620,6 +632,7 @@ export default function RecepcionPage({
           autoOpenForm={autoOpenForm}
           fields={analisisFields}
           defaultValues={analisisDefaultValues ?? analisisDefaults}
+          onCreated={handleAnalisisCreated}
         />
       ) : null}
 

@@ -49,6 +49,20 @@ export type CrudField = {
   /** Campo bloqueado (se muestra pero no se puede editar); igual se envía en el payload. */
   disabled?: boolean;
   /**
+   * Cuando devuelve true, el campo no se renderiza (ej. "vasija destino" cuando
+   * el tipo de operación no es un traspaso entre dos vasijas). Se evalúa en cada
+   * render contra los valores actuales del form — a diferencia de cambiar el
+   * array `fields` en sí, esto no dispara el reset de `values` que hace
+   * GenericCrudSection cuando `fields` cambia de referencia.
+   */
+  hiddenWhen?: (values: Record<string, string | boolean>) => boolean;
+  /**
+   * Si se define, reemplaza `label` en el formulario según los valores actuales
+   * (ej. "Vasija" en vez de "Vasija origen" cuando la operación no tiene
+   * destino). Los mensajes de error y la vista de lista siguen usando `label`.
+   */
+  labelWhen?: (values: Record<string, string | boolean>) => string;
+  /**
    * Cuando se define, el campo es de solo lectura y su valor se calcula a partir
    * de los demás valores del formulario. No se envía en el payload (lo calcula el
    * backend), solo se muestra para feedback en vivo.
@@ -81,6 +95,13 @@ type GenericCrudSectionProps = {
   separatedLayout?: boolean;
   /** When true the create/edit form opens inside an AppModal instead of inline. */
   formInModal?: boolean;
+  /**
+   * When true (with formInModal), renders only the modal — no card, header or
+   * list. For call sites that trigger this section purely as a "create" action
+   * from somewhere else in the page (e.g. an icon on an unrelated card) and
+   * don't want a persistent list/section to also show up.
+   */
+  hideContainer?: boolean;
   /** When true (with formInModal), auto-opens the create modal on mount if defaultValues are provided. */
   autoOpenForm?: boolean;
   defaultValues?: Record<string, string | boolean>;
@@ -339,6 +360,7 @@ export default function GenericCrudSection({
   hidePrimaryAction = false,
   separatedLayout = false,
   formInModal = false,
+  hideContainer = false,
   autoOpenForm = false,
   defaultValues,
   getDeleteWarning,
@@ -512,6 +534,7 @@ export default function GenericCrudSection({
     const nextFieldErrors: FieldErrors = {};
     for (const field of fields) {
       if (field.computed) continue;
+      if (field.hiddenWhen?.(values)) continue;
       if (!field.required) continue;
       const currentValue = values[field.name];
       if (field.type === "checkbox") continue;
@@ -557,6 +580,7 @@ export default function GenericCrudSection({
 
     for (const field of fields) {
       if (field.computed) continue;
+      if (field.hiddenWhen?.(values)) continue;
       const value = values[field.name];
       if (field.type === "checkbox") {
         payload[field.name] = Boolean(value);
@@ -834,11 +858,13 @@ export default function GenericCrudSection({
   const renderForm = () => (
     <>
       <div className="mt-3 grid gap-3 md:grid-cols-2">
-        {fields.map((field) => (
+        {fields.filter((field) => !field.hiddenWhen?.(values)).map((field) => {
+          const displayLabel = field.labelWhen ? field.labelWhen(values) : field.label;
+          return (
           <div key={field.name}>
             {field.computed ? (
               <AppInput
-                label={field.label}
+                label={displayLabel}
                 type="text"
                 value={field.computed(values)}
                 readOnly
@@ -847,7 +873,7 @@ export default function GenericCrudSection({
               />
             ) : field.type === "textarea" ? (
               <AppTextarea
-                label={field.label}
+                label={displayLabel}
                 error={fieldErrors[field.name]}
                 value={String(values[field.name] ?? "")}
                 onChange={(event) =>
@@ -865,7 +891,7 @@ export default function GenericCrudSection({
                     onChange={(event) => setFieldValue(field, event.target.checked)}
                     className="h-4 w-4"
                   />
-                  {field.label}
+                  {displayLabel}
                 </label>
                 {fieldErrors[field.name] ? (
                   <p className="text-sm font-medium text-[color:var(--field-error)]">
@@ -878,7 +904,7 @@ export default function GenericCrudSection({
                 const options = field.getOptions ? field.getOptions(values) : (field.options ?? []);
                 return (
                   <AppSelect
-                    label={field.label}
+                    label={displayLabel}
                     description={field.description}
                     error={fieldErrors[field.name]}
                     value={String(values[field.name] ?? "")}
@@ -898,7 +924,7 @@ export default function GenericCrudSection({
               })()
             ) : (
               <AppInput
-                label={field.label}
+                label={displayLabel}
                 type={field.type}
                 error={fieldErrors[field.name]}
                 value={String(values[field.name] ?? "")}
@@ -911,7 +937,8 @@ export default function GenericCrudSection({
               />
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {!hidePrimaryAction ? (
@@ -936,6 +963,37 @@ export default function GenericCrudSection({
       ) : null}
     </>
   );
+
+  const formModal = formInModal ? (
+    <AppModal
+      opened={showFormModal}
+      onClose={onCancelForm}
+      title={(
+        <div className="flex w-full items-center justify-between">
+          <span>{editingId ? `Editar ${title}` : `Nuevo ${title}`}</span>
+          <button
+            type="button"
+            aria-label="Cerrar"
+            onClick={onCancelForm}
+            className="rounded-[var(--radius-md)] p-1.5 text-[color:var(--text-ink-muted)] transition-colors hover:bg-[color:var(--action-ghost-hover)] hover:text-[color:var(--text-ink)]"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      )}
+      size="lg"
+      showHeaderDivider
+    >
+      {renderForm()}
+      {hideContainer ? renderFeedback() : null}
+    </AppModal>
+  ) : null;
+
+  if (hideContainer) {
+    return formModal;
+  }
 
   return (
     <AppCard
@@ -984,31 +1042,7 @@ export default function GenericCrudSection({
 
       {renderFeedback()}
 
-      {formInModal ? (
-        <AppModal
-          opened={showFormModal}
-          onClose={onCancelForm}
-          title={(
-            <div className="flex w-full items-center justify-between">
-              <span>{editingId ? `Editar ${title}` : `Nuevo ${title}`}</span>
-              <button
-                type="button"
-                aria-label="Cerrar"
-                onClick={onCancelForm}
-                className="rounded-[var(--radius-md)] p-1.5 text-[color:var(--text-ink-muted)] transition-colors hover:bg-[color:var(--action-ghost-hover)] hover:text-[color:var(--text-ink)]"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-          )}
-          size="lg"
-          showHeaderDivider
-        >
-          {renderForm()}
-        </AppModal>
-      ) : null}
+      {formModal}
 
       {confirmDelete && (
         <AppModal
