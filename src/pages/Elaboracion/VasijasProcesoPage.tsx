@@ -2,13 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 import { listElaboracionResource, type ElaboracionEntity } from "../../features/elaboracion/api";
 import { OPERACION_TIPOS } from "../../features/elaboracion/vasijaFields";
 import { useAuthStore } from "../../store/authStore";
-import { AppCard, NoticeBanner, SectionIntro } from "../../components/ui";
+import { AppButton, AppCard, AppModal, NoticeBanner, SectionIntro } from "../../components/ui";
 import GenericCrudSection, { type CrudField, type SelectOption } from "./components/GenericCrudSection";
 import VasijaComposicionPanel from "./components/VasijaComposicionPanel";
 import VasijaEstadoPanel from "./components/VasijaEstadoPanel";
 import { useSearchParams } from "react-router-dom";
 import { fetchAuthUsers, type AuthUser } from "../../features/users/api";
-import { fetchImpactoBorradoLote } from "../../features/lotes/api";
+import { fetchImpactoBorradoLote, fetchLotes } from "../../features/lotes/api";
+import { fetchProtocolosExpanded } from "../../features/protocolos/api";
+import CostosActividadPanel from "../Costos/CostosActividadPanel";
+import OperacionVasijaModal from "./components/OperacionVasijaModal";
 
 
 function toOptions(items: ElaboracionEntity[], idKeys: string[], labelKeys: string[]): SelectOption[] {
@@ -78,6 +81,12 @@ function formatRecepcionOption(item: ElaboracionEntity): SelectOption | null {
   };
 }
 
+// Las operaciones de vasija viven como capítulos (9 a 14) dentro del
+// protocolo general — scripts/seed-protocolo-vasijas.mjs (backend) los agrega
+// ahí, no crea un protocolo aparte. De ahí sale el proceso_id que necesita
+// cada Tarea de vasija.
+const VASIJA_PROTOCOLO_NOMBRE = "PROTOCOLO DE TRAZABILIDAD Y SUSTENTABILIDAD – NIVEL FINCA";
+
 type VasijasProcesoPageProps = {
   initialSection?: "vasijas" | "operaciones" | "existencias" | "fermentacion";
   hideSectionSelector?: boolean;
@@ -98,6 +107,10 @@ export default function VasijasProcesoPage({
   const [searchParams] = useSearchParams();
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const [vasijaOptions, setVasijaOptions] = useState<SelectOption[]>([]);
+  // Para validar en "Nueva operación" que la vasija destino esté vacía antes
+  // de dejar trasegar — el volumen del ledger puede quedar desactualizado,
+  // pero la etapa que carga el enólogo a mano es la fuente de verdad.
+  const [vasijaEtapaPorId, setVasijaEtapaPorId] = useState<Record<string, string>>({});
   const [recepcionOptions, setRecepcionOptions] = useState<SelectOption[]>([]);
   const [vasijaOptionsVersion, setVasijaOptionsVersion] = useState(0);
   const [operacionFormValues, setOperacionFormValues] = useState<Record<string, string | boolean>>({});
@@ -119,6 +132,48 @@ export default function VasijasProcesoPage({
     setOperacionModalOpen(false);
     setManualOperacionVasijaId(undefined);
   };
+
+  // proceso_id de cada evento_tipo de vasija, según el protocolo sembrado por
+  // seed-protocolo-vasijas.mjs — createTarea lo necesita (proceso_id es
+  // obligatorio) para poder registrar la operación como Tarea con costos.
+  const [vasijaProcesoIds, setVasijaProcesoIds] = useState<Record<string, string>>({});
+  const [loteOptions, setLoteOptions] = useState<SelectOption[]>([]);
+  // Al terminar de registrar una operación, se ofrece cargar costos/insumos
+  // ahí mismo — necesita el tareaId que devuelve registrarActividad.
+  const [costosTareaId, setCostosTareaId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchProtocolosExpanded()
+      .then((protocolos) => {
+        const protocolo = protocolos.find((p) => p.nombre === VASIJA_PROTOCOLO_NOMBRE);
+        const map: Record<string, string> = {};
+        protocolo?.protocolo_etapa?.forEach((etapa) => {
+          etapa.protocolo_proceso?.forEach((proceso) => {
+            if (proceso.evento_tipo && proceso.proceso_id) {
+              map[proceso.evento_tipo] = proceso.proceso_id;
+            }
+          });
+        });
+        setVasijaProcesoIds(map);
+      })
+      .catch(() => setVasijaProcesoIds({}));
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function run() {
+      const lotes = activeBodegaId
+        ? await fetchLotes(String(activeBodegaId)).catch(() => [])
+        : [];
+      if (cancelled) return;
+      setLoteOptions(lotes.map((l) => ({ value: l.lote_id, label: l.codigo })));
+    }
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeBodegaId]);
+
   const [bodegaUsers, setBodegaUsers] = useState<AuthUser[]>([]);
   // Solo se usa en el flujo guiado (inlineOperacionForm): un lote puede repartirse
   // entre varias vasijas — acá se lleva la cuenta de a cuáles ya se mandó, para
@@ -166,7 +221,6 @@ export default function VasijasProcesoPage({
   const operacionDefaults = useMemo<Record<string, string | boolean> | undefined>(() => {
     const defaults: Record<string, string | boolean> = { ...(operacionDefaultValues ?? {}) };
     if (preselectedVasijaId) defaults.vasijaOrigenId = preselectedVasijaId;
-    if (manualOperacionVasijaId) defaults.vasijaOrigenId = manualOperacionVasijaId;
     if (preselectedRecepcionId) {
       defaults.recepcionBodegaId = preselectedRecepcionId;
       if (!defaults.tipo) defaults.tipo = "ingreso";
@@ -179,7 +233,6 @@ export default function VasijasProcesoPage({
   }, [
     operacionDefaultValues,
     preselectedVasijaId,
-    manualOperacionVasijaId,
     preselectedRecepcionId,
     preselectedTipo,
     inlineOperacionForm,
@@ -190,6 +243,12 @@ export default function VasijasProcesoPage({
     if (!activeBodegaId) return;
     listElaboracionResource("vasijas", { bodegaId: String(activeBodegaId) }).then((vasijas) => {
       setVasijaOptions(toOptions(vasijas, ["id_vasija", "vasija_id", "id"], ["codigo", "tipo", "id_vasija"]));
+      const etapaPorId: Record<string, string> = {};
+      for (const v of vasijas) {
+        const id = String(v.id_vasija ?? v.vasija_id ?? v.id ?? "");
+        if (id && typeof v.etapa === "string") etapaPorId[id] = v.etapa;
+      }
+      setVasijaEtapaPorId(etapaPorId);
     });
     listElaboracionResource("recepciones-bodega", { bodegaId: String(activeBodegaId) })
       .then((recepciones) => {
@@ -452,26 +511,46 @@ export default function VasijasProcesoPage({
         />
       ) : null}
 
+      {/* Registra la operación como Tarea (con costos e insumos), no como
+          OperacionVasija suelta — ver OperacionVasijaModal. */}
       {!hideSectionSelector && operacionModalOpen ? (
-        <GenericCrudSection
+        <OperacionVasijaModal
           key={operacionModalToken}
-          title="Operaciones Vasija"
-          description="Eventos de proceso según enum TipoOperacionVasija."
-          resource="operaciones-vasija"
           bodegaId={activeBodegaId}
-          formInModal
-          hideContainer
-          autoOpenForm
-          defaultValues={operacionDefaults}
-          onValuesChange={setOperacionFormValues}
-          fields={operacionFields}
-          onCreated={() => {
+          vasijaOptions={vasijaOptions}
+          vasijaEtapaPorId={vasijaEtapaPorId}
+          loteOptions={loteOptions}
+          enologoOptions={enologoOptions}
+          vasijaProcesoIds={vasijaProcesoIds}
+          defaultVasijaId={manualOperacionVasijaId}
+          onClose={closeOperacionModal}
+          onCreated={(tareaId) => {
             closeOperacionModal();
             setVasijaOptionsVersion((v) => v + 1);
+            setCostosTareaId(tareaId);
           }}
-          onCancel={closeOperacionModal}
         />
       ) : null}
+
+      {/* Después de registrar la operación, se puede cargar costos/insumos ahí
+          mismo (mano de obra, levaduras, clarificantes, etc.) reusando el
+          panel que ya existe para actividades de cuartel. */}
+      <AppModal
+        opened={costosTareaId !== null}
+        onClose={() => setCostosTareaId(null)}
+        title="Costos e insumos de la operación"
+        size="lg"
+        showHeaderDivider
+        footer={(
+          <div className="flex justify-end">
+            <AppButton type="button" variant="primary" size="sm" onClick={() => setCostosTareaId(null)}>
+              Listo
+            </AppButton>
+          </div>
+        )}
+      >
+        {costosTareaId ? <CostosActividadPanel tareaId={costosTareaId} bodegaId={activeBodegaId} /> : null}
+      </AppModal>
     </div>
   );
 }

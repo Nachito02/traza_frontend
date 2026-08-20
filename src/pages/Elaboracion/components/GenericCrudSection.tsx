@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   createElaboracionResource,
@@ -46,6 +46,27 @@ export type CrudField = {
   getOptions?: (values: Record<string, string | boolean>) => SelectOption[];
   sourceKey?: string;
   clearOnChange?: string[];
+  /**
+   * Pega este campo, en una sola celda de la grilla, al costado del campo
+   * nombrado (ej. "cantidad" + selector de "unidad") — el campo nombrado no
+   * se vuelve a renderizar en su propia celda.
+   */
+  compactWith?: string;
+  /**
+   * No se renderiza como caja propia (a diferencia de `hiddenWhen`, sigue
+   * yendo en el payload y contando para validaciones) — para campos que otro
+   * campo ya cubre visualmente (ej. el kg calculado a partir de cantidad+unidad).
+   */
+  hideInForm?: boolean;
+  /**
+   * Cuando el campo cambia, además de guardar su propio valor puede derivar y
+   * sobrescribir otros campos del formulario (ej. al elegir un cuartel,
+   * autocompletar variedad/pureza si el cuartel es monovarietal).
+   */
+  deriveOnChange?: (
+    value: string,
+    values: Record<string, string | boolean>,
+  ) => Record<string, string | boolean> | null | void;
   /** Campo bloqueado (se muestra pero no se puede editar); igual se envía en el payload. */
   disabled?: boolean;
   /**
@@ -115,6 +136,12 @@ type GenericCrudSectionProps = {
   onCreated?: (item: ElaboracionEntity) => void | Promise<void>;
   /** Se dispara cada vez que cambian los valores del formulario (para paneles auxiliares fuera del form). */
   onValuesChange?: (values: Record<string, string | boolean>) => void;
+  /**
+   * Contenido extra que se renderiza dentro del form (inline o modal, según
+   * `formInModal`), justo antes de los botones de guardar/cancelar. Para casos
+   * que no encajan en el sistema de `CrudField` (ej. un selector de archivo).
+   */
+  renderExtra?: () => ReactNode;
   initialEditId?: string | null;
   onCancel?: () => void;
 };
@@ -343,6 +370,10 @@ function applyFieldValueChange(
   for (const fieldName of field.clearOnChange ?? []) {
     next[fieldName] = "";
   }
+  if (field.deriveOnChange) {
+    const derived = field.deriveOnChange(typeof value === "string" ? value : "", next);
+    if (derived) Object.assign(next, derived);
+  }
   return next;
 }
 
@@ -366,6 +397,7 @@ export default function GenericCrudSection({
   getDeleteWarning,
   onCreated,
   onValuesChange,
+  renderExtra,
   initialEditId = null,
   onCancel,
 }: GenericCrudSectionProps) {
@@ -428,7 +460,19 @@ export default function GenericCrudSection({
 
   useEffect(() => {
     const hasDefaultValues = defaultValues && Object.keys(defaultValues).length > 0;
-    setValues({ ...getInitialValues(fields), ...(defaultValues ?? {}) });
+    let initialValues = { ...getInitialValues(fields), ...(defaultValues ?? {}) };
+    // Un valor que llega prellenado (por `defaultValues`, ej. al volver de "Continuar")
+    // nunca pasó por `setFieldValue` — sin esto, su `deriveOnChange` nunca se dispara
+    // y los campos derivados (ej. variedad autocompletada al elegir un ingreso) quedan
+    // vacíos hasta que el usuario vuelve a tocar el campo a mano.
+    for (const field of fields) {
+      if (!field.deriveOnChange) continue;
+      const currentValue = initialValues[field.name];
+      if (typeof currentValue !== "string" || !currentValue) continue;
+      const derived = field.deriveOnChange(currentValue, initialValues);
+      if (derived) initialValues = { ...initialValues, ...derived };
+    }
+    setValues(initialValues);
     setEditingId(null);
     setEditingItem(null);
     setError(null);
@@ -855,91 +899,118 @@ export default function GenericCrudSection({
     </div>
   );
 
-  const renderForm = () => (
+  const renderFieldControl = (field: CrudField) => {
+    const displayLabel = field.labelWhen ? field.labelWhen(values) : field.label;
+    if (field.computed) {
+      return (
+        <AppInput
+          label={displayLabel}
+          type="text"
+          value={field.computed(values)}
+          readOnly
+          disabled
+          uiSize="lg"
+        />
+      );
+    }
+    if (field.type === "textarea") {
+      return (
+        <AppTextarea
+          label={displayLabel}
+          error={fieldErrors[field.name]}
+          value={String(values[field.name] ?? "")}
+          onChange={(event) => setFieldValue(field, event.target.value)}
+          placeholder={field.placeholder}
+          uiSize="lg"
+        />
+      );
+    }
+    if (field.type === "checkbox") {
+      return (
+        <div className="space-y-2">
+          <label className="flex min-h-11 items-center gap-2 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-4 py-2 text-sm text-[color:var(--text-on-dark)]">
+            <input
+              type="checkbox"
+              checked={Boolean(values[field.name])}
+              onChange={(event) => setFieldValue(field, event.target.checked)}
+              className="h-4 w-4"
+            />
+            {displayLabel}
+          </label>
+          {fieldErrors[field.name] ? (
+            <p className="text-sm font-medium text-[color:var(--field-error)]">
+              {fieldErrors[field.name]}
+            </p>
+          ) : null}
+        </div>
+      );
+    }
+    if (field.type === "select") {
+      const options = field.getOptions ? field.getOptions(values) : (field.options ?? []);
+      return (
+        <AppSelect
+          label={displayLabel}
+          description={field.description}
+          error={fieldErrors[field.name]}
+          value={String(values[field.name] ?? "")}
+          disabled={field.disabled}
+          onChange={(event) => setFieldValue(field, event.target.value)}
+        >
+          <option value="">Seleccionar...</option>
+          {options.map((option) => (
+            <option key={option.value} value={option.value} disabled={option.disabled}>
+              {option.disabled ? `${option.label} · no disponible` : option.label}
+            </option>
+          ))}
+        </AppSelect>
+      );
+    }
+    return (
+      <AppInput
+        label={displayLabel}
+        description={field.description}
+        type={field.type}
+        error={fieldErrors[field.name]}
+        value={String(values[field.name] ?? "")}
+        disabled={field.disabled}
+        onChange={(event) => setFieldValue(field, event.target.value)}
+        placeholder={field.placeholder}
+        uiSize="lg"
+      />
+    );
+  };
+
+  const renderForm = () => {
+    const visibleFields = fields.filter((field) => !field.hiddenWhen?.(values));
+    // Los campos con `compactWith` se renderizan pegados al costado del campo
+    // que nombran (ej. cantidad + unidad) en vez de en su propia celda.
+    const absorbedNames = new Set(
+      visibleFields.map((field) => field.compactWith).filter((name): name is string => Boolean(name)),
+    );
+    const topLevelFields = visibleFields.filter(
+      (field) => !absorbedNames.has(field.name) && !field.hideInForm,
+    );
+
+    return (
     <>
       <div className="mt-3 grid gap-3 md:grid-cols-2">
-        {fields.filter((field) => !field.hiddenWhen?.(values)).map((field) => {
-          const displayLabel = field.labelWhen ? field.labelWhen(values) : field.label;
-          return (
-          <div key={field.name}>
-            {field.computed ? (
-              <AppInput
-                label={displayLabel}
-                type="text"
-                value={field.computed(values)}
-                readOnly
-                disabled
-                uiSize="lg"
-              />
-            ) : field.type === "textarea" ? (
-              <AppTextarea
-                label={displayLabel}
-                error={fieldErrors[field.name]}
-                value={String(values[field.name] ?? "")}
-                onChange={(event) =>
-                  setFieldValue(field, event.target.value)
-                }
-                placeholder={field.placeholder}
-                uiSize="lg"
-              />
-            ) : field.type === "checkbox" ? (
-              <div className="space-y-2">
-                <label className="flex min-h-11 items-center gap-2 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-4 py-2 text-sm text-[color:var(--text-on-dark)]">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(values[field.name])}
-                    onChange={(event) => setFieldValue(field, event.target.checked)}
-                    className="h-4 w-4"
-                  />
-                  {displayLabel}
-                </label>
-                {fieldErrors[field.name] ? (
-                  <p className="text-sm font-medium text-[color:var(--field-error)]">
-                    {fieldErrors[field.name]}
-                  </p>
-                ) : null}
+        {topLevelFields.map((field) => {
+          const pairedField = field.compactWith
+            ? visibleFields.find((candidate) => candidate.name === field.compactWith)
+            : undefined;
+          if (pairedField) {
+            return (
+              <div key={field.name} className="flex items-start gap-2">
+                <div className="flex-1">{renderFieldControl(field)}</div>
+                <div className="w-28 shrink-0">{renderFieldControl(pairedField)}</div>
               </div>
-            ) : field.type === "select" ? (
-              (() => {
-                const options = field.getOptions ? field.getOptions(values) : (field.options ?? []);
-                return (
-                  <AppSelect
-                    label={displayLabel}
-                    description={field.description}
-                    error={fieldErrors[field.name]}
-                    value={String(values[field.name] ?? "")}
-                    disabled={field.disabled}
-                    onChange={(event) =>
-                      setFieldValue(field, event.target.value)
-                    }
-                  >
-                    <option value="">Seleccionar...</option>
-                    {options.map((option) => (
-                      <option key={option.value} value={option.value} disabled={option.disabled}>
-                        {option.disabled ? `${option.label} · no disponible` : option.label}
-                      </option>
-                    ))}
-                  </AppSelect>
-                );
-              })()
-            ) : (
-              <AppInput
-                label={displayLabel}
-                type={field.type}
-                error={fieldErrors[field.name]}
-                value={String(values[field.name] ?? "")}
-                disabled={field.disabled}
-                onChange={(event) =>
-                  setFieldValue(field, event.target.value)
-                }
-                placeholder={field.placeholder}
-                uiSize="lg"
-              />
-            )}
-          </div>
-          );
+            );
+          }
+          return <div key={field.name}>{renderFieldControl(field)}</div>;
         })}
       </div>
+
+      {renderExtra ? <div className="mt-3">{renderExtra()}</div> : null}
 
       {!hidePrimaryAction ? (
         <div className="mt-3 flex flex-wrap gap-2">
@@ -962,7 +1033,8 @@ export default function GenericCrudSection({
         </div>
       ) : null}
     </>
-  );
+    );
+  };
 
   const formModal = formInModal ? (
     <AppModal

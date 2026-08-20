@@ -150,6 +150,13 @@
      de marca: "--color-wine" es un alias legado que en realidad apunta al verde
      de marca, no sirve para representar vino tinto. */
   --liquid-wine: #7a1f3d;
+
+  /* Madera de las barricas — roble francés (más clara/dorada) vs. roble
+     americano (más oscuro/rojizo), como se distinguen a simple vista. */
+  --wood-oak-fr: #c9945a;
+  --wood-oak-fr-dark: #96682f;
+  --wood-oak-us: #a2652f;
+  --wood-oak-us-dark: #703f1a;
 }
 
 /* ── Light mode (paleta menta + verde) ──────────────────────────────────── */

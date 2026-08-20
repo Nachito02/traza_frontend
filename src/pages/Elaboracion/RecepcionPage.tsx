@@ -1,14 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   fetchImpactoBorradoRecepcion,
   fetchImpactoBorradoRemito,
   listElaboracionResource,
+  uploadRemitoUvaAdjunto,
   type ElaboracionEntity,
 } from "../../features/elaboracion/api";
 import { fetchCuartelesByFinca, type Cuartel } from "../../features/cuarteles/api";
+import { fetchBodega } from "../../features/bodega/api";
 import { useFincasStore } from "../../features/fincas/store";
 import { useAuthStore } from "../../store/authStore";
-import { AppButton, AppModal } from "../../components/ui";
+import { AppButton, AppModal, useAppNotifications } from "../../components/ui";
 import GenericCrudSection, { type CrudField, type SelectOption } from "./components/GenericCrudSection";
 import SectionSelector from "./components/SectionSelector";
 import { useSearchParams } from "react-router-dom";
@@ -176,38 +178,28 @@ function formatRemitoOption(item: ElaboracionEntity): SelectOption | null {
 }
 
 type RecepcionPageProps = {
-  initialSection?: "remito" | "recepcion" | "analisis";
+  initialSection?: "recepcion" | "analisis";
   hideSectionSelector?: boolean;
   hidePrimaryAction?: boolean;
-  /** Auto-opens the create modal on mount (only when arriving via the guided flow). */
+  /** Auto-opens the create modal on mount (only when arriving via el flujo guiado). */
   autoOpenForm?: boolean;
-  onSectionChange?: (section: "remito" | "recepcion" | "analisis") => void;
+  onSectionChange?: (section: "recepcion" | "analisis") => void;
   recepcionDefaultValues?: Record<string, string | boolean>;
   analisisDefaultValues?: Record<string, string | boolean>;
   onRecepcionDefaultsChange?: (values: Record<string, string | boolean>) => void;
   onAnalisisDefaultsChange?: (values: Record<string, string | boolean>) => void;
 };
 
-type PendingNextStep =
-  | {
-      from: "remito";
-      target: "recepcion";
-      title: string;
-      description: string;
-      primaryLabel: string;
-      remitoId: string;
-    }
-  | {
-      from: "recepcion";
-      target: "analisis";
-      title: string;
-      description: string;
-      primaryLabel: string;
-      recepcionId: string;
-    };
+type PendingNextStep = {
+  target: "analisis";
+  title: string;
+  description: string;
+  primaryLabel: string;
+  recepcionId: string;
+};
 
 export default function RecepcionPage({
-  initialSection = "remito",
+  initialSection = "recepcion",
   hideSectionSelector = false,
   hidePrimaryAction = false,
   autoOpenForm = false,
@@ -217,6 +209,7 @@ export default function RecepcionPage({
   onRecepcionDefaultsChange,
   onAnalisisDefaultsChange,
 }: RecepcionPageProps) {
+  const { notifyError, notifySuccess } = useAppNotifications();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const fincas = useFincasStore((state) => state.fincas);
@@ -224,19 +217,27 @@ export default function RecepcionPage({
   const [remitoOptions, setRemitoOptions] = useState<SelectOption[]>([]);
   const [recepcionOptions, setRecepcionOptions] = useState<SelectOption[]>([]);
   const [cuarteles, setCuarteles] = useState<Cuartel[]>([]);
+  const [kgPorTacho, setKgPorTacho] = useState<number | null>(null);
   const [recepcionDefaults, setRecepcionDefaults] = useState<Record<string, string | boolean>>({});
   const [analisisDefaults, setAnalisisDefaults] = useState<Record<string, string | boolean>>({});
   const [pendingNextStep, setPendingNextStep] = useState<PendingNextStep | null>(null);
-  const [activeSection, setActiveSection] = useState<"remito" | "recepcion" | "analisis">(
-    initialSection,
-  );
+  const [activeSection, setActiveSection] = useState<"recepcion" | "analisis">(initialSection);
+  // Se incrementa cada vez que se guarda un remito nuevo, para forzar que la
+  // sección de Pesaje se vuelva a montar y su modal se auto-abra de nuevo
+  // (GenericCrudSection solo auto-abre una vez por instancia montada).
+  const [pesajeAutoOpenKey, setPesajeAutoOpenKey] = useState(0);
+  const [pendingRemitoFoto, setPendingRemitoFoto] = useState<File | null>(null);
+  const [remitoFotoPreviewUrl, setRemitoFotoPreviewUrl] = useState<string | null>(null);
+  const [uploadingRemitoFoto, setUploadingRemitoFoto] = useState(false);
+  const [remitoFotoSubida, setRemitoFotoSubida] = useState(false);
+  const remitoFotoInputRef = useRef<HTMLInputElement | null>(null);
 
   // La sección visible se sincroniza desde la URL/props (fuente de verdad), ajustando
   // el estado durante el render en lugar de en un efecto para evitar renders en cascada.
-  const resolvedSection: "remito" | "recepcion" | "analisis" = (() => {
+  const resolvedSection: "recepcion" | "analisis" = (() => {
     if (hideSectionSelector) return initialSection;
     const section = searchParams.get("section");
-    if (section === "remito" || section === "recepcion" || section === "analisis") return section;
+    if (section === "recepcion" || section === "analisis") return section;
     return initialSection;
   })();
   const [syncedSection, setSyncedSection] = useState(resolvedSection);
@@ -246,7 +247,7 @@ export default function RecepcionPage({
   }
 
   const goToSection = useCallback(
-    (section: "remito" | "recepcion" | "analisis") => {
+    (section: "recepcion" | "analisis") => {
       setActiveSection(section);
       onSectionChange?.(section);
       if (hideSectionSelector) return;
@@ -339,6 +340,29 @@ export default function RecepcionPage({
     };
   }, [fincas]);
 
+  useEffect(() => {
+    if (!activeBodegaId) {
+      setKgPorTacho(null);
+      return;
+    }
+    let mounted = true;
+    const run = async () => {
+      try {
+        const bodega = await fetchBodega(String(activeBodegaId));
+        if (!mounted) return;
+        const raw = bodega.kg_por_tacho;
+        const parsed = raw !== null && raw !== undefined ? Number(raw) : NaN;
+        setKgPorTacho(Number.isFinite(parsed) && parsed > 0 ? parsed : null);
+      } catch {
+        if (mounted) setKgPorTacho(null);
+      }
+    };
+    void run();
+    return () => {
+      mounted = false;
+    };
+  }, [activeBodegaId]);
+
   const fincaOptions = useMemo(
     () =>
       fincas
@@ -372,6 +396,18 @@ export default function RecepcionPage({
     [cuarteles, fincas],
   );
 
+  const computeKgDeclarados = useCallback(
+    (cantidadRaw: string, unidad: string) => {
+      const cantidad = Number(cantidadRaw);
+      if (!cantidadRaw.trim() || Number.isNaN(cantidad)) return "";
+      if (unidad === "tachos") {
+        const factor = kgPorTacho ?? 20;
+        return String(Math.round(cantidad * factor * 100) / 100);
+      }
+      return cantidadRaw.trim();
+    },
+    [kgPorTacho],
+  );
 
   const remitoFields = useMemo<CrudField[]>(
     () => [
@@ -395,6 +431,28 @@ export default function RecepcionPage({
           if (!selectedFincaId) return cuartelOptions;
           return cuartelOptions.filter((option) => option.fincaId === selectedFincaId);
         },
+        // Si el cuartel elegido tiene una única variedad plantada, se asume que
+        // lo que sale en el remito es puro 100% de esa variedad — el usuario
+        // puede corregirlo si no es así (mezcla con otro cuartel, etc.).
+        deriveOnChange: (value) => {
+          const cuartel = cuarteles.find(
+            (item) => String(item.cuartel_id ?? item.id ?? "") === value,
+          );
+          if (!cuartel || !cuartel.variedad?.trim()) return null;
+          return { variedad_pureza: "pura", variedad_pureza_pct: "100" };
+        },
+      },
+      {
+        name: "cuartel_variedad_info",
+        label: "Variedad del cuartel",
+        description: "Informativo, según lo cargado en el cuartel — no se guarda en el remito.",
+        type: "text",
+        computed: (values) => {
+          const cuartel = cuarteles.find(
+            (item) => String(item.cuartel_id ?? item.id ?? "") === String(values.cuartelId ?? ""),
+          );
+          return cuartel?.variedad?.trim() || "—";
+        },
       },
       { name: "salida_finca", label: "Salida finca", type: "datetime-local", required: true },
       { name: "llegada_bodega", label: "Llegada bodega", type: "datetime-local", required: true },
@@ -402,12 +460,41 @@ export default function RecepcionPage({
       { name: "patente", label: "Patente", type: "text" },
       { name: "modelo_vehiculo", label: "Modelo del vehículo", type: "text", placeholder: "ej. -FORD 1985" },
       { name: "cuit_conductor", label: "CUIT/CUIL del conductor", type: "text" },
-      { name: "kg_declarados", label: "Kg declarados o tachos", type: "number" },
-      { name: "kg_bruto", label: "Kg brutos", type: "number" },
-      { name: "kg_tara", label: "Kg tara (peso del camión)", type: "number" },
+      {
+        name: "cantidad_declarada",
+        label: "Peso declarado",
+        description: kgPorTacho
+          ? `Si elegís Tachos, se convierte solo a kg (1 tacho ≈ ${kgPorTacho} kg).`
+          : "Si elegís Tachos, se convierte solo a kg (1 tacho ≈ 20 kg, sin configurar en la bodega).",
+        type: "number",
+        compactWith: "unidad_declarada",
+        deriveOnChange: (value, values) => ({
+          kg_declarados: computeKgDeclarados(value, String(values.unidad_declarada ?? "")),
+        }),
+      },
+      {
+        name: "unidad_declarada",
+        label: "Unidad",
+        type: "select",
+        options: [
+          { value: "kg", label: "Kg" },
+          { value: "tachos", label: "Tachos" },
+        ],
+        deriveOnChange: (value, values) => ({
+          kg_declarados: computeKgDeclarados(String(values.cantidad_declarada ?? ""), value),
+        }),
+      },
+      {
+        name: "kg_declarados",
+        label: "Peso declarado (kg)",
+        type: "number",
+        hideInForm: true,
+      },
+      { name: "kg_bruto", label: "Peso bruto", type: "number" },
+      { name: "kg_tara", label: "Tara (peso del camión)", type: "number" },
       {
         name: "kg_neto",
-        label: "Kg neto (bruto − tara)",
+        label: "Peso neto (bruto − tara)",
         type: "number",
         computed: (values) => {
           const bruto = Number(values.kg_bruto);
@@ -446,7 +533,7 @@ export default function RecepcionPage({
       { name: "presencia_hojas_escala", label: "Presencia de hojas (1-10)", type: "number" },
       { name: "observaciones", label: "Observaciones", type: "textarea" },
     ],
-    [cuartelOptions, fincaOptions],
+    [cuartelOptions, fincaOptions, cuarteles, computeKgDeclarados, kgPorTacho],
   );
 
   const recepcionFields = useMemo<CrudField[]>(
@@ -491,17 +578,44 @@ export default function RecepcionPage({
       await loadOperationalOptions();
       const remitoId = resolveStringId(item, ["remito_uva_id", "id_remito", "remito_id", "id"]);
       if (!remitoId) return;
-      setPendingNextStep({
-        from: "remito",
-        target: "recepcion",
-        title: "Remito guardado",
-        description:
-          "El remito ya quedó registrado. Podés continuar ahora con la recepción en bodega o volver más tarde cuando tengas los datos de pesaje.",
-        primaryLabel: "Continuar con recepción",
-        remitoId,
-      });
+      // Se queda en la misma pantalla: el paso de pesaje se auto-abre con este
+      // remito precargado, sin popup de confirmación intermedio.
+      const defaults = { remitoUvaId: remitoId };
+      setRecepcionDefaults(defaults);
+      onRecepcionDefaultsChange?.(defaults);
+      setPesajeAutoOpenKey((key) => key + 1);
+      setRemitoFotoSubida(false);
+
+      if (pendingRemitoFoto) {
+        setUploadingRemitoFoto(true);
+        try {
+          await uploadRemitoUvaAdjunto(remitoId, pendingRemitoFoto);
+          setRemitoFotoSubida(true);
+          notifySuccess({
+            title: "Foto adjuntada",
+            message: "La foto del remito quedó guardada en IPFS.",
+          });
+        } catch {
+          notifyError({
+            title: "No se pudo subir la foto",
+            message: "El remito se guardó igual — podés reintentar la foto más tarde.",
+          });
+        } finally {
+          setUploadingRemitoFoto(false);
+          if (remitoFotoPreviewUrl) URL.revokeObjectURL(remitoFotoPreviewUrl);
+          setPendingRemitoFoto(null);
+          setRemitoFotoPreviewUrl(null);
+        }
+      }
     },
-    [loadOperationalOptions],
+    [
+      loadOperationalOptions,
+      onRecepcionDefaultsChange,
+      pendingRemitoFoto,
+      remitoFotoPreviewUrl,
+      notifyError,
+      notifySuccess,
+    ],
   );
 
   const handleRecepcionCreated = useCallback(
@@ -515,7 +629,6 @@ export default function RecepcionPage({
       ]);
       if (!recepcionId) return;
       setPendingNextStep({
-        from: "recepcion",
         target: "analisis",
         title: "Recepción guardada",
         description:
@@ -537,19 +650,79 @@ export default function RecepcionPage({
 
   const continuePendingStep = () => {
     if (!pendingNextStep) return;
-    if (pendingNextStep.from === "remito") {
-      const defaults = { remitoUvaId: pendingNextStep.remitoId };
-      setRecepcionDefaults(defaults);
-      onRecepcionDefaultsChange?.(defaults);
-      goToSection("recepcion");
-    } else {
-      const defaults = { recepcionBodegaId: pendingNextStep.recepcionId };
-      setAnalisisDefaults(defaults);
-      onAnalisisDefaultsChange?.(defaults);
-      goToSection("analisis");
-    }
+    const defaults = { recepcionBodegaId: pendingNextStep.recepcionId };
+    setAnalisisDefaults(defaults);
+    onAnalisisDefaultsChange?.(defaults);
+    goToSection("analisis");
     setPendingNextStep(null);
   };
+
+  const handlePickRemitoFoto = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    event.target.value = "";
+    if (!file) return;
+    if (remitoFotoPreviewUrl) URL.revokeObjectURL(remitoFotoPreviewUrl);
+    setPendingRemitoFoto(file);
+    setRemitoFotoPreviewUrl(URL.createObjectURL(file));
+    setRemitoFotoSubida(false);
+  };
+
+  const removePendingRemitoFoto = () => {
+    if (remitoFotoPreviewUrl) URL.revokeObjectURL(remitoFotoPreviewUrl);
+    setPendingRemitoFoto(null);
+    setRemitoFotoPreviewUrl(null);
+  };
+
+  const renderRemitoFotoPicker = () => (
+    <div>
+      <p className="text-sm font-medium text-[color:var(--text-ink)]">
+        Foto del comprobante <span className="font-normal text-[color:var(--text-ink-muted)]">(opcional)</span>
+      </p>
+      <div className="mt-2 flex flex-wrap items-center gap-3">
+        {remitoFotoPreviewUrl ? (
+          <img
+            src={remitoFotoPreviewUrl}
+            alt="Vista previa de la foto del remito"
+            className="h-20 w-20 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] object-cover"
+          />
+        ) : null}
+        <AppButton
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => remitoFotoInputRef.current?.click()}
+          disabled={uploadingRemitoFoto}
+        >
+          {pendingRemitoFoto ? "Cambiar foto" : "Elegir foto"}
+        </AppButton>
+        {pendingRemitoFoto ? (
+          <AppButton
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={removePendingRemitoFoto}
+            disabled={uploadingRemitoFoto}
+          >
+            Quitar
+          </AppButton>
+        ) : null}
+        <input
+          ref={remitoFotoInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handlePickRemitoFoto}
+        />
+        {uploadingRemitoFoto ? (
+          <span className="text-xs text-[color:var(--text-ink-muted)]">Subiendo a IPFS…</span>
+        ) : remitoFotoSubida ? (
+          <span className="text-xs text-[color:var(--text-ink-muted)]">✓ Foto adjuntada</span>
+        ) : pendingRemitoFoto ? (
+          <span className="text-xs text-[color:var(--text-ink-muted)]">Se sube al guardar.</span>
+        ) : null}
+      </div>
+    </div>
+  );
 
   const validateRemito = (values: Record<string, string | boolean>) => {
     const fincaId = String(values.fincaId ?? "");
@@ -565,6 +738,12 @@ export default function RecepcionPage({
     }
 
     // lote de cosecha es opcional — no se valida cruce con cuartel
+
+    if (String(values.cantidad_declarada ?? "").trim() && !String(values.unidad_declarada ?? "").trim()) {
+      return {
+        fieldErrors: { unidad_declarada: "Elegí la unidad de la cantidad declarada." },
+      };
+    }
 
     return null;
   };
@@ -583,42 +762,43 @@ export default function RecepcionPage({
             });
           }}
           options={[
-            { key: "remito", label: "Remito Uva" },
-            { key: "recepcion", label: "Recepción Bodega" },
+            { key: "recepcion", label: "Recepción y pesaje" },
             { key: "analisis", label: "Análisis Recepción" },
           ]}
         />
       ) : null}
 
-      {activeSection === "remito" ? (
-        <GenericCrudSection
-          title="Remito Uva"
-          description="Salida de finca y traslado hacia bodega."
-          resource="remitos-uva"
-          bodegaId={activeBodegaId}
-          hidePrimaryAction={hidePrimaryAction}
-          formInModal={!hidePrimaryAction}
-          fields={remitoFields}
-          validate={validateRemito}
-          onCreated={handleRemitoCreated}
-          getDeleteWarning={buildRemitoDeleteWarning}
-        />
-      ) : null}
-
       {activeSection === "recepcion" ? (
-        <GenericCrudSection
-          title="Recepción Bodega"
-          description="Ingreso efectivo y pesaje de remitos."
-          resource="recepciones-bodega"
-          bodegaId={activeBodegaId}
-          hidePrimaryAction={hidePrimaryAction}
-          formInModal={!hidePrimaryAction}
-          autoOpenForm={autoOpenForm}
-          fields={recepcionFields}
-          defaultValues={recepcionDefaultValues ?? recepcionDefaults}
-          onCreated={handleRecepcionCreated}
-          getDeleteWarning={buildRecepcionDeleteWarning}
-        />
+        <div className="space-y-4">
+          <GenericCrudSection
+            title="1. Remito de uva"
+            description="Salida de finca y traslado hacia bodega."
+            resource="remitos-uva"
+            bodegaId={activeBodegaId}
+            hidePrimaryAction={hidePrimaryAction}
+            formInModal={!hidePrimaryAction}
+            fields={remitoFields}
+            validate={validateRemito}
+            onCreated={handleRemitoCreated}
+            getDeleteWarning={buildRemitoDeleteWarning}
+            renderExtra={renderRemitoFotoPicker}
+          />
+
+          <GenericCrudSection
+            key={`pesaje-${pesajeAutoOpenKey}`}
+            title="2. Pesaje en bodega"
+            description="Ingreso efectivo y pesaje del remito."
+            resource="recepciones-bodega"
+            bodegaId={activeBodegaId}
+            hidePrimaryAction={hidePrimaryAction}
+            formInModal={!hidePrimaryAction}
+            autoOpenForm={autoOpenForm || pesajeAutoOpenKey > 0}
+            fields={recepcionFields}
+            defaultValues={recepcionDefaultValues ?? recepcionDefaults}
+            onCreated={handleRecepcionCreated}
+            getDeleteWarning={buildRecepcionDeleteWarning}
+          />
+        </div>
       ) : null}
 
       {activeSection === "analisis" ? (

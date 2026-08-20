@@ -1,24 +1,73 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   AppButton,
   AppCard,
+  AppInput,
   AppModal,
   AppSelect,
+  AppTextarea,
   NoticeBanner,
   SectionIntro,
   useAppNotifications,
 } from "../../components/ui";
 import {
+  createElaboracionResource,
   deleteElaboracionResource,
+  fetchComposicionActualVasija,
   fetchImpactoBorradoOperacionVasija,
   getElaboracionResource,
   listElaboracionResource,
+  type ComposicionActualVasija,
   type ElaboracionEntity,
   type ImpactoBorradoOperacionVasija,
 } from "../../features/elaboracion/api";
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
+
+function nowDateTimeLocal(): string {
+  const now = new Date();
+  const offset = now.getTimezoneOffset();
+  const local = new Date(now.getTime() - offset * 60_000);
+  return local.toISOString().slice(0, 16);
+}
+
+function toIsoDateTime(raw: string): string {
+  if (!raw.trim()) return "";
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return raw;
+  return parsed.toISOString();
+}
+
+type MedicionFormValues = {
+  fecha_hora: string;
+  volumen_l: string;
+  grado_alcohol: string;
+  azucar_residual_g_l: string;
+  densidad: string;
+  temperatura: string;
+  brix: string;
+  ph: string;
+  acidez: string;
+  estado_fermentacion: string;
+  observaciones: string;
+};
+
+function emptyMedicionForm(): MedicionFormValues {
+  return {
+    fecha_hora: nowDateTimeLocal(),
+    volumen_l: "",
+    grado_alcohol: "",
+    azucar_residual_g_l: "",
+    densidad: "",
+    temperatura: "",
+    brix: "",
+    ph: "",
+    acidez: "",
+    estado_fermentacion: "",
+    observaciones: "",
+  };
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -119,6 +168,7 @@ export default function BodegaVasijaDetailPage() {
   const { notifySuccess, notifyError } = useAppNotifications();
 
   const [vasija, setVasija] = useState<ElaboracionEntity | null>(null);
+  const [composicion, setComposicion] = useState<ComposicionActualVasija | null>(null);
   const [operaciones, setOperaciones] = useState<ElaboracionEntity[]>([]);
   const [existencias, setExistencias] = useState<ElaboracionEntity[]>([]);
   const [fermentaciones, setFermentaciones] = useState<ElaboracionEntity[]>([]);
@@ -134,6 +184,11 @@ export default function BodegaVasijaDetailPage() {
   const [impactoLoading, setImpactoLoading] = useState(false);
   const [eliminando, setEliminando] = useState(false);
 
+  const [medicionOpen, setMedicionOpen] = useState(false);
+  const [medicionValues, setMedicionValues] = useState<MedicionFormValues>(emptyMedicionForm());
+  const [medicionSaving, setMedicionSaving] = useState(false);
+  const [medicionError, setMedicionError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!id || !activeBodegaId) return;
     let mounted = true;
@@ -144,14 +199,16 @@ export default function BodegaVasijaDetailPage() {
 
       const bodegaIdStr = String(activeBodegaId);
       try {
-        const [vasijaData, ops, exs, ctrls] = await Promise.all([
+        const [vasijaData, composicionData, ops, exs, ctrls] = await Promise.all([
           getElaboracionResource("vasijas", id),
+          fetchComposicionActualVasija(id).catch(() => null),
           listElaboracionResource("operaciones-vasija", { bodegaId: bodegaIdStr }),
           listElaboracionResource("existencias-vasija", { bodegaId: bodegaIdStr }),
           listElaboracionResource("controles-fermentacion", { bodegaId: bodegaIdStr }),
         ]);
         if (!mounted) return;
         setVasija(vasijaData);
+        setComposicion(composicionData);
         setOperaciones(
           ops.filter(
             (op) =>
@@ -200,6 +257,78 @@ export default function BodegaVasijaDetailPage() {
     }
   };
 
+  const esFermentando = stringVal(vasija?.etapa) === "en_fermentacion";
+
+  const openMedicionForm = () => {
+    setMedicionValues(emptyMedicionForm());
+    setMedicionError(null);
+    setMedicionOpen(true);
+  };
+
+  const handleMedicionSubmit = async () => {
+    if (!id) return;
+    if (!medicionValues.fecha_hora) {
+      setMedicionError("La fecha y hora son obligatorias.");
+      return;
+    }
+    const parseNum = (v: string) => (v.trim() ? Number(v) : undefined);
+    const fechaIso = toIsoDateTime(medicionValues.fecha_hora);
+
+    const hasExistenciaValues = [
+      medicionValues.volumen_l,
+      medicionValues.grado_alcohol,
+      medicionValues.azucar_residual_g_l,
+    ].some((v) => v.trim());
+    const hasFermentacionValues = esFermentando && [
+      medicionValues.densidad,
+      medicionValues.temperatura,
+      medicionValues.brix,
+      medicionValues.ph,
+      medicionValues.acidez,
+      medicionValues.estado_fermentacion,
+    ].some((v) => v.trim());
+
+    if (!hasExistenciaValues && !hasFermentacionValues) {
+      setMedicionError("Completá al menos un valor de la medición.");
+      return;
+    }
+
+    setMedicionSaving(true);
+    setMedicionError(null);
+    try {
+      if (hasExistenciaValues) {
+        await createElaboracionResource("existencias-vasija", {
+          vasijaId: id,
+          fecha_hora: fechaIso,
+          volumen_l: parseNum(medicionValues.volumen_l),
+          grado_alcohol: parseNum(medicionValues.grado_alcohol),
+          azucar_residual_g_l: parseNum(medicionValues.azucar_residual_g_l),
+          observaciones: medicionValues.observaciones.trim() || undefined,
+        });
+      }
+      if (hasFermentacionValues) {
+        await createElaboracionResource("controles-fermentacion", {
+          vasijaId: id,
+          fecha_hora: fechaIso,
+          densidad: parseNum(medicionValues.densidad),
+          temperatura: parseNum(medicionValues.temperatura),
+          brix: parseNum(medicionValues.brix),
+          ph: parseNum(medicionValues.ph),
+          acidez: parseNum(medicionValues.acidez),
+          estado_fermentacion: medicionValues.estado_fermentacion.trim() || undefined,
+          observaciones: medicionValues.observaciones.trim() || undefined,
+        });
+      }
+      notifySuccess({ title: "Medición registrada" });
+      setMedicionOpen(false);
+      setReloadKey((k) => k + 1);
+    } catch (err) {
+      setMedicionError(getApiErrorMessage(err));
+    } finally {
+      setMedicionSaving(false);
+    }
+  };
+
   const events = useMemo<TimelineEvent[]>(() => {
     const ops = operaciones.map<TimelineEvent>((op, idx) => ({
       id: String(op.operacion_vasija_id ?? op.id ?? `op-${idx}`),
@@ -241,10 +370,16 @@ export default function BodegaVasijaDetailPage() {
 
   const codigo = vasija ? stringVal(vasija.codigo, "Vasija sin código") : "…";
   const tipo = vasija ? stringVal(vasija.tipo, "Tipo sin definir") : "";
-  const capacidad =
+  const capacidadNum =
     vasija && vasija.capacidad_litros !== null && vasija.capacidad_litros !== undefined
-      ? `${vasija.capacidad_litros} l`
-      : "Sin definir";
+      ? Number(vasija.capacidad_litros)
+      : null;
+  const capacidad = capacidadNum !== null ? `${capacidadNum.toLocaleString("es-AR")} l` : "Sin definir";
+  const ocupadoNum = composicion ? composicion.volumen_disponible_l : null;
+  const capacidadConOcupado =
+    ocupadoNum !== null
+      ? `${ocupadoNum.toLocaleString("es-AR")}${capacidadNum !== null ? ` / ${capacidadNum.toLocaleString("es-AR")}` : ""} l`
+      : capacidad;
   const estadoActual = vasija ? stringVal(vasija.etapa, "Sin estado") : "";
   const uso = vasija ? stringVal(vasija.uso, "Sin uso definido") : "";
 
@@ -254,9 +389,7 @@ export default function BodegaVasijaDetailPage() {
 
         {/* ── Encabezado ── */}
         <div className="flex flex-wrap items-center gap-2">
-          <Link to="/bodega/vasijas">
-            <AppButton variant="ghost" size="sm">← Volver a vasijas</AppButton>
-          </Link>
+          <AppButton variant="ghost" size="sm" onClick={() => navigate(-1)}>← Volver</AppButton>
         </div>
 
         {/* ── Info vasija ── */}
@@ -274,6 +407,13 @@ export default function BodegaVasijaDetailPage() {
                   onClick={() => navigate(`/bodega/vasijas/${encodeURIComponent(id)}/editar`)}
                 >
                   Editar
+                </AppButton>
+                <AppButton
+                  variant="secondary"
+                  size="sm"
+                  onClick={openMedicionForm}
+                >
+                  Nueva medición
                 </AppButton>
                 <AppButton
                   variant="primary"
@@ -294,7 +434,7 @@ export default function BodegaVasijaDetailPage() {
             <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
               {[
                 { label: "Tipo", value: tipo },
-                { label: "Capacidad", value: capacidad },
+                { label: "Ocupado / Capacidad", value: capacidadConOcupado },
                 { label: "Uso", value: uso },
                 { label: "Etapa", value: estadoActual },
               ].map(({ label, value }) => (
@@ -450,6 +590,129 @@ export default function BodegaVasijaDetailPage() {
           ) : null}
           <p className="text-xs text-[color:var(--text-ink-muted)]">Esta acción no se puede deshacer.</p>
         </div>
+      </AppModal>
+
+      <AppModal
+        opened={medicionOpen}
+        onClose={() => {
+          if (!medicionSaving) setMedicionOpen(false);
+        }}
+        title="Nueva medición"
+        size="lg"
+        showHeaderDivider
+        footer={(
+          <div className="flex justify-end gap-2">
+            <AppButton
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setMedicionOpen(false)}
+              disabled={medicionSaving}
+            >
+              Cancelar
+            </AppButton>
+            <AppButton
+              type="button"
+              variant="primary"
+              size="sm"
+              loading={medicionSaving}
+              onClick={() => void handleMedicionSubmit()}
+            >
+              Registrar
+            </AppButton>
+          </div>
+        )}
+      >
+        <div className="grid gap-3 md:grid-cols-2">
+          <AppInput
+            label="Fecha y hora"
+            type="datetime-local"
+            value={medicionValues.fecha_hora}
+            onChange={(event) => setMedicionValues((prev) => ({ ...prev, fecha_hora: event.target.value }))}
+            uiSize="lg"
+          />
+          <AppInput
+            label="Volumen (l)"
+            type="number"
+            value={medicionValues.volumen_l}
+            onChange={(event) => setMedicionValues((prev) => ({ ...prev, volumen_l: event.target.value }))}
+            uiSize="lg"
+          />
+          <AppInput
+            label="Grado alcohol"
+            type="number"
+            value={medicionValues.grado_alcohol}
+            onChange={(event) => setMedicionValues((prev) => ({ ...prev, grado_alcohol: event.target.value }))}
+            uiSize="lg"
+          />
+          <AppInput
+            label="Azúcar residual g/l"
+            type="number"
+            value={medicionValues.azucar_residual_g_l}
+            onChange={(event) => setMedicionValues((prev) => ({ ...prev, azucar_residual_g_l: event.target.value }))}
+            uiSize="lg"
+          />
+        </div>
+
+        {esFermentando ? (
+          <div className="mt-4 border-t border-[color:var(--border-shell)] pt-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[color:var(--feedback-warning-text)]">
+              Control de fermentación — esta vasija está en fermentación
+            </p>
+            <div className="grid gap-3 md:grid-cols-2">
+              <AppInput
+                label="Densidad"
+                type="number"
+                value={medicionValues.densidad}
+                onChange={(event) => setMedicionValues((prev) => ({ ...prev, densidad: event.target.value }))}
+                uiSize="lg"
+              />
+              <AppInput
+                label="Temperatura"
+                type="number"
+                value={medicionValues.temperatura}
+                onChange={(event) => setMedicionValues((prev) => ({ ...prev, temperatura: event.target.value }))}
+                uiSize="lg"
+              />
+              <AppInput
+                label="Brix"
+                type="number"
+                value={medicionValues.brix}
+                onChange={(event) => setMedicionValues((prev) => ({ ...prev, brix: event.target.value }))}
+                uiSize="lg"
+              />
+              <AppInput
+                label="pH"
+                type="number"
+                value={medicionValues.ph}
+                onChange={(event) => setMedicionValues((prev) => ({ ...prev, ph: event.target.value }))}
+                uiSize="lg"
+              />
+              <AppInput
+                label="Acidez"
+                type="number"
+                value={medicionValues.acidez}
+                onChange={(event) => setMedicionValues((prev) => ({ ...prev, acidez: event.target.value }))}
+                uiSize="lg"
+              />
+              <AppInput
+                label="Estado fermentación"
+                value={medicionValues.estado_fermentacion}
+                onChange={(event) => setMedicionValues((prev) => ({ ...prev, estado_fermentacion: event.target.value }))}
+                uiSize="lg"
+              />
+            </div>
+          </div>
+        ) : null}
+
+        <div className="mt-3">
+          <AppTextarea
+            label="Observaciones"
+            value={medicionValues.observaciones}
+            onChange={(event) => setMedicionValues((prev) => ({ ...prev, observaciones: event.target.value }))}
+          />
+        </div>
+        {medicionError ? <NoticeBanner tone="danger" className="mt-3">{medicionError}</NoticeBanner> : null}
       </AppModal>
     </div>
   );

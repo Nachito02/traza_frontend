@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   AppButton,
@@ -63,7 +64,13 @@ type VasijaRow = {
   id: string;
   codigo: string;
   tipo: string;
+  /** Valor crudo de `tipo` (no la etiqueta) — hace falta para dibujar la
+   * textura de madera en las barricas de roble. */
+  tipoRaw: string;
   uso: string;
+  /** Valor crudo de `uso` (no la etiqueta) — hace falta para diferenciar la
+   * animación de fermentación alcohólica de la maloláctica. */
+  usoRaw: string;
   etapa: string;
   capacidad: number | null;
   volumen: number | null;
@@ -93,6 +100,16 @@ type MedicionFormValues = {
   volumen_l: string;
   grado_alcohol: string;
   azucar_residual_g_l: string;
+  // Control de fermentación: es otra medición más — solo tiene sentido
+  // ofrecerla acá cuando la vasija elegida está en_fermentacion (ver
+  // `esFermentando` donde se usa). Se guarda aparte porque es un recurso
+  // distinto en el backend (controles-fermentacion, no existencias-vasija).
+  densidad: string;
+  temperatura: string;
+  brix: string;
+  ph: string;
+  acidez: string;
+  estado_fermentacion: string;
   observaciones: string;
 };
 
@@ -103,6 +120,12 @@ function emptyMedicionForm(vasijaId = ""): MedicionFormValues {
     volumen_l: "",
     grado_alcohol: "",
     azucar_residual_g_l: "",
+    densidad: "",
+    temperatura: "",
+    brix: "",
+    ph: "",
+    acidez: "",
+    estado_fermentacion: "",
     observaciones: "",
   };
 }
@@ -176,35 +199,214 @@ const fermentacionIcon = (
   </svg>
 );
 
-/** Cada etapa mueve el líquido de forma distinta — ver comentario en index.css. */
-function liquidAnimClassFor(etapa: string): string {
+/**
+ * Etapas donde el vino se sigue mostrando (con su propia animación de
+ * líquido). Estabilización y las "lista para X" además llevan una insignia
+ * arriba del líquido (ver BADGE_BY_ETAPA) — acá solo se define cómo se mueve
+ * el líquido en sí. El resto de etapas (vacía/disponible/limpieza/sanitizada/
+ * mantenimiento/bloqueada/fuera de servicio) son estados administrativos, no
+ * dicen nada del contenido, y se resuelven con un ícono fijo (ICON_STATE_BY_ETAPA).
+ */
+function liquidAnimClassFor(etapa: string, uso: string): string {
   switch (etapa) {
     case "en_fermentacion":
-      return "liquid-anim-fermenting";
+      // Alcohólica es vigorosa (burbujas grandes y rápidas, libera mucho CO2);
+      // maloláctica es bacteriana y mucho más tranquila — apenas se mueve.
+      return uso === "fermentacion_malolactica" ? "liquid-anim-fermenting-malo" : "liquid-anim-fermenting";
     case "en_maceracion":
       return "liquid-anim-macerating";
     case "en_crianza":
       return "liquid-anim-aging";
-    case "bloqueada":
-    case "en_mantenimiento":
-    case "fuera_de_servicio":
-      return "liquid-anim-alert";
+    case "en_estabilizacion":
+      return "liquid-anim-settling";
+    // ocupada / lista_para_trasiego / lista_para_fraccionamiento: hay vino
+    // pero no está pasando nada activo en el líquido en sí — reposo (la
+    // insignia de "lista" es la que comunica el estado).
     default:
       return "liquid-anim-resting";
   }
 }
 
+const wrenchIcon = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+  </svg>
+);
+const banIcon = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="10" />
+    <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+  </svg>
+);
+const checkIcon = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M20 6 9 17l-5-5" />
+  </svg>
+);
+const dropletIcon = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 2.69s-5 5.6-5 9.31a5 5 0 0 0 10 0c0-3.71-5-9.31-5-9.31z" />
+  </svg>
+);
+const sparklesIcon = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.582a.5.5 0 0 1 0 .962L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+  </svg>
+);
+const warningIcon = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+    <path d="M12 9v4" />
+    <path d="M12 17h.01" />
+  </svg>
+);
+/** "Ver detalle" — a propósito distinto de los íconos de acción chicos de abajo. */
+const viewIcon = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+// Versiones chicas para la insignia que va arriba del líquido (tank ya es
+// chico de por sí, un ícono de 18px no entra bien ahí encima).
+const scaleIconSm = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 3v18" />
+    <path d="M5 8h14" />
+    <path d="M5 8 3 13a3 3 0 0 0 6 0z" />
+    <path d="m19 8-2 5a3 3 0 0 0 6 0z" />
+  </svg>
+);
+const arrowIconSm = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M5 12h14" />
+    <path d="m12 5 7 7-7 7" />
+  </svg>
+);
+const packageIconSm = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+    <path d="M3.3 7 12 12l8.7-5" />
+    <path d="M12 22V12" />
+  </svg>
+);
+/** Vasija chiquita — el "destino" al que apunta la flechita de "lista para trasiego". */
+const miniVasijaIcon = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="5" y="3" width="14" height="18" rx="2" />
+  </svg>
+);
+
+type TankIconState = {
+  icon: ReactNode;
+  /** Clases de fondo + color del ícono (mismo estilo que ya usa el resto del archivo). */
+  className: string;
+  /** Sin animación = estado quieto/inactivo a propósito (fuera de servicio). */
+  animClass?: string;
+};
+
+/**
+ * Estados que no se representan con líquido — la etapa es administrativa, no
+ * dice nada sobre qué está pasando adentro (o, como "vacía", ya dice
+ * explícitamente que no hay nada adentro). Cada uno tiene su propio símbolo.
+ */
+const ICON_STATE_BY_ETAPA: Record<string, TankIconState> = {
+  disponible: {
+    icon: checkIcon,
+    className: "bg-[color:var(--surface-accent-soft)] text-[color:var(--accent-primary)]",
+    animClass: "icon-pulse",
+  },
+  en_limpieza: {
+    icon: dropletIcon,
+    className: "bg-[color:var(--surface-accent-soft)] text-[color:var(--text-accent)]",
+    animClass: "icon-sweep",
+  },
+  sanitizada: {
+    icon: sparklesIcon,
+    className: "bg-[color:var(--surface-accent-soft)] text-[color:var(--accent-primary)]",
+    animClass: "icon-twinkle",
+  },
+  en_mantenimiento: {
+    icon: wrenchIcon,
+    className: "tank-border-warning bg-[color:var(--feedback-warning-bg)] text-[color:var(--feedback-warning-text)]",
+    animClass: "tool-wiggle",
+  },
+  bloqueada: {
+    icon: banIcon,
+    className: "tank-border-danger bg-[color:var(--feedback-danger-bg)] text-[color:var(--feedback-danger-text)]",
+    animClass: "ban-pulse",
+  },
+  fuera_de_servicio: {
+    icon: warningIcon,
+    className: "tank-border-muted bg-[color:var(--surface-muted)] text-[color:var(--text-ink-muted)] opacity-70",
+    // Sin animClass: a propósito quieta — "fuera de servicio" es un cartel, no algo en curso.
+  },
+};
+
 /** Ícono simple de vasija con relleno proporcional al volumen actual sobre la capacidad. */
-function TankIcon({ percent, hasData, etapa }: { percent: number; hasData: boolean; etapa: string }) {
+/**
+ * Insignia que se apoya arriba del líquido (no lo reemplaza) para las etapas
+ * "de estado" que igual necesitan mostrar el vino: estabilización (balanza
+ * buscando el equilibrio) y las "lista para X" (flechita moviéndose hacia la
+ * vasija destino / paquete listo).
+ */
+const BADGE_BY_ETAPA: Record<string, ReactNode> = {
+  en_estabilizacion: <span className="icon-balance">{scaleIconSm}</span>,
+  lista_para_trasiego: (
+    <span className="flex items-center gap-0.5">
+      <span className="icon-slide-to">{arrowIconSm}</span>
+      {miniVasijaIcon}
+    </span>
+  ),
+  lista_para_fraccionamiento: <span className="icon-bounce">{packageIconSm}</span>,
+};
+
+function TankIcon({
+  percent,
+  hasData,
+  etapa,
+  uso,
+  tipo,
+}: {
+  percent: number;
+  hasData: boolean;
+  etapa: string;
+  uso: string;
+  tipo: string;
+}) {
   const clamped = Math.max(0, Math.min(100, percent));
+  const iconState = ICON_STATE_BY_ETAPA[etapa];
+
+  if (iconState) {
+    return (
+      <div
+        className={`relative flex h-16 w-11 shrink-0 items-center justify-center overflow-hidden rounded-t-[8px] rounded-b-[4px] border-2 border-[color:var(--border-default)] ${iconState.className}`}
+      >
+        <span className={iconState.animClass}>{iconState.icon}</span>
+      </div>
+    );
+  }
+
+  // "Vacía" es una declaración explícita de que no hay nada adentro — se
+  // respeta aunque el ledger todavía tenga alguna fila vieja sin cerrar.
+  const showLiquid = hasData && etapa !== "vacia";
+  const badge = BADGE_BY_ETAPA[etapa];
+  // Las barricas de roble son de madera, no de acero — grano + aros en vez
+  // del contenedor liso. Francés y americano en tonos distintos.
+  const barricaClass =
+    tipo === "BarricaRobleFrances" ? "tank-barrica-fr" : tipo === "BarricaRobleAmericano" ? "tank-barrica-us" : "";
+
   return (
-    <div className="relative h-16 w-11 shrink-0 overflow-hidden rounded-t-[8px] rounded-b-[4px] border-2 border-[color:var(--border-default)] bg-[color:var(--surface-muted)]">
-      {hasData ? (
+    <div
+      className={`relative h-16 w-11 shrink-0 overflow-hidden rounded-t-[8px] rounded-b-[4px] border-2 border-[color:var(--border-default)] bg-[color:var(--surface-muted)] ${barricaClass}`}
+    >
+      {showLiquid ? (
         <div
-          className={`liquid-fill ${liquidAnimClassFor(etapa)} absolute inset-x-0 bottom-0 transition-all duration-500`}
+          className={`liquid-fill ${liquidAnimClassFor(etapa, uso)} absolute inset-x-0 bottom-0 transition-all duration-500`}
           style={{ height: `${clamped}%` }}
         />
       ) : null}
+      {badge ? <div className="tank-badge">{badge}</div> : null}
     </div>
   );
 }
@@ -332,7 +534,9 @@ export default function VasijaEstadoPanel({
           id,
           codigo: stringVal(v.codigo, "Sin código"),
           tipo: optionLabel(VASIJA_TIPOS, v.tipo),
+          tipoRaw: stringVal(v.tipo),
           uso: optionLabel(VASIJA_USOS, v.uso),
+          usoRaw: stringVal(v.uso),
           etapa: stringVal(v.etapa),
           capacidad,
           volumen,
@@ -456,6 +660,11 @@ export default function VasijaEstadoPanel({
     setMedicionOpen(true);
   };
 
+  // El control de fermentación es otra medición más — solo se ofrece cuando
+  // la vasija elegida está en_fermentacion (fuera de eso no tiene sentido).
+  const medicionVasijaEtapa = rows.find((r) => r.id === medicionValues.vasijaId)?.etapa;
+  const medicionEsFermentando = medicionVasijaEtapa === "en_fermentacion";
+
   const handleMedicionSubmit = async () => {
     if (!medicionValues.vasijaId) {
       setMedicionError("Elegí una vasija.");
@@ -465,19 +674,55 @@ export default function VasijaEstadoPanel({
       setMedicionError("La fecha y hora son obligatorias.");
       return;
     }
+    const parseNum = (v: string) => (v.trim() ? Number(v) : undefined);
+    const fechaIso = toIsoDateTime(medicionValues.fecha_hora);
+    const esFermentando = rows.find((r) => r.id === medicionValues.vasijaId)?.etapa === "en_fermentacion";
+
+    const hasExistenciaValues = [
+      medicionValues.volumen_l,
+      medicionValues.grado_alcohol,
+      medicionValues.azucar_residual_g_l,
+    ].some((v) => v.trim());
+    const hasFermentacionValues = esFermentando && [
+      medicionValues.densidad,
+      medicionValues.temperatura,
+      medicionValues.brix,
+      medicionValues.ph,
+      medicionValues.acidez,
+      medicionValues.estado_fermentacion,
+    ].some((v) => v.trim());
+
+    if (!hasExistenciaValues && !hasFermentacionValues) {
+      setMedicionError("Completá al menos un valor de la medición.");
+      return;
+    }
+
     setMedicionSaving(true);
     setMedicionError(null);
-    const parseNum = (v: string) => (v.trim() ? Number(v) : undefined);
-    const payload: Record<string, unknown> = {
-      vasijaId: medicionValues.vasijaId,
-      fecha_hora: toIsoDateTime(medicionValues.fecha_hora),
-      volumen_l: parseNum(medicionValues.volumen_l),
-      grado_alcohol: parseNum(medicionValues.grado_alcohol),
-      azucar_residual_g_l: parseNum(medicionValues.azucar_residual_g_l),
-      observaciones: medicionValues.observaciones.trim() || undefined,
-    };
     try {
-      await createElaboracionResource("existencias-vasija", payload);
+      if (hasExistenciaValues) {
+        await createElaboracionResource("existencias-vasija", {
+          vasijaId: medicionValues.vasijaId,
+          fecha_hora: fechaIso,
+          volumen_l: parseNum(medicionValues.volumen_l),
+          grado_alcohol: parseNum(medicionValues.grado_alcohol),
+          azucar_residual_g_l: parseNum(medicionValues.azucar_residual_g_l),
+          observaciones: medicionValues.observaciones.trim() || undefined,
+        });
+      }
+      if (hasFermentacionValues) {
+        await createElaboracionResource("controles-fermentacion", {
+          vasijaId: medicionValues.vasijaId,
+          fecha_hora: fechaIso,
+          densidad: parseNum(medicionValues.densidad),
+          temperatura: parseNum(medicionValues.temperatura),
+          brix: parseNum(medicionValues.brix),
+          ph: parseNum(medicionValues.ph),
+          acidez: parseNum(medicionValues.acidez),
+          estado_fermentacion: medicionValues.estado_fermentacion.trim() || undefined,
+          observaciones: medicionValues.observaciones.trim() || undefined,
+        });
+      }
       notifySuccess({ title: "Medición registrada" });
       setMedicionOpen(false);
     } catch (err) {
@@ -585,18 +830,36 @@ export default function VasijaEstadoPanel({
                 }}
                 role="button"
                 tabIndex={0}
-                onClick={() => navigate(`/bodega/vasijas/${encodeURIComponent(row.id)}`)}
+                onClick={() => selectVasija(row.id)}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter") navigate(`/bodega/vasijas/${encodeURIComponent(row.id)}`);
+                  if (event.key === "Enter") selectVasija(row.id);
                 }}
-                className={`cursor-pointer rounded-[var(--radius-lg)] border-2 bg-[color:var(--surface-soft)] p-3 transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)] hover:shadow-[var(--shadow-soft)] ${
+                className={`relative flex cursor-pointer flex-col rounded-[var(--radius-lg)] border-2 bg-[color:var(--surface-soft)] p-3 transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)] hover:shadow-[var(--shadow-soft)] ${
                   selectedVasijaId === row.id
                     ? "border-[color:var(--accent-primary)] shadow-[var(--shadow-soft)]"
                     : "border-[color:var(--border-shell)] hover:border-[color:var(--border-default)]"
                 }`}
               >
+                <button
+                  type="button"
+                  aria-label={`Ver detalle de ${row.codigo}`}
+                  title="Ver detalle"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    navigate(`/bodega/vasijas/${encodeURIComponent(row.id)}`);
+                  }}
+                  className="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-[color:var(--border-default)] bg-[color:var(--surface-base)] text-[color:var(--text-ink-muted)] shadow-[var(--shadow-soft)] transition-colors hover:border-[color:var(--accent-primary)] hover:text-[color:var(--accent-primary)]"
+                >
+                  {viewIcon}
+                </button>
                 <div className="flex gap-3">
-                  <TankIcon percent={row.porcentaje} hasData={row.volumen !== null} etapa={row.etapa} />
+                  <TankIcon
+                    percent={row.porcentaje}
+                    hasData={row.volumen !== null}
+                    etapa={row.etapa}
+                    uso={row.usoRaw}
+                    tipo={row.tipoRaw}
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-semibold text-[color:var(--text-ink)]">{row.codigo}</div>
                     <div className="truncate text-xs text-[color:var(--text-ink-muted)]">{row.tipo}</div>
@@ -628,7 +891,7 @@ export default function VasijaEstadoPanel({
                   </div>
                 </div>
 
-                <div className="mt-3" onClick={(event) => event.stopPropagation()}>
+                <div className="mt-auto pt-3" onClick={(event) => event.stopPropagation()}>
                   <AppSelect
                     uiSize="sm"
                     value={row.etapa}
@@ -822,6 +1085,58 @@ export default function VasijaEstadoPanel({
             uiSize="lg"
           />
         </div>
+
+        {medicionEsFermentando ? (
+          <div className="mt-4 border-t border-[color:var(--border-shell)] pt-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[color:var(--feedback-warning-text)]">
+              Control de fermentación — esta vasija está en fermentación
+            </p>
+            <div className="grid gap-3 md:grid-cols-2">
+              <AppInput
+                label="Densidad"
+                type="number"
+                value={medicionValues.densidad}
+                onChange={(event) => setMedicionValues((prev) => ({ ...prev, densidad: event.target.value }))}
+                uiSize="lg"
+              />
+              <AppInput
+                label="Temperatura"
+                type="number"
+                value={medicionValues.temperatura}
+                onChange={(event) => setMedicionValues((prev) => ({ ...prev, temperatura: event.target.value }))}
+                uiSize="lg"
+              />
+              <AppInput
+                label="Brix"
+                type="number"
+                value={medicionValues.brix}
+                onChange={(event) => setMedicionValues((prev) => ({ ...prev, brix: event.target.value }))}
+                uiSize="lg"
+              />
+              <AppInput
+                label="pH"
+                type="number"
+                value={medicionValues.ph}
+                onChange={(event) => setMedicionValues((prev) => ({ ...prev, ph: event.target.value }))}
+                uiSize="lg"
+              />
+              <AppInput
+                label="Acidez"
+                type="number"
+                value={medicionValues.acidez}
+                onChange={(event) => setMedicionValues((prev) => ({ ...prev, acidez: event.target.value }))}
+                uiSize="lg"
+              />
+              <AppInput
+                label="Estado fermentación"
+                value={medicionValues.estado_fermentacion}
+                onChange={(event) => setMedicionValues((prev) => ({ ...prev, estado_fermentacion: event.target.value }))}
+                uiSize="lg"
+              />
+            </div>
+          </div>
+        ) : null}
+
         <div className="mt-3">
           <AppTextarea
             label="Observaciones"
