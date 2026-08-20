@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { listElaboracionResource, type ElaboracionEntity } from "../../features/elaboracion/api";
-import { VASIJA_FIELDS, OPERACION_TIPOS } from "../../features/elaboracion/vasijaFields";
+import { OPERACION_TIPOS } from "../../features/elaboracion/vasijaFields";
 import { useAuthStore } from "../../store/authStore";
-import { AppCard, NoticeBanner, SectionIntro } from "../../components/ui";
+import { AppButton, AppCard, AppModal, NoticeBanner, SectionIntro } from "../../components/ui";
 import GenericCrudSection, { type CrudField, type SelectOption } from "./components/GenericCrudSection";
 import VasijaComposicionPanel from "./components/VasijaComposicionPanel";
-import SectionSelector from "./components/SectionSelector";
 import VasijaEstadoPanel from "./components/VasijaEstadoPanel";
 import { useSearchParams } from "react-router-dom";
 import { fetchAuthUsers, type AuthUser } from "../../features/users/api";
-import { fetchImpactoBorradoLote } from "../../features/lotes/api";
+import { fetchImpactoBorradoLote, fetchLotes } from "../../features/lotes/api";
+import { fetchProtocolosExpanded } from "../../features/protocolos/api";
+import CostosActividadPanel from "../Costos/CostosActividadPanel";
+import OperacionVasijaModal from "./components/OperacionVasijaModal";
 
 
 function toOptions(items: ElaboracionEntity[], idKeys: string[], labelKeys: string[]): SelectOption[] {
@@ -60,6 +62,12 @@ function formatRecepcionOption(item: ElaboracionEntity): SelectOption | null {
   const kg = typeof item.kg_pesados === "string" || typeof item.kg_pesados === "number"
     ? `${item.kg_pesados} kg`
     : null;
+  const patente = typeof remito.patente === "string" && remito.patente.trim()
+    ? `Patente ${remito.patente}`
+    : null;
+  const transportista = typeof remito.transportista === "string" && remito.transportista.trim()
+    ? remito.transportista.trim()
+    : null;
 
   return {
     value: String(id),
@@ -67,9 +75,17 @@ function formatRecepcionOption(item: ElaboracionEntity): SelectOption | null {
       fechaLabel,
       [fincaLabel, cuartelLabel].filter(Boolean).join(" / "),
       kg,
+      patente,
+      transportista,
     ].filter(Boolean).join(" · "),
   };
 }
+
+// Las operaciones de vasija viven como capítulos (9 a 14) dentro del
+// protocolo general — scripts/seed-protocolo-vasijas.mjs (backend) los agrega
+// ahí, no crea un protocolo aparte. De ahí sale el proceso_id que necesita
+// cada Tarea de vasija.
+const VASIJA_PROTOCOLO_NOMBRE = "PROTOCOLO DE TRAZABILIDAD Y SUSTENTABILIDAD – NIVEL FINCA";
 
 type VasijasProcesoPageProps = {
   initialSection?: "vasijas" | "operaciones" | "existencias" | "fermentacion";
@@ -82,43 +98,82 @@ type VasijasProcesoPageProps = {
 };
 
 export default function VasijasProcesoPage({
-  initialSection = "vasijas",
+  initialSection = "existencias",
   hideSectionSelector = false,
   hidePrimaryAction = false,
   operacionDefaultValues,
   inlineOperacionForm = false,
 }: VasijasProcesoPageProps) {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
-  const [activeSection, setActiveSection] = useState<
-    "vasijas" | "operaciones" | "existencias" | "fermentacion"
-  >(initialSection);
-
-  // La sección visible se sincroniza desde la URL/props (fuente de verdad), ajustando
-  // el estado durante el render en lugar de en un efecto para evitar renders en cascada.
-  const resolvedSection: "vasijas" | "operaciones" | "existencias" | "fermentacion" = (() => {
-    if (hideSectionSelector) return initialSection;
-    const section = searchParams.get("section");
-    if (
-      section === "vasijas" ||
-      section === "operaciones" ||
-      section === "existencias" ||
-      section === "fermentacion"
-    ) {
-      return section;
-    }
-    return initialSection;
-  })();
-  const [syncedSection, setSyncedSection] = useState(resolvedSection);
-  if (syncedSection !== resolvedSection) {
-    setSyncedSection(resolvedSection);
-    setActiveSection(resolvedSection);
-  }
   const [vasijaOptions, setVasijaOptions] = useState<SelectOption[]>([]);
+  // Para validar en "Nueva operación" que la vasija destino esté vacía antes
+  // de dejar trasegar — el volumen del ledger puede quedar desactualizado,
+  // pero la etapa que carga el enólogo a mano es la fuente de verdad.
+  const [vasijaEtapaPorId, setVasijaEtapaPorId] = useState<Record<string, string>>({});
   const [recepcionOptions, setRecepcionOptions] = useState<SelectOption[]>([]);
   const [vasijaOptionsVersion, setVasijaOptionsVersion] = useState(0);
-  const [existenciaVersion, setExistenciaVersion] = useState(0);
   const [operacionFormValues, setOperacionFormValues] = useState<Record<string, string | boolean>>({});
+  // Dispara el modal de "Operaciones Vasija" desde un botón/ícono de la grilla de
+  // vasijas — no hay más una pestaña/lista persistente para esto en la página
+  // normal. El token fuerza el remount de GenericCrudSection para que
+  // `autoOpenForm` vuelva a abrir el modal en cada click (si no, solo se abre
+  // la primera vez que el componente se monta).
+  const [operacionModalOpen, setOperacionModalOpen] = useState(false);
+  const [operacionModalToken, setOperacionModalToken] = useState(0);
+  const [manualOperacionVasijaId, setManualOperacionVasijaId] = useState<string | undefined>(undefined);
+
+  const openOperacionModal = (vasijaId?: string) => {
+    setManualOperacionVasijaId(vasijaId);
+    setOperacionModalToken((t) => t + 1);
+    setOperacionModalOpen(true);
+  };
+  const closeOperacionModal = () => {
+    setOperacionModalOpen(false);
+    setManualOperacionVasijaId(undefined);
+  };
+
+  // proceso_id de cada evento_tipo de vasija, según el protocolo sembrado por
+  // seed-protocolo-vasijas.mjs — createTarea lo necesita (proceso_id es
+  // obligatorio) para poder registrar la operación como Tarea con costos.
+  const [vasijaProcesoIds, setVasijaProcesoIds] = useState<Record<string, string>>({});
+  const [loteOptions, setLoteOptions] = useState<SelectOption[]>([]);
+  // Al terminar de registrar una operación, se ofrece cargar costos/insumos
+  // ahí mismo — necesita el tareaId que devuelve registrarActividad.
+  const [costosTareaId, setCostosTareaId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchProtocolosExpanded()
+      .then((protocolos) => {
+        const protocolo = protocolos.find((p) => p.nombre === VASIJA_PROTOCOLO_NOMBRE);
+        const map: Record<string, string> = {};
+        protocolo?.protocolo_etapa?.forEach((etapa) => {
+          etapa.protocolo_proceso?.forEach((proceso) => {
+            if (proceso.evento_tipo && proceso.proceso_id) {
+              map[proceso.evento_tipo] = proceso.proceso_id;
+            }
+          });
+        });
+        setVasijaProcesoIds(map);
+      })
+      .catch(() => setVasijaProcesoIds({}));
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function run() {
+      const lotes = activeBodegaId
+        ? await fetchLotes(String(activeBodegaId)).catch(() => [])
+        : [];
+      if (cancelled) return;
+      setLoteOptions(lotes.map((l) => ({ value: l.lote_id, label: l.codigo })));
+    }
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeBodegaId]);
+
   const [bodegaUsers, setBodegaUsers] = useState<AuthUser[]>([]);
   // Solo se usa en el flujo guiado (inlineOperacionForm): un lote puede repartirse
   // entre varias vasijas — acá se lleva la cuenta de a cuáles ya se mandó, para
@@ -188,6 +243,12 @@ export default function VasijasProcesoPage({
     if (!activeBodegaId) return;
     listElaboracionResource("vasijas", { bodegaId: String(activeBodegaId) }).then((vasijas) => {
       setVasijaOptions(toOptions(vasijas, ["id_vasija", "vasija_id", "id"], ["codigo", "tipo", "id_vasija"]));
+      const etapaPorId: Record<string, string> = {};
+      for (const v of vasijas) {
+        const id = String(v.id_vasija ?? v.vasija_id ?? v.id ?? "");
+        if (id && typeof v.etapa === "string") etapaPorId[id] = v.etapa;
+      }
+      setVasijaEtapaPorId(etapaPorId);
     });
     listElaboracionResource("recepciones-bodega", { bodegaId: String(activeBodegaId) })
       .then((recepciones) => {
@@ -251,8 +312,24 @@ export default function VasijasProcesoPage({
   // (que depende de `fields`) lo detecta como "cambiaron los fields" y pisa los
   // valores del form con `defaultValues` de nuevo — el select de vasija quedaba
   // sin poder elegirse porque cada clic se revertía solo.
-  const operacionFields = useMemo<CrudField[]>(
-    () => [
+  const operacionFields = useMemo<CrudField[]>(() => {
+    // Sin tipo elegido, el resto del form ni se muestra — se arranca eligiendo
+    // qué operación es, y recién ahí aparece lo que corresponda a esa elección.
+    const hastaElegirTipo = (values: Record<string, string | boolean>) => !values.tipo;
+    // Fermentación/corrección son de una sola vasija: "destino" no aplica.
+    const esUnaSolaVasija = (values: Record<string, string | boolean>) =>
+      values.tipo === "fermentacion" || values.tipo === "correccion";
+    const hastaElegirTipoOUnaVasija = (values: Record<string, string | boolean>) =>
+      hastaElegirTipo(values) || esUnaSolaVasija(values);
+
+    return [
+      {
+        name: "tipo",
+        label: "Tipo operación",
+        type: "select" as const,
+        required: true,
+        options: [...OPERACION_TIPOS],
+      },
       // El vínculo a recepción (ingreso de uva) solo aplica cuando venís del flujo
       // guiado de ingreso o llegás con ?recepcionId=. En un movimiento normal entre
       // vasijas el líquido ya está en una vasija y no corresponde una recepción.
@@ -264,6 +341,7 @@ export default function VasijasProcesoPage({
               type: "select" as const,
               options: recepcionOptions,
               sourceKey: "recepcion_bodega_id",
+              hiddenWhen: hastaElegirTipo,
             },
           ]
         : []),
@@ -276,44 +354,52 @@ export default function VasijasProcesoPage({
               label: "Lote",
               type: "text" as const,
               disabled: true,
+              hiddenWhen: hastaElegirTipo,
             },
           ]
         : []),
-      // En un ingreso desde recepción la uva entra a UNA vasija: solo destino.
-      // En un movimiento normal entre vasijas se muestran origen y destino.
+      // En un ingreso desde recepción la uva entra a UNA vasija: solo destino
+      // (no se muestra "origen" en absoluto). En fermentación/corrección
+      // también es una sola vasija — se guarda como "origen" y "destino" se
+      // esconde con `hiddenWhen` (no se saca del array: si estuviera afuera,
+      // cambiar el tipo cambiaría la referencia de `fields` y GenericCrudSection
+      // resetea todo el form apenas eso pasa).
+      // En trasiego/descube/corte parcial se ven las dos, porque ahí sí hay un
+      // traspaso real entre dos vasijas.
       ...(inlineOperacionForm || preselectedRecepcionId
         ? []
         : [
             {
               name: "vasijaOrigenId",
               label: "Vasija origen",
+              // "Origen" solo tiene sentido si también hay un "destino" — con
+              // una sola vasija de por medio (fermentación/corrección) es
+              // simplemente "la vasija".
+              labelWhen: (values: Record<string, string | boolean>) =>
+                esUnaSolaVasija(values) ? "Vasija" : "Vasija origen",
               type: "select" as const,
               options: vasijaOptions,
               sourceKey: "vasija_origen_id",
+              hiddenWhen: hastaElegirTipo,
             },
           ]),
       {
         name: "vasijaDestinoId",
         label: inlineOperacionForm || preselectedRecepcionId ? "Vasija" : "Vasija destino",
-        type: "select",
+        type: "select" as const,
         required: Boolean(inlineOperacionForm || preselectedRecepcionId),
         options: vasijaOptions,
         sourceKey: "vasija_destino_id",
+        hiddenWhen: inlineOperacionForm || preselectedRecepcionId ? undefined : hastaElegirTipoOUnaVasija,
       },
-      {
-        name: "tipo",
-        label: "Tipo operación",
-        type: "select",
-        required: true,
-        options: [...OPERACION_TIPOS],
-      },
-      { name: "fecha_hora", label: "Fecha y hora", type: "datetime-local", required: true },
+      { name: "fecha_hora", label: "Fecha y hora", type: "datetime-local", required: true, hiddenWhen: hastaElegirTipo },
       {
         name: "enologoUserId",
         label: "Enólogo",
         type: "select",
         options: enologoOptions,
         sourceKey: "enologo_user_id",
+        hiddenWhen: hastaElegirTipo,
       },
       {
         name: "actorUserId",
@@ -321,10 +407,25 @@ export default function VasijasProcesoPage({
         type: "select",
         options: userOptions,
         sourceKey: "user_id",
+        hiddenWhen: hastaElegirTipo,
       },
-      { name: "volumen_movido_l", label: "Volumen movido (l)", type: "number" },
-      { name: "observaciones", label: "Observaciones", type: "textarea" },
-    ],
+      {
+        name: "volumen_movido_l",
+        label: "Volumen movido (l)",
+        // "Movido" es correcto para trasiego/descube/corte parcial (se pasa de
+        // una vasija a otra). Para ingreso no se mueve, entra; y en
+        // fermentación/corrección no se mueve nada en absoluto.
+        labelWhen: (values: Record<string, string | boolean>) => {
+          if (values.tipo === "ingreso") return "Volumen ingresado (l)";
+          if (esUnaSolaVasija(values)) return "Volumen (l)";
+          return "Volumen movido (l)";
+        },
+        type: "number",
+        hiddenWhen: hastaElegirTipo,
+      },
+      { name: "observaciones", label: "Observaciones", type: "textarea", hiddenWhen: hastaElegirTipo },
+    ];
+  },
     [
       inlineOperacionForm,
       preselectedRecepcionId,
@@ -347,47 +448,17 @@ export default function VasijasProcesoPage({
           header={(
             <SectionIntro
               eyebrow="Bodega"
-              title="Vasijas y Proceso"
-              description="Registro de vasijas, operaciones de elaboración, existencias y control de fermentación."
+              title="Gestión de vasijas"
+              description="Estado de existencias, alta, edición y movimientos de las vasijas de la bodega activa."
               descriptionClassName="text-[color:var(--text-on-dark-muted)]"
             />
           )}
-        >
-          <SectionSelector
-            bare
-            value={activeSection}
-            onChange={(value) => {
-              setActiveSection(value);
-              setSearchParams((prev) => {
-                const next = new URLSearchParams(prev);
-                next.set("section", value);
-                return next;
-              });
-            }}
-            options={[
-              { key: "vasijas", label: "Vasijas" },
-              { key: "operaciones", label: "Operaciones Vasija" },
-              { key: "existencias", label: "Existencias Vasija" },
-              { key: "fermentacion", label: "Control Fermentación" },
-            ]}
-          />
-        </AppCard>
-      ) : null}
-
-      {activeSection === "vasijas" ? (
-        <GenericCrudSection
-          title="Vasijas"
-          description="Registro de vasijas de la bodega."
-          resource="vasijas"
-          bodegaId={activeBodegaId}
-          hidePrimaryAction={hidePrimaryAction}
-          formInModal={!hidePrimaryAction}
-          fields={VASIJA_FIELDS}
-          onCreated={() => setVasijaOptionsVersion((v) => v + 1)}
         />
       ) : null}
 
-      {activeSection === "operaciones" ? (
+      {/* Flujo guiado de ingreso de uva (IngresoUvaFlowPage): embebe solo el
+          formulario de Operaciones, inline, como un paso más del wizard. */}
+      {hideSectionSelector && initialSection === "operaciones" ? (
         <div className="space-y-3">
         {typeof operacionFormValues.vasijaOrigenId === "string" && operacionFormValues.vasijaOrigenId ? (
           <VasijaComposicionPanel vasijaId={operacionFormValues.vasijaOrigenId} />
@@ -427,55 +498,59 @@ export default function VasijasProcesoPage({
         </div>
       ) : null}
 
-      {activeSection === "existencias" ? (
-        <div className="space-y-5">
-          <VasijaEstadoPanel
-            bodegaId={activeBodegaId}
-            refreshKey={vasijaOptionsVersion + existenciaVersion}
-          />
-          <GenericCrudSection
-            title="Existencias Vasija"
-            description="Registrá una nueva medición (volumen, grado alcohólico, azúcar residual) para dejar el histórico de cada vasija."
-            resource="existencias-vasija"
-            bodegaId={activeBodegaId}
-            withBodegaId={false}
-            hidePrimaryAction={hidePrimaryAction}
-            formInModal={!hidePrimaryAction}
-            onCreated={() => setExistenciaVersion((v) => v + 1)}
-            fields={[
-              { name: "vasijaId", label: "Vasija", type: "select", required: true, options: vasijaOptions, sourceKey: "vasija_id" },
-              { name: "fecha_hora", label: "Fecha y hora", type: "datetime-local", required: true },
-              { name: "volumen_l", label: "Volumen (l)", type: "number" },
-              { name: "grado_alcohol", label: "Grado alcohol", type: "number" },
-              { name: "azucar_residual_g_l", label: "Azúcar residual g/l", type: "number" },
-              { name: "observaciones", label: "Observaciones", type: "textarea" },
-            ]}
-          />
-        </div>
-      ) : null}
-
-      {activeSection === "fermentacion" ? (
-        <GenericCrudSection
-          title="Control Fermentación"
-          description="Seguimiento de fermentación por vasija."
-          resource="controles-fermentacion"
+      {/* Página normal: una sola vista, sin pestañas. La grilla de vasijas es lo
+          primero que se ve; "Nueva operación" (botón arriba o ícono por tarjeta)
+          dispara el mismo formulario de Operaciones, pero como modal puntual —
+          no queda un panel/lista persistente ocupando lugar. */}
+      {!hideSectionSelector ? (
+        <VasijaEstadoPanel
           bodegaId={activeBodegaId}
-          withBodegaId={false}
-          hidePrimaryAction={hidePrimaryAction}
-          formInModal={!hidePrimaryAction}
-          fields={[
-            { name: "vasijaId", label: "Vasija", type: "select", required: true, options: vasijaOptions, sourceKey: "vasija_id" },
-            { name: "fecha_hora", label: "Fecha y hora", type: "datetime-local", required: true },
-            { name: "densidad", label: "Densidad", type: "number" },
-            { name: "temperatura", label: "Temperatura", type: "number" },
-            { name: "brix", label: "Brix", type: "number" },
-            { name: "ph", label: "pH", type: "number" },
-            { name: "acidez", label: "Acidez", type: "number" },
-            { name: "estado_fermentacion", label: "Estado fermentación", type: "text" },
-            { name: "observaciones", label: "Observaciones", type: "textarea" },
-          ]}
+          refreshKey={vasijaOptionsVersion}
+          onChanged={() => setVasijaOptionsVersion((v) => v + 1)}
+          onRegistrarOperacion={openOperacionModal}
         />
       ) : null}
+
+      {/* Registra la operación como Tarea (con costos e insumos), no como
+          OperacionVasija suelta — ver OperacionVasijaModal. */}
+      {!hideSectionSelector && operacionModalOpen ? (
+        <OperacionVasijaModal
+          key={operacionModalToken}
+          bodegaId={activeBodegaId}
+          vasijaOptions={vasijaOptions}
+          vasijaEtapaPorId={vasijaEtapaPorId}
+          loteOptions={loteOptions}
+          enologoOptions={enologoOptions}
+          vasijaProcesoIds={vasijaProcesoIds}
+          defaultVasijaId={manualOperacionVasijaId}
+          onClose={closeOperacionModal}
+          onCreated={(tareaId) => {
+            closeOperacionModal();
+            setVasijaOptionsVersion((v) => v + 1);
+            setCostosTareaId(tareaId);
+          }}
+        />
+      ) : null}
+
+      {/* Después de registrar la operación, se puede cargar costos/insumos ahí
+          mismo (mano de obra, levaduras, clarificantes, etc.) reusando el
+          panel que ya existe para actividades de cuartel. */}
+      <AppModal
+        opened={costosTareaId !== null}
+        onClose={() => setCostosTareaId(null)}
+        title="Costos e insumos de la operación"
+        size="lg"
+        showHeaderDivider
+        footer={(
+          <div className="flex justify-end">
+            <AppButton type="button" variant="primary" size="sm" onClick={() => setCostosTareaId(null)}>
+              Listo
+            </AppButton>
+          </div>
+        )}
+      >
+        {costosTareaId ? <CostosActividadPanel tareaId={costosTareaId} bodegaId={activeBodegaId} /> : null}
+      </AppModal>
     </div>
   );
 }

@@ -136,8 +136,14 @@ export type RegistrarActividadPayload = {
   procesoId: string;
   fincaId?: string;
   cuartelId?: string;
+  vasijaId?: string;
   /** Campos de la actividad serializados (JSON), igual que el registro operativo. */
   descripcion?: string;
+  /**
+   * Cuando se pasa, el backend materializa el evento tipado (p. ej. crea la
+   * OperacionVasija y mueve VasijaContenido para llenado/trasiego/etc.).
+   */
+  draft?: Record<string, unknown>;
   /** Costos opcionales, para crear actividad + costos en un solo paso. */
   ejecucion?: Record<string, unknown>;
   maquinas?: Record<string, unknown>[];
@@ -149,6 +155,7 @@ export type RegistrarActividadResult = {
   tareaId: string;
   asignacionId: string;
   entradaId: string;
+  evento?: { tipo: string; id: string; [key: string]: unknown } | null;
 };
 
 /**
@@ -161,7 +168,9 @@ export async function registrarActividad(payload: RegistrarActividadPayload) {
     procesoId: payload.procesoId,
     fincaId: payload.fincaId,
     cuartelId: payload.cuartelId,
+    vasijaId: payload.vasijaId,
     descripcion: payload.descripcion ?? null,
+    ...(payload.draft ? { draft: payload.draft } : {}),
     ...(payload.ejecucion ? { ejecucion: payload.ejecucion } : {}),
     ...(payload.maquinas ? { maquinas: payload.maquinas } : {}),
     ...(payload.insumos ? { insumos: payload.insumos } : {}),

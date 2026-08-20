@@ -25,6 +25,7 @@ export default function BodegaConfigPage() {
   const [cuit, setCuit] = useState("");
   const [codigo, setCodigo] = useState("");
   const [nroInscriptoInv, setNroInscriptoInv] = useState("");
+  const [kgPorTacho, setKgPorTacho] = useState("");
 
   useEffect(() => {
     if (!activeBodegaId) return;
@@ -39,6 +40,11 @@ export default function BodegaConfigPage() {
         setCuit(bodega.cuit ?? "");
         setCodigo(bodega.codigo ?? "");
         setNroInscriptoInv(bodega.nro_inscripto_inv ?? "");
+        setKgPorTacho(
+          bodega.kg_por_tacho !== null && bodega.kg_por_tacho !== undefined
+            ? String(bodega.kg_por_tacho)
+            : "",
+        );
       })
       .catch((err) => {
         if (mounted) setError(getApiErrorMessage(err));
@@ -53,6 +59,12 @@ export default function BodegaConfigPage() {
 
   const handleSubmit = async () => {
     if (!activeBodegaId) return;
+    const kgPorTachoTrim = kgPorTacho.trim();
+    const kgPorTachoNum = kgPorTachoTrim ? Number(kgPorTachoTrim) : null;
+    if (kgPorTachoTrim && (Number.isNaN(kgPorTachoNum) || (kgPorTachoNum ?? 0) <= 0)) {
+      notifyError({ title: "Kg por tacho inválido", message: "Tiene que ser un número mayor a 0." });
+      return;
+    }
     setSaving(true);
     try {
       const updated = await updateBodega(String(activeBodegaId), {
@@ -61,6 +73,7 @@ export default function BodegaConfigPage() {
         cuit: cuit.trim(),
         codigo: codigo.trim(),
         nro_inscripto_inv: nroInscriptoInv.trim(),
+        kg_por_tacho: kgPorTachoNum,
       });
       setCodigo(updated.codigo ?? "");
       notifySuccess({ title: "Datos de la bodega actualizados" });
@@ -117,6 +130,20 @@ export default function BodegaConfigPage() {
                   />
                   <p className="mt-1 text-xs text-[color:var(--text-ink-muted)]">
                     Si lo dejás vacío, se sugiere automáticamente a partir del nombre.
+                  </p>
+                </div>
+                <div>
+                  <AppInput
+                    label="Kg por tacho"
+                    type="number"
+                    min="0"
+                    value={kgPorTacho}
+                    onChange={(e) => setKgPorTacho(e.target.value)}
+                    placeholder="ej. 20"
+                  />
+                  <p className="mt-1 text-xs text-[color:var(--text-ink-muted)]">
+                    Se usa para convertir "tachos" a kg en el remito de uva. Si lo dejás vacío se
+                    asume ~20 kg por tacho.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2 pt-2">

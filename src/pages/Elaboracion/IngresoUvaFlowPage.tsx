@@ -9,7 +9,7 @@ import VasijasProcesoPage from "./VasijasProcesoPage";
 import SectionSelector from "./components/SectionSelector";
 import LoteSelectorPanel from "./components/LoteSelectorPanel";
 
-type IngresoUvaStep = "remito" | "recepcion" | "analisis" | "ciu" | "vasija";
+type IngresoUvaStep = "recepcion" | "analisis" | "ciu" | "vasija";
 
 type StepConfig = {
   key: IngresoUvaStep;
@@ -23,7 +23,6 @@ type PendingCiuNextStep = {
 };
 
 const STEPS: StepConfig[] = [
-  { key: "remito",   label: "Remito de uva" },
   { key: "recepcion", label: "Recepción y pesaje" },
   { key: "analisis", label: "Análisis de recepción" },
   { key: "ciu",     label: "Registrar CIU" },
@@ -31,7 +30,7 @@ const STEPS: StepConfig[] = [
 ];
 
 function getStepFromParams(value: string | null): IngresoUvaStep {
-  return STEPS.some((step) => step.key === value) ? (value as IngresoUvaStep) : "remito";
+  return STEPS.some((step) => step.key === value) ? (value as IngresoUvaStep) : "recepcion";
 }
 
 function resolveStringId(item: ElaboracionEntity, keys: string[]) {
@@ -132,16 +131,6 @@ export default function IngresoUvaFlowPage() {
         </div>
       </AppCard>
 
-      {activeStep === "remito" ? (
-        <RecepcionPage
-          initialSection="remito"
-          hideSectionSelector
-          onSectionChange={(section) => goToStep(section)}
-          onRecepcionDefaultsChange={handleRecepcionDefaults}
-          onAnalisisDefaultsChange={handleAnalisisDefaults}
-        />
-      ) : null}
-
       {activeStep === "recepcion" ? (
         <RecepcionPage
           initialSection="recepcion"
@@ -230,7 +219,7 @@ export default function IngresoUvaFlowPage() {
                 setLoteReady(null);
                 setVasijaConfirmado(false);
                 setLoteSelectorKey((current) => current + 1);
-                goToStep("remito");
+                goToStep("recepcion");
               }}
             >
               Registrar otro ingreso

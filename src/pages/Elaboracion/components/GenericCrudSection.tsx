@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   createElaboracionResource,
@@ -46,8 +46,43 @@ export type CrudField = {
   getOptions?: (values: Record<string, string | boolean>) => SelectOption[];
   sourceKey?: string;
   clearOnChange?: string[];
+  /**
+   * Pega este campo, en una sola celda de la grilla, al costado del campo
+   * nombrado (ej. "cantidad" + selector de "unidad") — el campo nombrado no
+   * se vuelve a renderizar en su propia celda.
+   */
+  compactWith?: string;
+  /**
+   * No se renderiza como caja propia (a diferencia de `hiddenWhen`, sigue
+   * yendo en el payload y contando para validaciones) — para campos que otro
+   * campo ya cubre visualmente (ej. el kg calculado a partir de cantidad+unidad).
+   */
+  hideInForm?: boolean;
+  /**
+   * Cuando el campo cambia, además de guardar su propio valor puede derivar y
+   * sobrescribir otros campos del formulario (ej. al elegir un cuartel,
+   * autocompletar variedad/pureza si el cuartel es monovarietal).
+   */
+  deriveOnChange?: (
+    value: string,
+    values: Record<string, string | boolean>,
+  ) => Record<string, string | boolean> | null | void;
   /** Campo bloqueado (se muestra pero no se puede editar); igual se envía en el payload. */
   disabled?: boolean;
+  /**
+   * Cuando devuelve true, el campo no se renderiza (ej. "vasija destino" cuando
+   * el tipo de operación no es un traspaso entre dos vasijas). Se evalúa en cada
+   * render contra los valores actuales del form — a diferencia de cambiar el
+   * array `fields` en sí, esto no dispara el reset de `values` que hace
+   * GenericCrudSection cuando `fields` cambia de referencia.
+   */
+  hiddenWhen?: (values: Record<string, string | boolean>) => boolean;
+  /**
+   * Si se define, reemplaza `label` en el formulario según los valores actuales
+   * (ej. "Vasija" en vez de "Vasija origen" cuando la operación no tiene
+   * destino). Los mensajes de error y la vista de lista siguen usando `label`.
+   */
+  labelWhen?: (values: Record<string, string | boolean>) => string;
   /**
    * Cuando se define, el campo es de solo lectura y su valor se calcula a partir
    * de los demás valores del formulario. No se envía en el payload (lo calcula el
@@ -81,6 +116,13 @@ type GenericCrudSectionProps = {
   separatedLayout?: boolean;
   /** When true the create/edit form opens inside an AppModal instead of inline. */
   formInModal?: boolean;
+  /**
+   * When true (with formInModal), renders only the modal — no card, header or
+   * list. For call sites that trigger this section purely as a "create" action
+   * from somewhere else in the page (e.g. an icon on an unrelated card) and
+   * don't want a persistent list/section to also show up.
+   */
+  hideContainer?: boolean;
   /** When true (with formInModal), auto-opens the create modal on mount if defaultValues are provided. */
   autoOpenForm?: boolean;
   defaultValues?: Record<string, string | boolean>;
@@ -94,6 +136,12 @@ type GenericCrudSectionProps = {
   onCreated?: (item: ElaboracionEntity) => void | Promise<void>;
   /** Se dispara cada vez que cambian los valores del formulario (para paneles auxiliares fuera del form). */
   onValuesChange?: (values: Record<string, string | boolean>) => void;
+  /**
+   * Contenido extra que se renderiza dentro del form (inline o modal, según
+   * `formInModal`), justo antes de los botones de guardar/cancelar. Para casos
+   * que no encajan en el sistema de `CrudField` (ej. un selector de archivo).
+   */
+  renderExtra?: () => ReactNode;
   initialEditId?: string | null;
   onCancel?: () => void;
 };
@@ -322,6 +370,10 @@ function applyFieldValueChange(
   for (const fieldName of field.clearOnChange ?? []) {
     next[fieldName] = "";
   }
+  if (field.deriveOnChange) {
+    const derived = field.deriveOnChange(typeof value === "string" ? value : "", next);
+    if (derived) Object.assign(next, derived);
+  }
   return next;
 }
 
@@ -339,11 +391,13 @@ export default function GenericCrudSection({
   hidePrimaryAction = false,
   separatedLayout = false,
   formInModal = false,
+  hideContainer = false,
   autoOpenForm = false,
   defaultValues,
   getDeleteWarning,
   onCreated,
   onValuesChange,
+  renderExtra,
   initialEditId = null,
   onCancel,
 }: GenericCrudSectionProps) {
@@ -406,7 +460,19 @@ export default function GenericCrudSection({
 
   useEffect(() => {
     const hasDefaultValues = defaultValues && Object.keys(defaultValues).length > 0;
-    setValues({ ...getInitialValues(fields), ...(defaultValues ?? {}) });
+    let initialValues = { ...getInitialValues(fields), ...(defaultValues ?? {}) };
+    // Un valor que llega prellenado (por `defaultValues`, ej. al volver de "Continuar")
+    // nunca pasó por `setFieldValue` — sin esto, su `deriveOnChange` nunca se dispara
+    // y los campos derivados (ej. variedad autocompletada al elegir un ingreso) quedan
+    // vacíos hasta que el usuario vuelve a tocar el campo a mano.
+    for (const field of fields) {
+      if (!field.deriveOnChange) continue;
+      const currentValue = initialValues[field.name];
+      if (typeof currentValue !== "string" || !currentValue) continue;
+      const derived = field.deriveOnChange(currentValue, initialValues);
+      if (derived) initialValues = { ...initialValues, ...derived };
+    }
+    setValues(initialValues);
     setEditingId(null);
     setEditingItem(null);
     setError(null);
@@ -512,6 +578,7 @@ export default function GenericCrudSection({
     const nextFieldErrors: FieldErrors = {};
     for (const field of fields) {
       if (field.computed) continue;
+      if (field.hiddenWhen?.(values)) continue;
       if (!field.required) continue;
       const currentValue = values[field.name];
       if (field.type === "checkbox") continue;
@@ -557,6 +624,7 @@ export default function GenericCrudSection({
 
     for (const field of fields) {
       if (field.computed) continue;
+      if (field.hiddenWhen?.(values)) continue;
       const value = values[field.name];
       if (field.type === "checkbox") {
         payload[field.name] = Boolean(value);
@@ -831,88 +899,118 @@ export default function GenericCrudSection({
     </div>
   );
 
-  const renderForm = () => (
+  const renderFieldControl = (field: CrudField) => {
+    const displayLabel = field.labelWhen ? field.labelWhen(values) : field.label;
+    if (field.computed) {
+      return (
+        <AppInput
+          label={displayLabel}
+          type="text"
+          value={field.computed(values)}
+          readOnly
+          disabled
+          uiSize="lg"
+        />
+      );
+    }
+    if (field.type === "textarea") {
+      return (
+        <AppTextarea
+          label={displayLabel}
+          error={fieldErrors[field.name]}
+          value={String(values[field.name] ?? "")}
+          onChange={(event) => setFieldValue(field, event.target.value)}
+          placeholder={field.placeholder}
+          uiSize="lg"
+        />
+      );
+    }
+    if (field.type === "checkbox") {
+      return (
+        <div className="space-y-2">
+          <label className="flex min-h-11 items-center gap-2 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-4 py-2 text-sm text-[color:var(--text-on-dark)]">
+            <input
+              type="checkbox"
+              checked={Boolean(values[field.name])}
+              onChange={(event) => setFieldValue(field, event.target.checked)}
+              className="h-4 w-4"
+            />
+            {displayLabel}
+          </label>
+          {fieldErrors[field.name] ? (
+            <p className="text-sm font-medium text-[color:var(--field-error)]">
+              {fieldErrors[field.name]}
+            </p>
+          ) : null}
+        </div>
+      );
+    }
+    if (field.type === "select") {
+      const options = field.getOptions ? field.getOptions(values) : (field.options ?? []);
+      return (
+        <AppSelect
+          label={displayLabel}
+          description={field.description}
+          error={fieldErrors[field.name]}
+          value={String(values[field.name] ?? "")}
+          disabled={field.disabled}
+          onChange={(event) => setFieldValue(field, event.target.value)}
+        >
+          <option value="">Seleccionar...</option>
+          {options.map((option) => (
+            <option key={option.value} value={option.value} disabled={option.disabled}>
+              {option.disabled ? `${option.label} · no disponible` : option.label}
+            </option>
+          ))}
+        </AppSelect>
+      );
+    }
+    return (
+      <AppInput
+        label={displayLabel}
+        description={field.description}
+        type={field.type}
+        error={fieldErrors[field.name]}
+        value={String(values[field.name] ?? "")}
+        disabled={field.disabled}
+        onChange={(event) => setFieldValue(field, event.target.value)}
+        placeholder={field.placeholder}
+        uiSize="lg"
+      />
+    );
+  };
+
+  const renderForm = () => {
+    const visibleFields = fields.filter((field) => !field.hiddenWhen?.(values));
+    // Los campos con `compactWith` se renderizan pegados al costado del campo
+    // que nombran (ej. cantidad + unidad) en vez de en su propia celda.
+    const absorbedNames = new Set(
+      visibleFields.map((field) => field.compactWith).filter((name): name is string => Boolean(name)),
+    );
+    const topLevelFields = visibleFields.filter(
+      (field) => !absorbedNames.has(field.name) && !field.hideInForm,
+    );
+
+    return (
     <>
       <div className="mt-3 grid gap-3 md:grid-cols-2">
-        {fields.map((field) => (
-          <div key={field.name}>
-            {field.computed ? (
-              <AppInput
-                label={field.label}
-                type="text"
-                value={field.computed(values)}
-                readOnly
-                disabled
-                uiSize="lg"
-              />
-            ) : field.type === "textarea" ? (
-              <AppTextarea
-                label={field.label}
-                error={fieldErrors[field.name]}
-                value={String(values[field.name] ?? "")}
-                onChange={(event) =>
-                  setFieldValue(field, event.target.value)
-                }
-                placeholder={field.placeholder}
-                uiSize="lg"
-              />
-            ) : field.type === "checkbox" ? (
-              <div className="space-y-2">
-                <label className="flex min-h-11 items-center gap-2 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] px-4 py-2 text-sm text-[color:var(--text-on-dark)]">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(values[field.name])}
-                    onChange={(event) => setFieldValue(field, event.target.checked)}
-                    className="h-4 w-4"
-                  />
-                  {field.label}
-                </label>
-                {fieldErrors[field.name] ? (
-                  <p className="text-sm font-medium text-[color:var(--field-error)]">
-                    {fieldErrors[field.name]}
-                  </p>
-                ) : null}
+        {topLevelFields.map((field) => {
+          const pairedField = field.compactWith
+            ? visibleFields.find((candidate) => candidate.name === field.compactWith)
+            : undefined;
+          if (pairedField) {
+            return (
+              <div key={field.name} className="flex items-start gap-2">
+                <div className="flex-1">{renderFieldControl(field)}</div>
+                <div className="w-28 shrink-0">{renderFieldControl(pairedField)}</div>
               </div>
-            ) : field.type === "select" ? (
-              (() => {
-                const options = field.getOptions ? field.getOptions(values) : (field.options ?? []);
-                return (
-                  <AppSelect
-                    label={field.label}
-                    description={field.description}
-                    error={fieldErrors[field.name]}
-                    value={String(values[field.name] ?? "")}
-                    disabled={field.disabled}
-                    onChange={(event) =>
-                      setFieldValue(field, event.target.value)
-                    }
-                  >
-                    <option value="">Seleccionar...</option>
-                    {options.map((option) => (
-                      <option key={option.value} value={option.value} disabled={option.disabled}>
-                        {option.disabled ? `${option.label} · no disponible` : option.label}
-                      </option>
-                    ))}
-                  </AppSelect>
-                );
-              })()
-            ) : (
-              <AppInput
-                label={field.label}
-                type={field.type}
-                error={fieldErrors[field.name]}
-                value={String(values[field.name] ?? "")}
-                disabled={field.disabled}
-                onChange={(event) =>
-                  setFieldValue(field, event.target.value)
-                }
-                placeholder={field.placeholder}
-                uiSize="lg"
-              />
-            )}
-          </div>
-        ))}
+            );
+          }
+          return <div key={field.name}>{renderFieldControl(field)}</div>;
+        })}
       </div>
+
+      {renderExtra ? <div className="mt-3">{renderExtra()}</div> : null}
 
       {!hidePrimaryAction ? (
         <div className="mt-3 flex flex-wrap gap-2">
@@ -935,7 +1033,39 @@ export default function GenericCrudSection({
         </div>
       ) : null}
     </>
-  );
+    );
+  };
+
+  const formModal = formInModal ? (
+    <AppModal
+      opened={showFormModal}
+      onClose={onCancelForm}
+      title={(
+        <div className="flex w-full items-center justify-between">
+          <span>{editingId ? `Editar ${title}` : `Nuevo ${title}`}</span>
+          <button
+            type="button"
+            aria-label="Cerrar"
+            onClick={onCancelForm}
+            className="rounded-[var(--radius-md)] p-1.5 text-[color:var(--text-ink-muted)] transition-colors hover:bg-[color:var(--action-ghost-hover)] hover:text-[color:var(--text-ink)]"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      )}
+      size="lg"
+      showHeaderDivider
+    >
+      {renderForm()}
+      {hideContainer ? renderFeedback() : null}
+    </AppModal>
+  ) : null;
+
+  if (hideContainer) {
+    return formModal;
+  }
 
   return (
     <AppCard
@@ -984,31 +1114,7 @@ export default function GenericCrudSection({
 
       {renderFeedback()}
 
-      {formInModal ? (
-        <AppModal
-          opened={showFormModal}
-          onClose={onCancelForm}
-          title={(
-            <div className="flex w-full items-center justify-between">
-              <span>{editingId ? `Editar ${title}` : `Nuevo ${title}`}</span>
-              <button
-                type="button"
-                aria-label="Cerrar"
-                onClick={onCancelForm}
-                className="rounded-[var(--radius-md)] p-1.5 text-[color:var(--text-ink-muted)] transition-colors hover:bg-[color:var(--action-ghost-hover)] hover:text-[color:var(--text-ink)]"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-          )}
-          size="lg"
-          showHeaderDivider
-        >
-          {renderForm()}
-        </AppModal>
-      ) : null}
+      {formModal}
 
       {confirmDelete && (
         <AppModal

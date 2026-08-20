@@ -180,6 +180,28 @@ export async function fetchImpactoBorradoRemito(remitoUvaId: string) {
   return response.data;
 }
 
+export type AdjuntoRecord = {
+  cid: string;
+  url: string;
+  nombre: string;
+  tipo: string;
+  size: number;
+};
+
+export async function uploadRemitoUvaAdjunto(
+  remitoUvaId: string,
+  file: File,
+): Promise<{ adjunto: AdjuntoRecord; adjuntos: AdjuntoRecord[] }> {
+  const formData = new FormData();
+  formData.append("imagen", file);
+  const response = await apiClient.post<{ adjunto: AdjuntoRecord; adjuntos: AdjuntoRecord[] }>(
+    `/elaboracion/remitos-uva/${encodeURIComponent(remitoUvaId)}/adjuntos`,
+    formData,
+    { headers: { "Content-Type": "multipart/form-data" } },
+  );
+  return response.data;
+}
+
 export type ImpactoBorradoOperacionVasija = {
   tipo: string;
   vasijaContenidoVinculado: Array<{ volumen_l: number; activo: boolean }>;

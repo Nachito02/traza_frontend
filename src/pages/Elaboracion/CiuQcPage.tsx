@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   listElaboracionResource,
   type ElaboracionEntity,
 } from "../../features/elaboracion/api";
+import { AppButton, AppCard } from "../../components/ui";
 import { useAuthStore } from "../../store/authStore";
 import GenericCrudSection, { type SelectOption } from "./components/GenericCrudSection";
 
@@ -39,6 +40,9 @@ function formatRecepcionOption(item: ElaboracionEntity): SelectOption | null {
   const patente = typeof remito.patente === "string" && remito.patente.trim()
     ? `Patente ${remito.patente}`
     : null;
+  const transportista = typeof remito.transportista === "string" && remito.transportista.trim()
+    ? remito.transportista.trim()
+    : null;
 
   return {
     value: String(id),
@@ -47,8 +51,60 @@ function formatRecepcionOption(item: ElaboracionEntity): SelectOption | null {
       [fincaLabel, cuartelLabel].filter(Boolean).join(" / "),
       kgPesados,
       patente,
+      transportista,
     ].filter(Boolean).join(" · "),
   };
+}
+
+type RecepcionCiuMeta = {
+  variedad: string | null;
+  codigoInvVinatero: string | null;
+  tenorAzucarinoGl: string | null;
+  uvaOrganica: boolean | null;
+};
+
+function getRecepcionCiuMeta(recepciones: ElaboracionEntity[], recepcionBodegaId: string): RecepcionCiuMeta {
+  const item = recepciones.find((r) => {
+    const id = r.recepcion_bodega_id ?? r.id_recepcion ?? r.recepcion_id ?? r.id;
+    return String(id ?? "") === recepcionBodegaId;
+  });
+  if (!item) return { variedad: null, codigoInvVinatero: null, tenorAzucarinoGl: null, uvaOrganica: null };
+
+  const remito = item.remito_uva && typeof item.remito_uva === "object"
+    ? item.remito_uva as Record<string, unknown>
+    : {};
+  const cuartel = remito.cuartel && typeof remito.cuartel === "object"
+    ? remito.cuartel as Record<string, unknown>
+    : {};
+  const finca = remito.finca && typeof remito.finca === "object"
+    ? remito.finca as Record<string, unknown>
+    : {};
+  const variedad = typeof cuartel.variedad === "string" && cuartel.variedad.trim()
+    ? cuartel.variedad.trim()
+    : null;
+  const codigoInvVinatero = typeof finca.nro_inscripto_inv === "string" && finca.nro_inscripto_inv.trim()
+    ? finca.nro_inscripto_inv.trim()
+    : null;
+  const sistemaProductivo = typeof cuartel.sistema_productivo === "string"
+    ? cuartel.sistema_productivo.trim().toLowerCase()
+    : "";
+  const uvaOrganica = sistemaProductivo ? sistemaProductivo.includes("organic") : null;
+
+  const analisisList = Array.isArray(item.analisis_recepcion) ? item.analisis_recepcion : [];
+  const analisisOrdenado = [...analisisList].sort((a, b) => {
+    const fechaA = a && typeof a === "object" ? new Date(String((a as Record<string, unknown>).created_at ?? "")).getTime() : 0;
+    const fechaB = b && typeof b === "object" ? new Date(String((b as Record<string, unknown>).created_at ?? "")).getTime() : 0;
+    return fechaB - fechaA;
+  });
+  const brixRaw = analisisOrdenado[0] && typeof analisisOrdenado[0] === "object"
+    ? (analisisOrdenado[0] as Record<string, unknown>).brix
+    : undefined;
+  const brix = typeof brixRaw === "string" || typeof brixRaw === "number" ? Number(brixRaw) : NaN;
+  // Aproximación estándar de la industria: °Brix × 10 ≈ g/l de azúcar. Queda
+  // editable porque es una aproximación, no una medición directa.
+  const tenorAzucarinoGl = Number.isFinite(brix) ? String(Math.round(brix * 10 * 10) / 10) : null;
+
+  return { variedad, codigoInvVinatero, tenorAzucarinoGl, uvaOrganica };
 }
 
 type CiuQcPageProps = {
@@ -70,16 +126,25 @@ export default function CiuQcPage({
 }: CiuQcPageProps) {
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const [recepcionOptions, setRecepcionOptions] = useState<SelectOption[]>([]);
+  const [recepciones, setRecepciones] = useState<ElaboracionEntity[]>([]);
+  // Ingreso elegido haciendo clic en la lista de "pendientes" (en vez de entrar
+  // por "Nuevo registro" y buscarlo en el desplegable). `formKey` fuerza que
+  // GenericCrudSection se vuelva a montar para que tome el nuevo default y
+  // reabra el form — el auto-open normal solo se dispara una vez por montaje.
+  const [recepcionElegidaId, setRecepcionElegidaId] = useState<string | null>(null);
+  const [formKey, setFormKey] = useState(0);
 
   const loadReferenceOptions = useCallback(async () => {
     if (!activeBodegaId) {
       setRecepcionOptions([]);
+      setRecepciones([]);
       return;
     }
-    const [recepciones, cius] = await Promise.all([
+    const [recepcionesData, cius] = await Promise.all([
       listElaboracionResource("recepciones-bodega", { bodegaId: String(activeBodegaId) }),
       listElaboracionResource("cius", { bodegaId: String(activeBodegaId) }),
     ]);
+    setRecepciones(recepcionesData);
     // Una recepción que ya tiene CIU cargado no se puede volver a elegir para otro.
     const recepcionesConCiu = new Set(
       cius
@@ -87,7 +152,7 @@ export default function CiuQcPage({
         .filter((id): id is string => typeof id === "string"),
     );
     setRecepcionOptions(
-      recepciones
+      recepcionesData
         .map(formatRecepcionOption)
         .filter((option): option is SelectOption => option !== null)
         .map((option) => ({ ...option, disabled: recepcionesConCiu.has(option.value) })),
@@ -101,16 +166,46 @@ export default function CiuQcPage({
     void run();
   }, [loadReferenceOptions, referenceOptionsVersion]);
 
+  const pendientes = useMemo(() => recepcionOptions.filter((o) => !o.disabled), [recepcionOptions]);
+
+  const elegirRecepcion = (recepcionBodegaId: string) => {
+    // Refresca por si el análisis/otros datos de esta recepción se cargaron
+    // recién, después del último fetch de referencia de esta página.
+    void loadReferenceOptions().then(() => {
+      setRecepcionElegidaId(recepcionBodegaId);
+      setFormKey((k) => k + 1);
+    });
+  };
+
   return (
     <div className="space-y-4">
+      {pendientes.length > 0 ? (
+        <AppCard padding="lg" header={<h3 className="text-base font-semibold">Ingresos pendientes de CIU</h3>}>
+          <ul className="space-y-2">
+            {pendientes.map((r) => (
+              <li
+                key={r.value}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-3 py-2 text-sm"
+              >
+                <span className="text-[color:var(--text-ink)]">{r.label}</span>
+                <AppButton type="button" variant="secondary" size="sm" onClick={() => elegirRecepcion(r.value)}>
+                  Registrar CIU
+                </AppButton>
+              </li>
+            ))}
+          </ul>
+        </AppCard>
+      ) : null}
+
       <GenericCrudSection
+        key={formKey}
         title="CIU"
         description="Datos del viaje para declarar el CIU. El número lo asigna la bodega. Estos datos arman el lote y generan el archivo .txt que después se carga en el Sistema de Cosecha del INV para declararlo."
         resource="cius"
         bodegaId={activeBodegaId}
         hidePrimaryAction={hidePrimaryAction}
         formInModal={!hidePrimaryAction}
-        autoOpenForm={autoOpenForm}
+        autoOpenForm={autoOpenForm || recepcionElegidaId !== null}
         fields={[
           {
             name: "recepcionBodegaId",
@@ -119,6 +214,21 @@ export default function CiuQcPage({
             required: true,
             options: recepcionOptions,
             sourceKey: "recepcion_bodega_id",
+            deriveOnChange: (value) => {
+              const meta = getRecepcionCiuMeta(recepciones, value);
+              return {
+                ...(meta.variedad ? { variedad_nombre: meta.variedad } : {}),
+                ...(meta.tenorAzucarinoGl ? { tenor_azucarino_gl: meta.tenorAzucarinoGl } : {}),
+                ...(meta.uvaOrganica !== null ? { uva_organica: meta.uvaOrganica } : {}),
+              };
+            },
+          },
+          {
+            name: "codigo_inv_vinatero",
+            label: "Código INV (viñatero)",
+            type: "text",
+            computed: (values) =>
+              getRecepcionCiuMeta(recepciones, String(values.recepcionBodegaId ?? "")).codigoInvVinatero ?? "—",
           },
           { name: "codigo_ciu", label: "Número de CIU", type: "text", required: true },
           { name: "emitido_at", label: "Fecha del CIU", type: "datetime-local", required: true },
@@ -131,15 +241,26 @@ export default function CiuQcPage({
           {
             name: "variedad_nombre",
             label: "Variedad — nombre",
+            description: "Se autocompleta con la variedad del cuartel al elegir el ingreso — editable.",
             type: "text",
             placeholder: "ej. SYRAH (SHIRAZ-SIRAH)",
           },
-          { name: "tenor_azucarino_gl", label: "Tenor azucarino (g/l)", type: "number" },
+          {
+            name: "tenor_azucarino_gl",
+            label: "Tenor azucarino (g/l)",
+            description: "Viene del análisis (Brix × 10), no de los datos del cuartel — editable.",
+            type: "number",
+          },
           { name: "uva_organica", label: "Uva orgánica", type: "checkbox" },
           { name: "observaciones", label: "Observaciones", type: "textarea" },
         ]}
-        defaultValues={ciuDefaultValues}
+        defaultValues={
+          recepcionElegidaId
+            ? { ...(ciuDefaultValues ?? {}), recepcionBodegaId: recepcionElegidaId }
+            : ciuDefaultValues
+        }
         onCreated={async (item) => {
+          setRecepcionElegidaId(null);
           await loadReferenceOptions();
           await onCiuCreated?.(item);
         }}
