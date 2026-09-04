@@ -16,14 +16,18 @@ import {
   fetchImpactoBorradoLote,
   fetchLote,
   fetchLoteGenealogia,
+  fetchLoteHistorial,
   updateLote,
   type CiuContribucion,
   type ImpactoBorradoLote,
   type Lote,
   type LoteGenealogiaNode,
+  type LoteHistorialEvento,
 } from "../../features/lotes/api";
 import { getApiErrorMessage } from "../../lib/api";
+import LoteGenealogiaDiagram from "./components/LoteGenealogiaDiagram";
 import LoteGenealogiaTree from "./components/LoteGenealogiaTree";
+import LoteHistorialTimeline from "./components/LoteHistorialTimeline";
 
 const ORIGEN_LABEL: Record<Lote["origen"], string> = {
   ingreso: "Ingreso",
@@ -37,6 +41,8 @@ export default function LoteDetailPage() {
   const [lote, setLote] = useState<Lote | null>(null);
   const [genealogia, setGenealogia] = useState<LoteGenealogiaNode | null>(null);
   const [cius, setCius] = useState<CiuContribucion[]>([]);
+  const [historial, setHistorial] = useState<LoteHistorialEvento[]>([]);
+  const [vistaGenealogia, setVistaGenealogia] = useState<"diagrama" | "lista">("diagrama");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exportando, setExportando] = useState(false);
@@ -55,12 +61,13 @@ export default function LoteDetailPage() {
     let mounted = true;
     setLoading(true);
     setError(null);
-    Promise.all([fetchLote(id), fetchLoteGenealogia(id)])
-      .then(([loteData, genealogiaData]) => {
+    Promise.all([fetchLote(id), fetchLoteGenealogia(id), fetchLoteHistorial(id)])
+      .then(([loteData, genealogiaData, historialData]) => {
         if (!mounted) return;
         setLote(loteData);
         setGenealogia(genealogiaData.genealogia);
         setCius(genealogiaData.cius);
+        setHistorial(historialData);
       })
       .catch((err) => {
         if (mounted) setError(getApiErrorMessage(err));
@@ -197,13 +204,54 @@ export default function LoteDetailPage() {
               as="section"
               tone="default"
               padding="lg"
-              header={<h3 className="text-base font-semibold">Genealogía</h3>}
+              header={(
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-base font-semibold">Genealogía</h3>
+                  <div className="flex gap-2">
+                    <AppButton
+                      type="button"
+                      variant={vistaGenealogia === "diagrama" ? "primary" : "secondary"}
+                      size="sm"
+                      onClick={() => setVistaGenealogia("diagrama")}
+                    >
+                      Diagrama
+                    </AppButton>
+                    <AppButton
+                      type="button"
+                      variant={vistaGenealogia === "lista" ? "primary" : "secondary"}
+                      size="sm"
+                      onClick={() => setVistaGenealogia("lista")}
+                    >
+                      Lista
+                    </AppButton>
+                  </div>
+                </div>
+              )}
             >
               <p className="mb-3 text-xs text-[color:var(--text-ink-muted)]">
-                De qué lotes viene este, hasta llegar a los CIU de origen. El % es la contribución al nivel
-                inmediato superior.
+                De arriba hacia abajo: la finca y el cuartel de origen (con su CIU), bajando corte a corte
+                hasta este vino. El % es el aporte de cada lote a lo que se armó con él.
               </p>
-              {genealogia ? <LoteGenealogiaTree nodo={genealogia} /> : null}
+              {genealogia ? (
+                vistaGenealogia === "diagrama" ? (
+                  <LoteGenealogiaDiagram nodo={genealogia} />
+                ) : (
+                  <LoteGenealogiaTree nodo={genealogia} />
+                )
+              ) : null}
+            </AppCard>
+
+            <AppCard
+              as="section"
+              tone="default"
+              padding="lg"
+              header={<h3 className="text-base font-semibold">Historial</h3>}
+            >
+              <p className="mb-3 text-xs text-[color:var(--text-ink-muted)]">
+                Todo lo que le pasó a este lote: origen, movimientos entre vasijas, y si se usó como
+                componente de otro corte.
+              </p>
+              <LoteHistorialTimeline eventos={historial} cuartel={lote.cuartel} />
             </AppCard>
 
             <AppCard

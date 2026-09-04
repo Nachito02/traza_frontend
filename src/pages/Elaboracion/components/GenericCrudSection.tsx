@@ -358,6 +358,21 @@ function formatRelatedFieldValue(
     return label || formatItemFieldValue(item[sourceKey]);
   }
 
+  if (resource === "lotes-fraccionamiento") {
+    if (sourceKey === "corte_id") {
+      const corte = getNestedRecord(item, "corte");
+      const fecha = formatDateTimeValue(corte?.fecha);
+      const objetivo = typeof corte?.objetivo === "string" && corte.objetivo ? corte.objetivo : null;
+      const label = [fecha, objetivo].filter(Boolean).join(" · ");
+      return label || formatItemFieldValue(item[sourceKey]);
+    }
+    if (sourceKey === "producto_id") {
+      const producto = getNestedRecord(item, "producto");
+      return formatItemFieldValue(producto?.nombre_comercial ?? item[sourceKey]);
+    }
+  }
+
+
   return formatItemFieldValue(item[sourceKey]);
 }
 

@@ -49,6 +49,8 @@ import RecursosAdmin from "./pages/Admin/RecursosAdmin";
 import InventarioPage from "./pages/Inventario/InventarioPage";
 import PersonalPage from "./pages/Personal/PersonalPage";
 import TrazabilidadPublica from "./pages/Public/TrazabilidadPublica";
+import ProductoPublico from "./pages/Public/ProductoPublico";
+import LotePublico from "./pages/Public/LotePublico";
 import BodegaHome from "./pages/Bodega/BodegaHome";
 import BodegaConfigPage from "./pages/Bodega/BodegaConfigPage";
 import BodegaVasijasPage from "./pages/Bodega/BodegaVasijasPage";
@@ -171,6 +173,8 @@ export default function App() {
       <Route path="/" element={<Navigate to="/login" replace />} />
       {/* Public — no auth required */}
       <Route path="/trazabilidad/:cuartelId" element={<TrazabilidadPublica />} />
+      <Route path="/producto/:codigoQr" element={<ProductoPublico />} />
+      <Route path="/lote/:loteId" element={<LotePublico />} />
       <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} />
       <Route path="/registro" element={<Register />} />
       <Route path="/cambiar-password" element={<ChangePassword />} />

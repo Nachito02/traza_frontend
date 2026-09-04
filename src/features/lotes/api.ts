@@ -25,7 +25,7 @@ export type Lote = {
   observaciones: string | null;
   created_at: string;
   cuartel: { cuartel_id: string; codigo_cuartel: string; finca: { nombre_finca: string } } | null;
-  campania: { campania_id: string; nombre: string } | null;
+  campania: { campania_id: string; nombre: string; fecha_inicio: string } | null;
   lote_origen_recepcion: Array<{
     recepcion_bodega_id: string;
     recepcion_bodega: {
@@ -75,7 +75,7 @@ export async function crearCorteConVasijas(payload: {
   responsableUserId?: string;
   observaciones?: string;
   fuentes: Array<{ vasijaId: string; volumenL: number }>;
-  destinoVasijaId?: string;
+  destinos: Array<{ vasijaId: string; volumenL: number }>;
 }) {
   const response = await apiClient.post<CorteBlendResult>("/elaboracion/lotes/blend", payload);
   return response.data;
@@ -137,6 +137,45 @@ export type CiuContribucion = {
 export async function fetchLoteGenealogia(loteId: string) {
   const response = await apiClient.get<{ genealogia: LoteGenealogiaNode; cius: CiuContribucion[] }>(
     `/elaboracion/lotes/${encodeURIComponent(loteId)}/genealogia`,
+  );
+  return response.data;
+}
+
+export type LoteHistorialEvento =
+  | {
+      kind: "origen_ingreso";
+      fecha: string;
+      recepciones: Array<{ codigo_ciu: string | null; fecha_hora: string; kg_pesados: number | null }>;
+    }
+  | {
+      kind: "origen_corte";
+      fecha: string;
+      corte_id: string;
+      objetivo: string | null;
+      componentes: Array<{ lote_id: string; lote_codigo: string; porcentaje: number }>;
+    }
+  | {
+      kind: "movimiento_vasija";
+      fecha: string;
+      vasija_codigo: string;
+      volumen_l: number;
+      cerrado: boolean;
+      tipo_operacion: string | null;
+      observaciones: string | null;
+      responsable: string | null;
+    }
+  | {
+      kind: "usado_en_corte";
+      fecha: string;
+      corte_id: string;
+      lote_resultado_id: string;
+      lote_resultado_codigo: string;
+      porcentaje: number;
+    };
+
+export async function fetchLoteHistorial(loteId: string) {
+  const response = await apiClient.get<LoteHistorialEvento[]>(
+    `/elaboracion/lotes/${encodeURIComponent(loteId)}/historial`,
   );
   return response.data;
 }

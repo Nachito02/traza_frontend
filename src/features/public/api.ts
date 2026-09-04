@@ -2,6 +2,8 @@
  * Public API — no auth token required.
  * These calls use the raw fetch API (not the authenticated apiClient).
  */
+import type { CiuContribucion, LoteGenealogiaNode } from "../lotes/api";
+
 const API_BASE = (import.meta.env.VITE_API_URL as string) ?? "";
 
 export type PublicTareaAsignacion = {
@@ -98,4 +100,54 @@ export async function fetchPublicTrazabilidadCuartel(
     throw new Error(`Error ${response.status}: ${response.statusText}`);
   }
   return response.json() as Promise<PublicTrazabilidadCuartel>;
+}
+
+export type PublicProducto = {
+  codigo_envase_id: string;
+  codigo_qr: string;
+  codigo_lote_impreso: string | null;
+  lote_fraccionamiento: {
+    lote_fraccionamiento_id: string;
+    fecha: string;
+    botellas: number | null;
+    formato: string | null;
+  };
+  producto: {
+    producto_id: string;
+    nombre_comercial: string;
+    varietal: string | null;
+    anio: number | null;
+    tipo: string | null;
+  };
+  corte: { corte_id: string; fecha: string; objetivo: string | null };
+  genealogia: LoteGenealogiaNode[];
+  cius: CiuContribucion[];
+  /** Línea de campo completa de cada cuartel de origen involucrado en el blend. */
+  cuarteles: PublicTrazabilidadCuartel[];
+};
+
+export async function fetchPublicProducto(codigoQr: string): Promise<PublicProducto> {
+  const response = await fetch(`${API_BASE}/public/producto/${encodeURIComponent(codigoQr)}`);
+  if (!response.ok) {
+    throw new Error(`Error ${response.status}: ${response.statusText}`);
+  }
+  return response.json() as Promise<PublicProducto>;
+}
+
+export type PublicLote = {
+  lote_id: string;
+  codigo: string;
+  origen: "ingreso" | "corte";
+  genealogia: LoteGenealogiaNode;
+  cius: CiuContribucion[];
+  cuarteles: PublicTrazabilidadCuartel[];
+};
+
+/** Vista pública de un lote puntual (todavía no fraccionado en producto, o un lote intermedio del blend). */
+export async function fetchPublicLote(loteId: string): Promise<PublicLote> {
+  const response = await fetch(`${API_BASE}/public/lote/${encodeURIComponent(loteId)}`);
+  if (!response.ok) {
+    throw new Error(`Error ${response.status}: ${response.statusText}`);
+  }
+  return response.json() as Promise<PublicLote>;
 }

@@ -7,28 +7,12 @@ import {
   patchElaboracionResource,
   type ElaboracionEntity,
 } from "../../features/elaboracion/api";
-import {
-  AppButton,
-  AppCard,
-  AppInput,
-  AppSelect,
-  NoticeBanner,
-  SectionIntro,
-  useConfirmDialog,
-} from "../../components/ui";
+import { AppCard, AppSelect, SectionIntro } from "../../components/ui";
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
 import GenericCrudSection, { type SelectOption } from "./components/GenericCrudSection";
+import QrEnvaseModal from "./components/QrEnvaseModal";
 import SectionSelector from "./components/SectionSelector";
-
-type LoteForm = {
-  corteId: string;
-  productoId: string;
-  fecha: string;
-  botellas: string;
-  formato: string;
-  codigo_lote_impreso: string;
-};
 
 function toOptions(items: ElaboracionEntity[], idKeys: string[], labelKeys: string[]): SelectOption[] {
   return items
@@ -55,6 +39,13 @@ function resolveBodegaId(item: ElaboracionEntity) {
   return typeof value === "string" || typeof value === "number" ? String(value) : "";
 }
 
+function getNestedRecord(item: ElaboracionEntity, key: string): Record<string, unknown> | null {
+  const value = item[key];
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
 type FraccionamientoDespachoPageProps = {
   initialSection?: "lotes" | "codigos" | "despachos";
   hideSectionSelector?: boolean;
@@ -66,32 +57,17 @@ export default function FraccionamientoDespachoPage({
   hideSectionSelector = false,
   hidePrimaryAction = false,
 }: FraccionamientoDespachoPageProps) {
-  const { confirm, ConfirmDialog } = useConfirmDialog();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
   const [activeSection, setActiveSection] = useState<"lotes" | "codigos" | "despachos">(initialSection);
-  const [loteViewMode, setLoteViewMode] = useState<"list" | "form">(
-    hidePrimaryAction ? "form" : "list",
-  );
 
   const [cortes, setCortes] = useState<ElaboracionEntity[]>([]);
   const [productos, setProductos] = useState<ElaboracionEntity[]>([]);
   const [lotes, setLotes] = useState<ElaboracionEntity[]>([]);
-
-  const [form, setForm] = useState<LoteForm>({
-    corteId: "",
-    productoId: "",
-    fecha: "",
-    botellas: "",
-    formato: "",
-    codigo_lote_impreso: "",
-  });
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [loteFilterCodigos, setLoteFilterCodigos] = useState("");
+  const [qrModal, setQrModal] = useState<{ codigoQr: string; label?: string } | null>(null);
 
   useEffect(() => {
     if (hideSectionSelector) {
@@ -106,8 +82,28 @@ export default function FraccionamientoDespachoPage({
     setActiveSection(initialSection);
   }, [hideSectionSelector, initialSection, searchParams]);
 
-  const corteOptions = useMemo(
-    () => toOptions(cortes, ["id_corte", "corte_id", "id"], ["objetivo", "fecha", "id_corte"]),
+  // "Corte → Lote resultante": el corte guiado por vasijas ya arma su propio lote (blend);
+  // mostrarlo en el label ayuda a saber a qué corte corresponde al momento de nombrarlo.
+  const corteOptions = useMemo<SelectOption[]>(
+    () =>
+      cortes
+        .map((item) => {
+          const id = item.id_corte ?? item.corte_id ?? item.id;
+          if (typeof id !== "string" && typeof id !== "number") return null;
+          const fecha = typeof item.fecha === "string" ? item.fecha.slice(0, 10) : null;
+          const objetivo = typeof item.objetivo === "string" && item.objetivo ? item.objetivo : null;
+          const loteCreado = Array.isArray(item.lote_creado) ? item.lote_creado : [];
+          const loteCodigo = loteCreado
+            .map((entry) =>
+              entry && typeof entry === "object" && "codigo" in entry
+                ? (entry as Record<string, unknown>).codigo
+                : null,
+            )
+            .find((value): value is string => typeof value === "string");
+          const base = [fecha, objetivo].filter(Boolean).join(" · ") || String(id);
+          return { value: String(id), label: loteCodigo ? `${base} → ${loteCodigo}` : base };
+        })
+        .filter((option): option is SelectOption => option !== null),
     [cortes],
   );
   const productoOptions = useMemo(
@@ -132,7 +128,7 @@ export default function FraccionamientoDespachoPage({
   const loadData = async () => {
     if (!activeBodegaId) return;
     setLoading(true);
-    setError(null);
+    setLoadError(null);
     try {
       const [cortesData, productosData, lotesData] = await Promise.all([
         listElaboracionResource("cortes", { bodegaId: String(activeBodegaId) }),
@@ -143,7 +139,7 @@ export default function FraccionamientoDespachoPage({
       setProductos(productosData);
       setLotes(lotesData);
     } catch (requestError) {
-      setError(getApiErrorMessage(requestError));
+      setLoadError(getApiErrorMessage(requestError));
     } finally {
       setLoading(false);
     }
@@ -154,97 +150,31 @@ export default function FraccionamientoDespachoPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeBodegaId]);
 
-  const submitLote = async () => {
-    if (!activeBodegaId) {
-      setError("Seleccioná una bodega.");
-      return;
-    }
-    if (!form.corteId || !form.productoId || !form.fecha) {
-      setError("corteId, productoId y fecha son obligatorios.");
-      return;
-    }
-
-    const corte = cortes.find((item) => String(item.id_corte ?? item.corte_id ?? item.id) === form.corteId);
+  const validateLoteFraccionamiento = (values: Record<string, string | boolean>) => {
+    const corteId = typeof values.corteId === "string" ? values.corteId : "";
+    const productoId = typeof values.productoId === "string" ? values.productoId : "";
+    if (!corteId || !productoId) return null;
+    const corte = cortes.find((item) => String(item.id_corte ?? item.corte_id ?? item.id) === corteId);
     const producto = productos.find(
-      (item) => String(item.id_producto ?? item.producto_id ?? item.id) === form.productoId,
+      (item) => String(item.id_producto ?? item.producto_id ?? item.id) === productoId,
     );
-
     const corteBodega = corte ? resolveBodegaId(corte) : "";
     const productoBodega = producto ? resolveBodegaId(producto) : "";
     if (corteBodega && productoBodega && corteBodega !== productoBodega) {
-      setError("Corte y producto deben pertenecer a la misma bodega.");
-      return;
+      return "Corte y producto deben pertenecer a la misma bodega.";
     }
-
-    const payload: Record<string, unknown> = {
-      corteId: form.corteId,
-      productoId: form.productoId,
-      fecha: form.fecha,
-      botellas: form.botellas ? Number(form.botellas) : undefined,
-      formato: form.formato || undefined,
-      codigo_lote_impreso: form.codigo_lote_impreso || undefined,
-    };
-
-    setSaving(true);
-    setError(null);
-    setSuccess(null);
-    try {
-      if (editingId) {
-        await patchElaboracionResource("lotes-fraccionamiento", editingId, payload);
-        setSuccess("Lote fraccionamiento actualizado.");
-      } else {
-        await createElaboracionResource("lotes-fraccionamiento", payload);
-        setSuccess("Lote fraccionamiento creado.");
-      }
-      setForm({
-        corteId: "",
-        productoId: "",
-        fecha: "",
-        botellas: "",
-        formato: "",
-        codigo_lote_impreso: "",
-      });
-      setEditingId(null);
-      if (!hidePrimaryAction) {
-        setLoteViewMode("list");
-      }
-      await loadData();
-    } catch (requestError) {
-      setError(getApiErrorMessage(requestError));
-    } finally {
-      setSaving(false);
-    }
+    return null;
   };
 
-  const editLote = (item: ElaboracionEntity) => {
-    const id = resolveLoteId(item);
-    if (!id) return;
-    setEditingId(id);
-    if (!hidePrimaryAction) {
-      setLoteViewMode("form");
-    }
-    setForm({
-      corteId: String(item.id_corte ?? item.corte_id ?? ""),
-      productoId: String(item.id_producto ?? item.producto_id ?? ""),
-      fecha: typeof item.fecha === "string" ? item.fecha.slice(0, 10) : "",
-      botellas: item.botellas === undefined || item.botellas === null ? "" : String(item.botellas),
-      formato: String(item.formato ?? ""),
-      codigo_lote_impreso: String(item.codigo_lote_impreso ?? ""),
-    });
-  };
-
-  const deleteLote = async (item: ElaboracionEntity) => {
-    const id = resolveLoteId(item);
-    if (!id) return;
-    if (!(await confirm(`¿Eliminar lote ${id}?`))) return;
-
-    try {
-      await deleteElaboracionResource("lotes-fraccionamiento", id);
-      setSuccess("Lote fraccionamiento eliminado.");
-      await loadData();
-    } catch (requestError) {
-      setError(getApiErrorMessage(requestError));
-    }
+  const handleCodigoEnvaseCreated = (item: ElaboracionEntity) => {
+    const codigoQr = typeof item.codigo_qr === "string" ? item.codigo_qr : "";
+    if (!codigoQr) return;
+    const loteFracId = String(item.lote_fraccionamiento_id ?? "");
+    const lote = lotes.find((entry) => resolveLoteId(entry) === loteFracId);
+    const producto = lote ? getNestedRecord(lote, "producto") : null;
+    const nombreComercial =
+      producto && typeof producto.nombre_comercial === "string" ? producto.nombre_comercial : null;
+    setQrModal({ codigoQr, label: nombreComercial ?? undefined });
   };
 
   return (
@@ -285,194 +215,50 @@ export default function FraccionamientoDespachoPage({
       ) : null}
 
       {activeSection === "lotes" ? (
-        <AppCard
-          as="section"
-          tone="default"
-          padding="md"
-          header={(
-            <SectionIntro
-              title="Lotes de Fraccionamiento"
-              description="Validación aplicada: corte y producto deben ser de la misma bodega."
-              actions={
-                !hidePrimaryAction && loteViewMode === "list" ? (
-                  <AppButton
-                    type="button"
-                    variant="primary"
-                    size="sm"
-                    onClick={() => {
-                      setEditingId(null);
-                      setForm({
-                        corteId: "",
-                        productoId: "",
-                        fecha: "",
-                        botellas: "",
-                        formato: "",
-                        codigo_lote_impreso: "",
-                      });
-                      setLoteViewMode("form");
-                    }}
-                  >
-                    Nuevo lote
-                  </AppButton>
-                ) : undefined
-              }
-            />
-          )}
-        >
-
-          {hidePrimaryAction || loteViewMode === "form" ? (
-            <>
-              <div className="mt-3 grid gap-2 md:grid-cols-2">
-                <AppSelect
-                  label="Corte"
-                  value={form.corteId}
-                  onChange={(event) => setForm((prev) => ({ ...prev, corteId: event.target.value }))}
-                >
-                  <option value="">Corte</option>
-                  {corteOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </AppSelect>
-
-                <AppSelect
-                  label="Producto"
-                  value={form.productoId}
-                  onChange={(event) => setForm((prev) => ({ ...prev, productoId: event.target.value }))}
-                >
-                  <option value="">Producto</option>
-                  {productoOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </AppSelect>
-
-                <AppInput
-                  label="Fecha"
-                  type="date"
-                  value={form.fecha}
-                  onChange={(event) => setForm((prev) => ({ ...prev, fecha: event.target.value }))}
-                  uiSize="lg"
-                />
-                <AppInput
-                  label="Botellas"
-                  type="number"
-                  placeholder="Botellas"
-                  value={form.botellas}
-                  onChange={(event) => setForm((prev) => ({ ...prev, botellas: event.target.value }))}
-                  uiSize="lg"
-                />
-
-                <AppInput
-                  label="Formato"
-                  type="text"
-                  placeholder="Formato"
-                  value={form.formato}
-                  onChange={(event) => setForm((prev) => ({ ...prev, formato: event.target.value }))}
-                  uiSize="lg"
-                />
-                <AppInput
-                  label="Código lote impreso"
-                  type="text"
-                  placeholder="Código lote impreso"
-                  value={form.codigo_lote_impreso}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, codigo_lote_impreso: event.target.value }))
-                  }
-                  uiSize="lg"
-                />
-              </div>
-
-              {!hidePrimaryAction ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <AppButton
-                    type="button"
-                    variant="primary"
-                    size="sm"
-                    loading={saving}
-                    onClick={() => void submitLote()}
-                    disabled={saving}
-                  >
-                    {editingId ? "Guardar" : "Crear"}
-                  </AppButton>
-                  <AppButton
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => {
-                      setEditingId(null);
-                      setForm({
-                        corteId: "",
-                        productoId: "",
-                        fecha: "",
-                        botellas: "",
-                        formato: "",
-                        codigo_lote_impreso: "",
-                      });
-                      setLoteViewMode("list");
-                    }}
-                  >
-                    {editingId ? "Cancelar edición" : "Volver al listado"}
-                  </AppButton>
-                </div>
-              ) : null}
-            </>
-          ) : (
-            <div className="mt-3 max-h-72 space-y-2 overflow-auto">
-              {loading ? (
-                <NoticeBanner>Cargando...</NoticeBanner>
-              ) : lotes.length === 0 ? (
-                <NoticeBanner>Sin lotes.</NoticeBanner>
-              ) : (
-                lotes.map((item, index) => {
-                  const id = resolveLoteId(item) || `i-${index}`;
-                  return (
-                    <AppCard key={id} as="article" tone="soft" padding="sm">
-                      <div className="text-xs font-semibold text-[color:var(--accent-primary)]">{id}</div>
-                      <pre className="mt-1 max-h-20 overflow-auto rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] p-2 text-[11px] text-[color:var(--text-on-dark-muted)]">
-                        {JSON.stringify(item, null, 2)}
-                      </pre>
-                      <div className="mt-2 flex gap-2">
-                        <AppButton
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => editLote(item)}
-                        >
-                          Editar
-                        </AppButton>
-                        <AppButton
-                          type="button"
-                          variant="danger"
-                          size="sm"
-                          onClick={() => void deleteLote(item)}
-                        >
-                          Eliminar
-                        </AppButton>
-                      </div>
-                    </AppCard>
-                  );
-                })
-              )}
-            </div>
-          )}
-
-          {error ? <NoticeBanner tone="danger" className="mt-3">{error}</NoticeBanner> : null}
-          {success ? <NoticeBanner tone="success" className="mt-3">{success}</NoticeBanner> : null}
-        </AppCard>
+        <GenericCrudSection
+          title="Lotes de Fraccionamiento"
+          description="Elegí el corte y ponele nombre al producto final. Corte y producto deben ser de la misma bodega."
+          resource="lotes-fraccionamiento"
+          bodegaId={activeBodegaId}
+          separatedLayout={!hidePrimaryAction}
+          validate={validateLoteFraccionamiento}
+          controller={{
+            create: async (payload) => {
+              const created = await createElaboracionResource("lotes-fraccionamiento", payload);
+              await loadData();
+              return created;
+            },
+            update: async ({ id }, payload) => {
+              const updated = await patchElaboracionResource("lotes-fraccionamiento", id, payload);
+              await loadData();
+              return updated;
+            },
+            remove: async ({ id }) => {
+              await deleteElaboracionResource("lotes-fraccionamiento", id);
+              await loadData();
+            },
+          }}
+          fields={[
+            { name: "corteId", label: "Corte", type: "select", required: true, options: corteOptions, sourceKey: "corte_id" },
+            { name: "productoId", label: "Producto", type: "select", required: true, options: productoOptions, sourceKey: "producto_id" },
+            { name: "fecha", label: "Fecha", type: "date", required: true },
+            { name: "botellas", label: "Botellas", type: "number" },
+            { name: "formato", label: "Formato", type: "text", placeholder: "ej. 750ml" },
+            { name: "codigo_lote_impreso", label: "Código lote impreso", type: "text" },
+          ]}
+        />
       ) : null}
 
       {activeSection === "codigos" ? (
         <div className="space-y-6">
         <GenericCrudSection
           title="Códigos Envase"
-          description="Generación de códigos QR por envase."
+          description="Un QR por envase — el código se genera automáticamente al crear el registro, listo para imprimir en la etiqueta."
           resource="codigos-envase"
           bodegaId={activeBodegaId}
           listParams={{ loteFraccionamientoId: loteFilterCodigos || undefined }}
           separatedLayout={!hidePrimaryAction}
+          onCreated={handleCodigoEnvaseCreated}
           fields={[
             {
               name: "loteFraccionamientoId",
@@ -482,7 +268,6 @@ export default function FraccionamientoDespachoPage({
               options: loteOptions,
               sourceKey: "id_lote_frac",
             },
-            { name: "codigo_qr", label: "Código QR", type: "text", required: true },
             { name: "codigo_lote_impreso", label: "Código lote impreso", type: "text" },
           ]}
         />
@@ -527,7 +312,19 @@ export default function FraccionamientoDespachoPage({
           ]}
         />
       ) : null}
-      {ConfirmDialog}
+
+      {loading || loadError ? (
+        <p className="text-xs text-[color:var(--text-ink-muted)]">
+          {loadError ?? "Cargando…"}
+        </p>
+      ) : null}
+
+      <QrEnvaseModal
+        opened={Boolean(qrModal)}
+        onClose={() => setQrModal(null)}
+        codigoQr={qrModal?.codigoQr ?? ""}
+        productoLabel={qrModal?.label}
+      />
     </div>
   );
 }
