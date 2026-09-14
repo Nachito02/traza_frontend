@@ -10,6 +10,8 @@ export type AppInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "size"> 
   error?: ReactNode;
   inputClassName?: string;
   uiSize?: AppInputSize;
+  /** Ícono a la izquierda del campo (ej. una lupa en un buscador). */
+  leftSection?: ReactNode;
 };
 
 function joinClasses(...classes: Array<string | false | null | undefined>) {
@@ -39,6 +41,7 @@ const AppInput = forwardRef<HTMLInputElement, AppInputProps>(
       error,
       uiSize = "md",
       disabled,
+      leftSection,
       ...props
     },
     ref,
@@ -75,6 +78,7 @@ const AppInput = forwardRef<HTMLInputElement, AppInputProps>(
           ref={ref}
           component="input"
           disabled={disabled}
+          leftSection={leftSection}
           styles={{
             input: {
               background: error ? "var(--field-error-bg)" : "var(--field-bg)",
@@ -83,6 +87,7 @@ const AppInput = forwardRef<HTMLInputElement, AppInputProps>(
               borderRadius: "var(--radius-sm)",
               boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)",
             },
+            section: { color: "var(--text-ink-muted)" },
           }}
           className={joinClasses(
             "placeholder:text-[color:var(--field-placeholder)]",
