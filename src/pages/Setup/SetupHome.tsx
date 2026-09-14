@@ -146,12 +146,14 @@ const SetupHome = () => {
           description="Completá estos pasos para dejar lista la estructura base y empezar a operar tareas y procesos."
         />
 
-        <OperationalReadinessCard
-          steps={readinessSteps}
-          title="Hoja de ruta del setup"
-          description="Este panel te muestra qué está listo y qué falta para que la bodega pueda empezar a operar con contexto."
-          compact
-        />
+        {!readinessSteps.every((step) => step.done) && (
+          <OperationalReadinessCard
+            steps={readinessSteps}
+            title="Hoja de ruta del setup"
+            description="Este panel te muestra qué está listo y qué falta para que la bodega pueda empezar a operar con contexto."
+            compact
+          />
+        )}
 
         <div className="grid gap-4 md:grid-cols-2">
           {steps.map((step) => (

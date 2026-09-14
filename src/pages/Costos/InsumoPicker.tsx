@@ -41,20 +41,37 @@ export default function InsumoPicker({ insumos, existencias, superficieHa, reser
   const [dosis, setDosis] = useState("");
   const [unidad, setUnidad] = useState("kg/ha");
   const [adding, setAdding] = useState(false);
-  const cantidadTotal = useMemo(() => {
+  /** `null` = la cantidad la manda el cálculo. Con valor = el usuario la pisó a mano. */
+  const [cantidadManual, setCantidadManual] = useState<string | null>(null);
+
+  const cantidadCalculada = useMemo(() => {
     const dosisN = Number(dosis);
     const superficieN = Number(superficieHa);
     if (!(dosisN > 0) || !(superficieN > 0)) return 0;
     return Number((dosisN * superficieN).toFixed(2));
   }, [dosis, superficieHa]);
 
+  const usandoManual = cantidadManual !== null;
+  const cantidadTotal = usandoManual
+    ? Number(cantidadManual)
+    : cantidadCalculada;
+  const cantidadValor = usandoManual
+    ? cantidadManual
+    : cantidadCalculada > 0
+      ? String(cantidadCalculada)
+      : "";
+
   const submit = async () => {
     if (!insId) return onError?.("Seleccioná un insumo del catálogo.");
     const dosisN = Number(dosis);
     const cantidadN = cantidadTotal;
     if (!(dosisN > 0)) return onError?.("La dosis por ha es obligatoria.");
-    if (!(Number(superficieHa) > 0) || !(cantidadN > 0)) {
+    // La superficie solo hace falta si dependemos del cálculo; con cantidad manual no.
+    if (!usandoManual && !(Number(superficieHa) > 0)) {
       return onError?.("La superficie intervenida debe ser mayor a 0 para calcular la cantidad total.");
+    }
+    if (!(cantidadN > 0)) {
+      return onError?.("La cantidad total debe ser mayor a 0.");
     }
     const insumo = insumos.find((i) => i.insumo_id === insId);
     if (!insumo) return onError?.("Insumo no encontrado.");
@@ -63,6 +80,7 @@ export default function InsumoPicker({ insumos, existencias, superficieHa, reser
       await onAdd({ insumo, dosis_ha: dosisN, unidad_dosis: unidad.trim() || "kg/ha", cantidad_total: cantidadN });
       setInsId("");
       setDosis("");
+      setCantidadManual(null);
     } catch (e) {
       onError?.(getApiErrorMessage(e));
     } finally {
@@ -98,14 +116,32 @@ export default function InsumoPicker({ insumos, existencias, superficieHa, reser
           label="Cantidad total"
           type="number"
           min="0"
-          value={cantidadTotal > 0 ? String(cantidadTotal) : ""}
-          readOnly
+          value={cantidadValor}
+          onChange={(e) => {
+            const v = e.target.value;
+            // Vaciar el campo devuelve el control al cálculo automático.
+            setCantidadManual(v === "" ? null : v);
+          }}
         />
       </div>
       <p className="mt-2 text-xs text-[color:var(--text-ink-muted)]">
-        {Number(superficieHa) > 0
-          ? `Cantidad total = dosis x ${Number(superficieHa).toLocaleString("es-AR", { maximumFractionDigits: 2 })} ha de superficie intervenida.`
-          : "Definí la superficie intervenida para calcular automáticamente la cantidad total."}
+        {usandoManual ? (
+          <>
+            Valor manual.
+            {cantidadCalculada > 0 ? ` Calculado: ${cantidadCalculada}.` : ""}{" "}
+            <button
+              type="button"
+              onClick={() => setCantidadManual(null)}
+              className="underline underline-offset-2"
+            >
+              Volver al cálculo automático
+            </button>
+          </>
+        ) : Number(superficieHa) > 0 ? (
+          `Cantidad total = dosis x ${Number(superficieHa).toLocaleString("es-AR", { maximumFractionDigits: 2 })} ha de superficie intervenida. Podés editarla si aplicaste otra cantidad.`
+        ) : (
+          "Definí la superficie intervenida para calcularla, o escribí la cantidad total a mano."
+        )}
       </p>
 
       {ex ? (() => {

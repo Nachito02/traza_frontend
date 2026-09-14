@@ -1,5 +1,7 @@
 import { AppInput, AppSelect, AppTextarea } from "../../../components/ui";
 import type { EventoConfig } from "../../Trazabilidad/eventoConfig";
+import AppSelectWithOther from "../../../components/ui/AppSelectWithOther";
+import { LEGACY_OTHER_FIELDS, resolveCustomDraftValue } from "../../../lib/customOptions";
 
 type Props = {
   eventoConfig: EventoConfig | null;
@@ -30,9 +32,13 @@ export default function EventoFields({ eventoConfig, draft, onChange }: Props) {
     <div className="grid gap-3 sm:grid-cols-2">
       {eventoConfig.fields
         .filter((field) => field.type !== "user_select")
+        .filter((field) => !eventoConfig.fields.some((parent) => parent.allowOther && LEGACY_OTHER_FIELDS[parent.name] === field.name))
         .filter((field) => !field.showWhen || draft[field.showWhen.field] === field.showWhen.value)
         .map((field) => {
           const value = draft[field.name] ?? field.defaultValue ?? "";
+          if (field.allowOther && field.options) {
+            return <AppSelectWithOther key={field.name} label={field.label} otherLabel={`Especificá: ${field.label.toLowerCase()}`} value={resolveCustomDraftValue(field, draft)} options={field.options} required={field.required} onChange={(next) => onChange(field.name, next)} />;
+          }
           if (field.type === "textarea") {
             return (
               <div key={field.name} className="sm:col-span-2">

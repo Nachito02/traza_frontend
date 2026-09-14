@@ -12,6 +12,9 @@ import {
 } from "../../domain/viticultura/catalogos";
 import trazaLogo from "../../assets/traza_logo_02.png";
 import { buildMapboxStaticUrl } from "../../lib/mapbox";
+import { ActivityDescription } from "./ActivityDescription";
+import { completedTasks, readableLabel } from "./activityPresentation";
+import { EVENTO_CONFIG } from "../Trazabilidad/eventoConfig";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -64,7 +67,7 @@ type TimelineEvent =
 function buildTimeline(trazabilidad: PublicTrazabilidadCuartel): TimelineEvent[] {
   const events: TimelineEvent[] = [];
 
-  for (const t of trazabilidad.tareas) {
+  for (const t of completedTasks(trazabilidad.tareas)) {
     events.push({ kind: "tarea", date: new Date(t.updated_at || t.created_at), data: t });
   }
 
@@ -440,7 +443,7 @@ const TrazabilidadPublica = () => {
 
               {/* Summary counters */}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 20, paddingTop: 20, borderTop: "1px solid #edf2f7" }}>
-                <Counter value={data.tareas.length} label="tareas registradas" />
+                <Counter value={completedTasks(data.tareas).length} label="tareas completadas" />
                 <Counter value={data.remitos_uva.length} label="remitos de uva" />
                 <Counter value={data.cius.length} label="CIUs emitidos" />
               </div>
@@ -465,7 +468,7 @@ const TrazabilidadPublica = () => {
                       .filter(Boolean) as string[];
                     const operariosUnicos = [...new Set(operariosAsignados)];
                     return (
-                      <EventCard key={`tarea-${t.tarea_id}-${idx}`} icon="🌿" label={t.proceso?.tipo_evento ?? "Tarea de campo"} accent="#304bd1">
+                      <EventCard key={`tarea-${t.tarea_id}-${idx}`} icon="🌿" label={EVENTO_CONFIG[t.proceso?.tipo_evento ?? ""]?.label ?? readableLabel(t.proceso?.tipo_evento ?? "Tarea de campo")} accent="#304bd1">
                         {/* Title + date */}
                         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
                           <div style={{ fontSize: 15, fontWeight: 700, color: "#050b2f" }}>
@@ -475,11 +478,7 @@ const TrazabilidadPublica = () => {
                         </div>
 
                         {/* Description */}
-                        {t.descripcion && (
-                          <div style={{ fontSize: 13, color: "#4a6080", marginBottom: 10, lineHeight: 1.6 }}>
-                            {t.descripcion}
-                          </div>
-                        )}
+                        <ActivityDescription text={t.descripcion} eventType={t.proceso?.tipo_evento} />
 
                         {/* Badges row */}
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
@@ -541,11 +540,7 @@ const TrazabilidadPublica = () => {
                                       {fmt(e.fecha)}
                                     </span>
                                   </div>
-                                  {e.descripcion && (
-                                    <div style={{ fontSize: 12, color: "#4a6080", lineHeight: 1.55 }}>
-                                      {e.descripcion}
-                                    </div>
-                                  )}
+                                  <ActivityDescription text={e.descripcion} eventType={t.proceso?.tipo_evento} />
                                   {/* Adjuntos — gallery with lightbox */}
                                   {Array.isArray(e.adjuntos) && e.adjuntos.length > 0 && (
                                     <ImageGallery

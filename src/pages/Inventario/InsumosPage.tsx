@@ -1,3 +1,5 @@
+import AppSelectWithOther from "../../components/ui/AppSelectWithOther";
+import { CUSTOM_OPTION, customValueError } from "../../lib/customOptions";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AppButton,
@@ -156,6 +158,8 @@ export default function InsumosPage() {
 
   const handleSave = async () => {
     if (!bodegaId) return;
+    const customError = customValueError(form.categoria === OTRA_CATEGORIA ? form.categoria_otra || CUSTOM_OPTION : form.categoria, categorias.map((value) => ({ value, label: value })), true);
+    if (customError) { notifyError({ title: "Categoría", message: customError }); return; }
     if (!categoriaFinal || !form.nombre_comercial.trim() || !form.unidad_base.trim()) {
       notifyError({ title: "Faltan datos", message: "Categoría, nombre comercial y unidad son obligatorios." });
       return;
@@ -265,25 +269,16 @@ export default function InsumosPage() {
         <AppCard header={<h3 className="text-base font-semibold">{editingId ? "Editar insumo" : "Nuevo insumo"}</h3>}>
           <div className="grid gap-3 md:grid-cols-3">
             <div>
-              <AppSelect
-                label="Categoría o tipo"
-                value={form.categoria}
-                onChange={(e) => void onChangeCategoria(e.target.value)}
-              >
-                <option value="">Seleccionar categoría</option>
-                {categorias.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-                <option value={OTRA_CATEGORIA}>Otra (especificar)…</option>
-              </AppSelect>
-              {form.categoria === OTRA_CATEGORIA ? (
-                <AppInput
-                  label="Especificá la categoría"
-                  value={form.categoria_otra}
-                  onChange={(e) => setField("categoria_otra", e.target.value)}
-                  className="mt-2"
-                />
-              ) : null}
+              <AppSelectWithOther label="Categoría o tipo" otherLabel="Especificá la categoría"
+                options={categorias.map((value) => ({ value, label: value }))}
+                value={form.categoria === OTRA_CATEGORIA ? form.categoria_otra || CUSTOM_OPTION : form.categoria}
+                onChange={(value) => {
+                  const known = !value || categorias.includes(value);
+                  if (known) { void onChangeCategoria(value); return; }
+                  setSelectedMaestroId(CARGA_MANUAL);
+                  setMaestro([]);
+                  setForm((prev) => ({ ...prev, categoria: OTRA_CATEGORIA, categoria_otra: value === CUSTOM_OPTION ? "" : value }));
+                }} required />
             </div>
 
             {/* Selector de producto del catálogo maestro (autocompleta) */}

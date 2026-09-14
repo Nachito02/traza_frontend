@@ -30,7 +30,9 @@ import {
 import CostosActividadPanel from "../Costos/CostosActividadPanel";
 import PersonalSection from "../Costos/PersonalSection";
 import { buildPersonalAsignado, payloadToTransitorio, type TransitorioDraft } from "../Costos/transitorios";
-import InsumoPicker, { type AddInsumoLine } from "../Costos/InsumoPicker";
+import { type AddInsumoLine } from "../Costos/InsumoPicker";
+import InsumosSection from "../Costos/InsumosSection";
+import { resolveInsumosModo } from "../../features/actividades/insumosPolicy";
 import { fetchOperariosByBodega, type Operario } from "../../features/operarios/api";
 import { fetchPersonal, type Personal } from "../../features/personal/api";
 import { fetchExistencias, type Existencia } from "../../features/inventario/api";
@@ -40,20 +42,50 @@ import {
   fetchInsumosCatalogo,
   fetchSugerencia,
   putEjecucion,
+  addInsumo as apiAddInsumo,
+  deleteInsumo as apiDeleteInsumo,
   type ClaseMaquinaria,
   type TarifaMaquinaria,
   type InsumoCatalogo,
+  type ActividadInsumo,
   type ActividadSugerencia,
   type ModalidadEjecucion,
 } from "../../features/costos/api";
 import { isSetupOnlyProtocolItem } from "./tareas.helpers";
+import { taskReturnPath } from "./taskWorkflow";
 import EventoFields from "./components/EventoFields";
 import { EVENTO_CONFIG } from "../Trazabilidad/eventoConfig";
+import { serializeCustomFields } from "../../lib/customOptions";
 
 type ProcesoOption = { proceso_id: string; nombre: string; evento_tipo: string; etapaNombre: string };
 
 type MaquinaDraft = { tarifa_maquinaria_id: string; nombre: string; clase: string; cantidad: string; horas: string };
-type InsumoDraft = { insumo_id: string; descripcion: string; dosis_ha: string; unidad_dosis: string; cantidad_total: string; unidad_total: string };
+/**
+ * `actividad_insumo_id` solo viene cuando la línea ya está persistida en el backend
+ * (modos task/edit). En "nueva actividad" las líneas viven en memoria hasta el submit.
+ */
+type InsumoDraft = {
+  insumo_id: string;
+  descripcion: string;
+  dosis_ha: string;
+  unidad_dosis: string;
+  cantidad_total: string;
+  unidad_total: string;
+  actividad_insumo_id?: string;
+};
+
+/** Línea ya guardada en backend -> borrador del wizard. Tolera insumo_id null (línea free-text). */
+function toInsumoDraft(row: ActividadInsumo): InsumoDraft {
+  return {
+    insumo_id: row.insumo_id ?? "",
+    descripcion: row.descripcion ?? "",
+    dosis_ha: row.dosis_ha ?? "",
+    unidad_dosis: row.unidad_dosis ?? "",
+    cantidad_total: row.cantidad_total ?? "",
+    unidad_total: row.unidad_total ?? "",
+    actividad_insumo_id: row.actividad_insumo_id,
+  };
+}
 type ContratistaDraft = { cuadrilla: string; cantidad_operarios: string; horas: string; monto: string };
 
 function fileIcon(mimeType: string): string {
@@ -167,7 +199,7 @@ export default function RegistroActividadPage() {
   const from = searchParams.get("from");
   const isEditMode = mode === "edit" && Boolean(tareaId) && Boolean(entradaId);
   const isTaskMode = mode === "task" && Boolean(tareaId) && Boolean(tareaAsignacionId);
-  const returnHref = from === "campo" ? "/operacion/campo" : "/ordenes";
+  const returnHref = taskReturnPath(from);
 
   // Catálogos
   const [procesos, setProcesos] = useState<ProcesoOption[]>([]);
@@ -219,7 +251,9 @@ export default function RegistroActividadPage() {
   const [step, setStep] = useState(0); // 0: qué/dónde · 1: ejecución · 2: costos/adjuntos
   const [draftRestored, setDraftRestored] = useState(false);
   const [expandMaq, setExpandMaq] = useState(false);   // mostrar maquinaria aunque no aplique
-  const [expandIns, setExpandIns] = useState(false);   // mostrar insumos aunque no apliquen
+  const [insumosAbiertoPorUsuario, setInsumosAbiertoPorUsuario] = useState(false);
+  const [insumosBusy, setInsumosBusy] = useState(false);
+  const [insumosInvalid, setInsumosInvalid] = useState(false);
 
   // Adjuntos (fotos y archivos) — se suben a IPFS tras registrar la actividad.
   const [pendingFiles, setPendingFiles] = useState<{ file: File; previewUrl: string | null }[]>([]);
@@ -352,11 +386,24 @@ export default function RegistroActividadPage() {
   const esFertilizacion = selectedProceso?.evento_tipo === "fertilizacion";
   const esLaborConMaquina = selectedProceso?.evento_tipo === "labor_suelo" || selectedProceso?.evento_tipo === "labores_culturales";
 
+  // Modo de insumos del proceso elegido: decide si la sección va obligatoria, desplegada u oculta.
+  const insumosModo = useMemo(
+    () => resolveInsumosModo({ eventoTipo: selectedProceso?.evento_tipo, nombre: selectedProceso?.nombre }),
+    [selectedProceso],
+  );
+  const insumosRequeridos = insumosModo === "requerido";
+  // Un <details> cerrado oculta pero no desmonta: si ya hay líneas cargadas hay que forzar
+  // la apertura, si no el usuario no ve lo que la tarea ya tiene.
+  const insumosOpen =
+    insumosModo !== "opcional" || insumos.length > 0 || insumosAbiertoPorUsuario;
+
   // Validez por paso del wizard (habilita "Siguiente").
-  const step0Valid = Boolean(procesoId && fincaId && cuartelId);
-  const step1Valid = Number(superficie) > 0;
-  const currentStepValid = step === 0 ? step0Valid : step === 1 ? step1Valid : true;
-  const STEPS = ["Qué y dónde", "Ejecución", "Costos y adjuntos"];
+  // Insumos y superficie viven en el paso 0: solo bloquean cuando el proceso los exige.
+  const step0Valid =
+    Boolean(procesoId && fincaId && cuartelId) &&
+    (!insumosRequeridos || (insumos.length > 0 && Number(superficie) > 0));
+  const currentStepValid = step === 0 ? step0Valid : true;
+  const STEPS = ["Qué, dónde e insumos", "Ejecución y personal", "Costos y adjuntos"];
 
   // ── Autoguardado del borrador (localStorage), por bodega ──
   const draftKey = bodegaId ? `reg-actividad:${bodegaId}` : null;
@@ -390,7 +437,6 @@ export default function RegistroActividadPage() {
     } catch {
       /* borrador corrupto: se ignora */
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftKey, isTaskMode, isEditMode]);
 
   useEffect(() => {
@@ -412,7 +458,6 @@ export default function RegistroActividadPage() {
   }, [draftKey, procesoId, fincaId, cuartelId, draft, modalidad, superficie, fechaInicio, fechaFin, cantEjec, unidadEjec, responsableId, personal, transitorios, maquinas, insumos, contratistas, obs, isEditMode, isTaskMode]);
   // Secciones que la labor normalmente no usa (se atenúan, no se ocultan).
   const aplicaMaquinaria = !sugerencia || sugerencia.aplica_maquinaria;
-  const aplicaInsumos = !sugerencia || sugerencia.aplica_insumos;
   const cuartelSeleccionado = useMemo(
     () => cuarteles.find((c) => String(c.cuartel_id ?? c.id) === cuartelId) ?? null,
     [cuarteles, cuartelId],
@@ -447,15 +492,61 @@ export default function RegistroActividadPage() {
     setMaquinas((p) => [...p, { tarifa_maquinaria_id: t.tarifa_maquinaria_id, nombre: t.nombre, clase: t.clase, cantidad: maqCantidad, horas: maqHoras }]);
     setMaqTarifaId(""); setMaqCantidad(""); setMaqHoras("");
   };
-  const addInsumo = (line: AddInsumoLine) => {
-    setInsumos((p) => [...p, {
+  // En task/edit la tarea ya existe, así que la línea se persiste al instante (y descuenta
+  // stock). En "nueva actividad" se acumula en memoria y viaja completa en el submit.
+  const persisteInsumos = (isTaskMode || isEditMode) && Boolean(tareaId);
+
+  const refrescarExistencias = () => {
+    if (!bodegaId) return;
+    void fetchExistencias(bodegaId)
+      .then((rows) => setExistencias(Object.fromEntries(rows.map((r) => [r.insumo_id, r]))))
+      .catch(() => {});
+  };
+
+  const addInsumo = async (line: AddInsumoLine) => {
+    const draftLinea: InsumoDraft = {
       insumo_id: line.insumo.insumo_id,
       descripcion: line.insumo.nombre_comercial,
       dosis_ha: String(line.dosis_ha),
       unidad_dosis: line.unidad_dosis,
       cantidad_total: String(line.cantidad_total),
       unidad_total: line.insumo.unidad_base ?? line.unidad_dosis,
-    }]);
+    };
+    if (!persisteInsumos) {
+      setInsumos((p) => [...p, draftLinea]);
+      return;
+    }
+    setInsumosBusy(true);
+    try {
+      const row = await apiAddInsumo(tareaId as string, {
+        insumo_id: line.insumo.insumo_id,
+        dosis_ha: line.dosis_ha,
+        unidad_dosis: line.unidad_dosis,
+        cantidad_total: line.cantidad_total,
+        unidad_total: draftLinea.unidad_total,
+      });
+      setInsumos((p) => [...p, toInsumoDraft(row)]);
+      refrescarExistencias();
+    } finally {
+      setInsumosBusy(false);
+    }
+  };
+
+  const removeInsumo = async (index: number, linea: InsumoDraft) => {
+    if (!persisteInsumos || !linea.actividad_insumo_id) {
+      setInsumos((p) => p.filter((_, x) => x !== index));
+      return;
+    }
+    setInsumosBusy(true);
+    try {
+      await apiDeleteInsumo(linea.actividad_insumo_id);
+      setInsumos((p) => p.filter((_, x) => x !== index));
+      refrescarExistencias();
+    } catch (error) {
+      notifyError({ title: "No se pudo quitar el insumo", message: getApiErrorMessage(error) });
+    } finally {
+      setInsumosBusy(false);
+    }
   };
   const addContratista = () => {
     if (!conCuadrilla.trim() || !(Number(conMonto) > 0)) { notifyError({ title: "Cuadrilla y monto obligatorios" }); return; }
@@ -465,7 +556,7 @@ export default function RegistroActividadPage() {
 
   const buildDescripcion = (): string => {
     if (eventoConfig) {
-      const filtered = Object.fromEntries(Object.entries(draft).filter(([, v]) => v.trim() !== ""));
+      const filtered = Object.fromEntries(Object.entries(serializeCustomFields(draft, eventoConfig.fields)).filter(([, v]) => v.trim() !== ""));
       return JSON.stringify(filtered);
     }
     return draft["_notas"] ?? "";
@@ -473,7 +564,7 @@ export default function RegistroActividadPage() {
 
   const buildNotas = (): string => {
     if (eventoConfig) {
-      const filtered = Object.fromEntries(Object.entries(draft).filter(([, v]) => v.trim() !== ""));
+      const filtered = Object.fromEntries(Object.entries(serializeCustomFields(draft, eventoConfig.fields)).filter(([, v]) => v.trim() !== ""));
       return Object.entries(filtered)
         .map(([k, v]) => {
           const label = eventoConfig.fields.find((f) => f.name === k)?.label ?? k;
@@ -496,7 +587,8 @@ export default function RegistroActividadPage() {
     setStep(0);
     setDraftRestored(false);
     setExpandMaq(false);
-    setExpandIns(false);
+    setInsumosAbiertoPorUsuario(false);
+    setInsumosInvalid(false);
     if (draftKey) { try { localStorage.removeItem(draftKey); } catch { /* ignore */ } }
   };
 
@@ -559,6 +651,10 @@ export default function RegistroActividadPage() {
           );
           setObs(ejecucion.observaciones ?? "");
         }
+        // Los insumos cuelgan de la tarea, no de la ejecución: se pueblan aunque no haya ejecución
+        // todavía. Sin esto, el guard de insumos obligatorios del submit ve siempre un array vacío
+        // y vuelve imposible completar una fertilización desde "Completar tarea".
+        setInsumos((costos.insumos ?? []).map(toInsumoDraft));
         setStep(0);
       } catch (error) {
         if (!mounted) return;
@@ -576,6 +672,12 @@ export default function RegistroActividadPage() {
   }, [bodegaId, entradaId, isEditMode, isTaskMode, notifyError, tareaId]);
 
   const handleSubmit = async () => {
+    try {
+      if (eventoConfig) serializeCustomFields(draft, eventoConfig.fields);
+    } catch (error) {
+      notifyError({ title: "Revisá la opción personalizada", message: error instanceof Error ? error.message : "Especificá el valor." });
+      return;
+    }
     if (!bodegaId) return;
     if (!procesoId) { notifyError({ title: "Elegí una actividad" }); return; }
     if (!fincaId || !cuartelId) { notifyError({ title: "Faltan datos", message: "Seleccioná finca y cuartel." }); return; }
@@ -585,8 +687,15 @@ export default function RegistroActividadPage() {
       notifyError({ title: "Falta contratista", message: "En modalidad contratada/mixta agregá al menos una cuadrilla." });
       return;
     }
-    if (esFertilizacion && insumos.length === 0) {
-      notifyError({ title: "Falta el fertilizante", message: "Agregá el fertilizante en la sección Fertilizante / insumos." });
+    if (insumosRequeridos && insumos.length === 0) {
+      // La sección está en el paso 0 y puede estar plegada: sin volver y abrirla, el error es invisible.
+      setStep(0);
+      setInsumosAbiertoPorUsuario(true);
+      setInsumosInvalid(true);
+      notifyError({
+        title: "Falta el insumo aplicado",
+        message: "Esta actividad requiere registrar el producto aplicado en la sección Insumos.",
+      });
       return;
     }
 
@@ -797,28 +906,55 @@ export default function RegistroActividadPage() {
         </AppCard>
         ) : null}
 
+        {/* Superficie e insumos: la superficie va acá porque alimenta el cálculo
+            cantidad total = dosis/ha x superficie de la sección de insumos. */}
+        {step === 0 ? (
+        <AppCard
+          padding="lg"
+          header={<h3 className="text-base font-semibold">Superficie e insumos</h3>}
+        >
+          <div className="mb-4 max-w-sm space-y-2.5">
+            <AppInput
+              label="Superficie intervenida (ha) *"
+              type="number"
+              min="0"
+              value={superficie}
+              onChange={(e) => setSuperficie(nonNeg(e.target.value))}
+            />
+            <p className="text-xs text-[color:var(--text-ink-muted)]">{superficieCuartelHint}</p>
+          </div>
+          <InsumosSection
+            lines={insumos}
+            modo={insumosModo}
+            superficieHa={Number(superficie) || 0}
+            catalogo={insumosCat}
+            existencias={existencias}
+            onAdd={addInsumo}
+            onRemove={removeInsumo}
+            open={insumosOpen}
+            onOpenChange={(next) => {
+              setInsumosAbiertoPorUsuario(next);
+              if (next) setInsumosInvalid(false);
+            }}
+            invalid={insumosInvalid}
+            busy={insumosBusy}
+            persisteAlInstante={persisteInsumos}
+            onError={(message) => notifyError({ title: "No se pudo agregar", message })}
+          />
+        </AppCard>
+        ) : null}
+
         {step === 1 ? (
         <AppCard
           padding="lg"
-          header={<h3 className="text-base font-semibold">Superficie y mano de obra</h3>}
+          header={<h3 className="text-base font-semibold">Ejecución y mano de obra</h3>}
         >
           <div className="grid gap-3 md:grid-cols-2">
             <AppSelect label="Modalidad de ejecución" value={modalidad} onChange={(e) => setModalidad(e.target.value as ModalidadEjecucion)}>
               {MODALIDADES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
             </AppSelect>
-            <div className="space-y-2.5">
-              <AppInput
-                label="Superficie intervenida (ha) *"
-                type="number"
-                min="0"
-                value={superficie}
-                onChange={(e) => setSuperficie(nonNeg(e.target.value))}
-              />
-              <p className="text-xs text-[color:var(--text-ink-muted)]">{superficieCuartelHint}</p>
-            </div>
             <AppInput label="Fecha de inicio" type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} />
             <AppInput label="Fecha de fin" type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} />
-            <AppInput label="Cantidad ejecutada" type="number" min="0" value={cantEjec} onChange={(e) => setCantEjec(nonNeg(e.target.value))} placeholder="ej. 4500" />
             <AppSelect label="Unidad" value={unidadEjec} onChange={(e) => setUnidadEjec(e.target.value)}>
               <option value="">Seleccionar…</option>
               {UNIDADES_EJECUCION.map((unidad) => (
@@ -862,6 +998,7 @@ export default function RegistroActividadPage() {
               actividadClave={selectedProceso?.nombre}
               esFertilizacion={esFertilizacion}
               esLaborConMaquina={esLaborConMaquina}
+              embedded
             />
           </AppCard>
         ) : null}
@@ -922,44 +1059,7 @@ export default function RegistroActividadPage() {
           )}
         </AppCard>
 
-        {/* Insumos */}
-        <AppCard
-          padding="lg"
-          header={<h3 className="text-base font-semibold">{esFertilizacion ? "Fertilizante / insumos" : "Insumos"}</h3>}
-        >
-          {!aplicaInsumos && !expandIns ? (
-            <div>
-              <NoAplicaNota>Esta labor normalmente no lleva insumos.</NoAplicaNota>
-              <AppButton variant="ghost" size="sm" onClick={() => setExpandIns(true)}>Agregar de todas formas</AppButton>
-            </div>
-          ) : (
-          <>
-          {esFertilizacion ? (
-            <p className="mb-3 rounded-[var(--radius-md)] border border-[color:var(--border-subtle)] bg-[color:var(--surface-accent-soft)] px-3 py-2 text-xs text-[color:var(--text-ink-muted)]">
-              Cargá acá el fertilizante desde tu catálogo: se registra el insumo y <strong>descuenta stock</strong> automáticamente.
-            </p>
-          ) : null}
-          {insumos.length ? (
-            <ul className="mb-3 space-y-2">
-              {insumos.map((i, idx) => (
-                <li key={idx} className="flex items-center justify-between rounded-[var(--radius-md)] border border-[color:var(--border-shell)] px-3 py-2 text-sm">
-                  <span><strong>{i.descripcion}</strong> · {i.dosis_ha} {i.unidad_dosis} · total {i.cantidad_total} {i.unidad_total}</span>
-                  <AppButton variant="ghost" size="sm" onClick={() => setInsumos((p) => p.filter((_, x) => x !== idx))}>Quitar</AppButton>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          <InsumoPicker
-            insumos={insumosCat}
-            existencias={existencias}
-            superficieHa={Number(superficie) || 0}
-            reservado={(id) => insumos.filter((i) => i.insumo_id === id).reduce((acc, i) => acc + (Number(i.cantidad_total) || 0), 0)}
-            onAdd={addInsumo}
-            onError={(message) => notifyError({ title: "No se pudo agregar", message })}
-          />
-          </>
-          )}
-        </AppCard>
+        {/* Insumos ya no vive acá: subió al paso 0, junto a la superficie que alimenta su cálculo. */}
 
         {/* Mano de obra contratada */}
         {requiresContratista ? (
@@ -1053,7 +1153,11 @@ export default function RegistroActividadPage() {
           <div className="flex items-center gap-2">
             {step < 2 && !currentStepValid ? (
               <span className="hidden text-xs text-[color:var(--text-ink-muted)] sm:inline">
-                {step === 0 ? "Elegí actividad, finca y cuartel" : "Ingresá la superficie"}
+                {!procesoId || !fincaId || !cuartelId
+                  ? "Elegí actividad, finca y cuartel"
+                  : insumos.length === 0
+                    ? "Agregá el insumo aplicado"
+                    : "Ingresá la superficie"}
               </span>
             ) : null}
             {step < 2 ? (

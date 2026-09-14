@@ -1,3 +1,5 @@
+import AppSelectWithOther from "../../components/ui/AppSelectWithOther";
+import { CUSTOM_OPTION, customValueError } from "../../lib/customOptions";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AppButton,
@@ -221,6 +223,8 @@ export default function RecursosAdmin() {
 
   const handleSave = async () => {
     if (!bodegaId) return;
+    const customError = customValueError(form.uso_principal === OTRO_USO ? form.uso_principal_otro || CUSTOM_OPTION : form.uso_principal, USO_PRINCIPAL_OPTIONS.map((value) => ({ value, label: value })));
+    if (customError) { notifyError({ title: "Uso principal", message: customError }); return; }
     if (!form.nombre.trim()) {
       notifyError({ title: "Falta el nombre" });
       return;
@@ -390,16 +394,13 @@ export default function RecursosAdmin() {
               <AppInput label="Potencia (HP)" value={form.potencia_hp} onChange={(e) => setField("potencia_hp", e.target.value)} placeholder="Ej. 75–85" />
             ) : null}
             <div>
-              <AppSelect label="Uso principal" value={form.uso_principal} onChange={(e) => setField("uso_principal", e.target.value)}>
-                <option value="">Seleccionar…</option>
-                {USO_PRINCIPAL_OPTIONS.map((u) => (
-                  <option key={u} value={u}>{u}</option>
-                ))}
-                <option value={OTRO_USO}>Otros (especificar)…</option>
-              </AppSelect>
-              {form.uso_principal === OTRO_USO ? (
-                <AppInput label="Especificá el uso" value={form.uso_principal_otro} onChange={(e) => setField("uso_principal_otro", e.target.value)} className="mt-2" />
-              ) : null}
+              <AppSelectWithOther label="Uso principal" otherLabel="Especificá el uso"
+                options={USO_PRINCIPAL_OPTIONS.map((value) => ({ value, label: value }))}
+                value={form.uso_principal === OTRO_USO ? form.uso_principal_otro || CUSTOM_OPTION : form.uso_principal}
+                onChange={(value) => {
+                  const known = !value || USO_PRINCIPAL_OPTIONS.includes(value);
+                  setForm((prev) => ({ ...prev, uso_principal: known ? value : OTRO_USO, uso_principal_otro: known || value === CUSTOM_OPTION ? "" : value }));
+                }} />
             </div>
             <AppInput label="Unidad de uso" value={form.unidad_uso} onChange={(e) => setField("unidad_uso", e.target.value)} placeholder="Hora, Día, Evento…" />
             <AppInput label="Consumo / energía" value={form.consumo_descripcion} onChange={(e) => setField("consumo_descripcion", e.target.value)} placeholder="l/h, kWh, Solar…" />

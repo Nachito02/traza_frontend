@@ -160,6 +160,8 @@ export function resolveModuleAccess(user: UserLike, activeBodegaId: string | num
 
   return {
     isAdminSistema,
+    canRegisterTask: isAdminSistema || hasBodegaRole || hasFincaRole || includesAnyRole([...globalRoles, ...bodegaRoles, ...fincaRoles], OPERATOR_ROLES),
+    canManageTasks: isAdminSistema || includesAnyRole([...globalRoles, ...bodegaRoles], ["admin_bodega", "encargado_bodega"]) || includesAnyRole([...globalRoles, ...fincaRoles, ...bodegaRoles], ["encargado_finca"]),
     canAccessBodega: isAdminSistema || hasBodegaRole,
     canAccessOperacionBodega: isAdminSistema || hasBodegaRole,
     canAccessOperacionFinca: isAdminSistema || hasFincaRole,

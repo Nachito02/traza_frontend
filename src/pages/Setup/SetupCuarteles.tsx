@@ -1,3 +1,5 @@
+import AppSelectWithOther from "../../components/ui/AppSelectWithOther";
+import { CUSTOM_OPTION, customValueError } from "../../lib/customOptions";
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { createCuartel, type GeoJSONPolygon, type Centroide } from "../../features/cuarteles/api";
@@ -198,6 +200,17 @@ const SetupCuarteles = () => {
         nextErrors[field.key] = `${field.label} debe ser un número válido.`;
       }
     });
+
+
+    for (const [key, value, options, required] of [
+      ["variedad", form.variedad === OTRA_VARIEDAD_VALUE ? form.variedad_otra || CUSTOM_OPTION : form.variedad, variedadOptions, true],
+      ["sistema_riego", form.sistema_riego === OTRO_RIEGO_VALUE ? form.sistema_riego_otro || CUSTOM_OPTION : form.sistema_riego, SISTEMA_RIEGO_OPTIONS, false],
+      ["sistema_productivo", form.sistema_productivo, MANEJO_CULTIVO_OPTIONS, false],
+      ["sistema_conduccion", form.sistema_conduccion, SISTEMA_CONDUCCION_OPTIONS, false],
+    ] as const) {
+      const message = customValueError(value, options, required);
+      if (message) nextErrors[key] = message;
+    }
 
     return nextErrors;
   };
@@ -426,32 +439,11 @@ const SetupCuarteles = () => {
                 </option>
               ))}
             </AppSelect>
-            <AppSelect
-              label="Variedad"
-              value={form.variedad}
-              onChange={(e) => onChangeVariedad(e.target.value)}
-              uiSize="lg"
-              error={fieldErrors.variedad}
-            >
-              <option value="">Seleccionar variedad</option>
-              {variedadOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-              <option value={OTRA_VARIEDAD_VALUE}>Otra (especificar)…</option>
-            </AppSelect>
-            {form.variedad === OTRA_VARIEDAD_VALUE && (
-              <AppInput
-                label="Especificá la variedad"
-                type="text"
-                uiSize="lg"
-                placeholder="Ej. Petit Verdot"
-                value={form.variedad_otra}
-                onChange={(e) => onChange("variedad_otra", e.target.value)}
-                error={fieldErrors.variedad_otra}
-              />
-            )}
+            <AppSelectWithOther label="Variedad" otherLabel="Especificá: variedad" options={variedadOptions} value={form.variedad === OTRA_VARIEDAD_VALUE ? form.variedad_otra || CUSTOM_OPTION : form.variedad} error={fieldErrors.variedad || fieldErrors.variedad_otra} onChange={(value) => {
+   const known = !value || variedadOptions.some((option) => option.value === value);
+   onChangeVariedad(known ? value : OTRA_VARIEDAD_VALUE);
+   onChange("variedad_otra", known || value === CUSTOM_OPTION ? "" : value);
+ }} />
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <AppInput
@@ -498,58 +490,14 @@ const SetupCuarteles = () => {
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-3">
-              <AppSelect
-                label={<OptLabel>Sistema de riego</OptLabel>}
-                uiSize="lg"
-                value={form.sistema_riego}
-                onChange={(e) => onChangeSistemaRiego(e.target.value)}
-              >
-                <option value="">Seleccionar sistema</option>
-                {SISTEMA_RIEGO_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-                <option value={OTRO_RIEGO_VALUE}>Otro (especificar)…</option>
-              </AppSelect>
-              {form.sistema_riego === OTRO_RIEGO_VALUE && (
-                <AppInput
-                  label="Especificá el sistema de riego"
-                  type="text"
-                  uiSize="lg"
-                  placeholder="Ej. Riego por mangas"
-                  value={form.sistema_riego_otro}
-                  onChange={(e) => onChange("sistema_riego_otro", e.target.value)}
-                  error={fieldErrors.sistema_riego_otro}
-                />
-              )}
+              <AppSelectWithOther label="Sistema de riego" otherLabel="Especificá: sistema de riego" options={SISTEMA_RIEGO_OPTIONS} value={form.sistema_riego === OTRO_RIEGO_VALUE ? form.sistema_riego_otro || CUSTOM_OPTION : form.sistema_riego} error={fieldErrors.sistema_riego || fieldErrors.sistema_riego_otro} onChange={(value) => {
+   const known = !value || SISTEMA_RIEGO_OPTIONS.some((option) => option.value === value);
+   onChangeSistemaRiego(known ? value : OTRO_RIEGO_VALUE);
+   onChange("sistema_riego_otro", known || value === CUSTOM_OPTION ? "" : value);
+ }} />
             </div>
-            <AppSelect
-              label={<OptLabel>Manejo de cultivo</OptLabel>}
-              uiSize="lg"
-              value={form.sistema_productivo}
-              onChange={(e) => onChange("sistema_productivo", e.target.value)}
-            >
-              <option value="">Seleccionar manejo</option>
-              {MANEJO_CULTIVO_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </AppSelect>
-            <AppSelect
-              label={<OptLabel>Sistema de conducción</OptLabel>}
-              uiSize="lg"
-              value={form.sistema_conduccion}
-              onChange={(e) => onChange("sistema_conduccion", e.target.value)}
-            >
-              <option value="">Seleccionar sistema</option>
-              {SISTEMA_CONDUCCION_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </AppSelect>
+            <AppSelectWithOther label="Manejo de cultivo" value={form.sistema_productivo} options={MANEJO_CULTIVO_OPTIONS} onChange={(value) => onChange("sistema_productivo", value)} error={fieldErrors.sistema_productivo} />
+            <AppSelectWithOther label="Sistema de conducción" value={form.sistema_conduccion} options={SISTEMA_CONDUCCION_OPTIONS} onChange={(value) => onChange("sistema_conduccion", value)} error={fieldErrors.sistema_conduccion} />
           </div>
 
           {/* ── Editor de límites en mapa ───────────────────────── */}

@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import {
   Routes,
   Route,
+  Outlet,
   Navigate,
   useLocation,
   useNavigate,
@@ -210,7 +211,6 @@ export default function App() {
         />
         <Route path="/operacion" element={canUseOperacionBodega ? <OperacionLayout /> : <Navigate to="/ordenes" replace />}>
           <Route path="tareas" element={<Navigate to="/ordenes" replace />} />
-          <Route path="registro" element={<RegistroActividadPage />} />
           <Route path="recepcion" element={<IngresoUvaFlowPage />} />
           <Route path="ciu-qc" element={<Navigate to="/operacion/recepcion?paso=ciu" replace />} />
           <Route path="vasijas" element={<VasijasProcesoPage />} />
@@ -222,6 +222,12 @@ export default function App() {
           <Route path="campo" element={<CampoPage />} />
           <Route path="trazabilidades" element={<Navigate to="/ordenes" replace />} />
           <Route path="trazabilidades/:id/plan" element={<Navigate to="/ordenes" replace />} />
+        </Route>
+        <Route
+          path="/operacion/registro"
+          element={access.canRegisterTask ? (access.canAccessOperacionBodega ? <OperacionLayout /> : <Outlet />) : <Navigate to="/ordenes" replace />}
+        >
+          <Route index element={<RegistroActividadPage />} />
         </Route>
         <Route
           path="/campo"

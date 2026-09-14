@@ -44,7 +44,7 @@ export default function OrderRow({ task, onOpenDetail, variant }: OrderRowProps)
       <div
         className={[
           "absolute -left-6 top-[14px] h-3.5 w-3.5 rounded-full border-2",
-          variant === "completed"
+          estado === "cancelado" ? "border-[color:var(--feedback-danger)] bg-[color:var(--feedback-danger)]" : variant === "completed"
             ? "border-[color:var(--feedback-success)] bg-[color:var(--feedback-success)]"
             : "border-[color:var(--feedback-warning)] bg-[color:var(--feedback-warning)]",
         ].join(" ")}
@@ -74,8 +74,8 @@ export default function OrderRow({ task, onOpenDetail, variant }: OrderRowProps)
                   Completada
                 </span>
               ) : (
-                <span className="rounded-full border border-[color:var(--feedback-warning-border)] bg-[color:var(--feedback-warning-bg)] px-2 py-0.5 text-[10px] font-semibold text-[color:var(--feedback-warning-text)]">
-                  {estado === "en_progreso" ? "En progreso" : "Pendiente"}
+                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${estado === "cancelado" ? "border-[color:var(--feedback-danger-border)] bg-[color:var(--feedback-danger-bg)] text-[color:var(--feedback-danger-text)]" : "border-[color:var(--feedback-warning-border)] bg-[color:var(--feedback-warning-bg)] text-[color:var(--feedback-warning-text)]"}`}>
+                  {estado === "cancelado" ? "Cancelada" : estado === "en_progreso" ? "En progreso" : "Pendiente"}
                 </span>
               )}
               <span className="text-[11px] text-[color:var(--text-ink-muted)]">{dateStr}</span>
