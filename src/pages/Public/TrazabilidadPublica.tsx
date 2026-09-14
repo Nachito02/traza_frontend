@@ -574,6 +574,12 @@ const TrazabilidadPublica = () => {
                           {r.llegada_bodega && <Badge color="#304bd1">Llegada {fmt(r.llegada_bodega)}</Badge>}
                           <span style={{ marginLeft: "auto", fontSize: 12, color: "#8ea4cf" }}>{fmt(r.salida_finca)}</span>
                         </div>
+                        {r.adjuntos.length > 0 && (
+                          <ImageGallery
+                            images={r.adjuntos.filter((a) => a.tipo.startsWith("image/")).map((a) => ({ url: a.url, nombre: a.nombre }))}
+                            files={r.adjuntos.filter((a) => !a.tipo.startsWith("image/"))}
+                          />
+                        )}
                       </EventCard>
                     );
                   }
@@ -589,6 +595,26 @@ const TrazabilidadPublica = () => {
                           {rb.kg_pesados && <Badge color="#9a6a1f">{rb.kg_pesados.toLocaleString("es-AR")} kg pesados</Badge>}
                           <span style={{ marginLeft: "auto", fontSize: 12, color: "#8ea4cf" }}>{fmt(rb.fecha_hora)}</span>
                         </div>
+                        {rb.analisis.length > 0 && (
+                          <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #e8edf5", display: "flex", flexDirection: "column", gap: 6 }}>
+                            {rb.analisis.map((a, i) => (
+                              <DetalleToggle
+                                key={i}
+                                resumen={`🧪 ${a.fuente}`}
+                                campos={[
+                                  a.brix !== null ? { label: "Brix", value: String(a.brix) } : null,
+                                  a.ph !== null ? { label: "pH", value: String(a.ph) } : null,
+                                  a.acidez !== null ? { label: "Acidez", value: String(a.acidez) } : null,
+                                  a.temperatura_uva !== null ? { label: "Temperatura", value: `${a.temperatura_uva}°C` } : null,
+                                  "sanidad" in a && a.sanidad ? { label: "Sanidad", value: a.sanidad } : null,
+                                  "estado_pcc" in a && a.estado_pcc ? { label: "Estado PCC", value: a.estado_pcc } : null,
+                                  "aprobado" in a && a.aprobado !== null ? { label: "Aprobado", value: a.aprobado ? "Sí" : "No" } : null,
+                                  a.observaciones ? { label: "Observaciones", value: a.observaciones } : null,
+                                ].filter((c): c is { label: string; value: string } => c !== null)}
+                              />
+                            ))}
+                          </div>
+                        )}
                       </EventCard>
                     );
                   }
@@ -602,8 +628,12 @@ const TrazabilidadPublica = () => {
                         </div>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
                           <Badge color={c.estado === "emitido" ? "#00a862" : "#8ea4cf"}>{c.estado}</Badge>
+                          {c.variedad_nombre && <Badge color="#304bd1">{c.variedad_nombre}</Badge>}
+                          {c.tenor_azucarino_gl !== null && <Badge color="#9a6a1f">{c.tenor_azucarino_gl} g/l</Badge>}
+                          {c.uva_organica && <Badge color="#00a862">Orgánica</Badge>}
                           <span style={{ marginLeft: "auto", fontSize: 12, color: "#8ea4cf" }}>{fmt(c.emitido_at)}</span>
                         </div>
+                        {c.observaciones && <div style={{ fontSize: 13, color: "#4a6080", marginTop: 8 }}>{c.observaciones}</div>}
                       </EventCard>
                     );
                   }
@@ -641,6 +671,34 @@ function Counter({ value, label }: { value: number; label: string }) {
     <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
       <span style={{ fontSize: 22, fontWeight: 800, color: "#07135f" }}>{value}</span>
       <span style={{ fontSize: 12, color: "#4a6080" }}>{label}</span>
+    </div>
+  );
+}
+
+/** Línea compacta con un resumen; clickeable para desplegar el detalle completo (campos con label). */
+function DetalleToggle({ resumen, campos }: { resumen: string; campos: Array<{ label: string; value: string }> }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#4a6080" }}
+      >
+        <span>{resumen}</span>
+        {campos.length > 0 && (
+          <span style={{ fontSize: 10, color: "#304bd1", fontWeight: 600 }}>{open ? "▲ ocultar" : "▼ ver detalle"}</span>
+        )}
+      </button>
+      {open && campos.length > 0 && (
+        <div style={{ marginTop: 6, background: "#f7f9fc", borderRadius: 8, border: "1px solid #e2e8f0", padding: "10px 12px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 8 }}>
+          {campos.map((c) => (
+            <div key={c.label}>
+              <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#8ea4cf" }}>{c.label}</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#050b2f" }}>{c.value}</div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

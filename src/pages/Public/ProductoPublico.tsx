@@ -1,7 +1,24 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { fetchPublicProducto, type PublicProducto } from "../../features/public/api";
+import type { LoteHistorialEvento } from "../../features/lotes/api";
+import {
+  getVariedadLabel,
+  getSistemaRiegoLabel,
+  getManejoCultivoLabel,
+  getSistemaConduccionLabel,
+} from "../../domain/viticultura/catalogos";
+import { buildMapboxStaticUrl } from "../../lib/mapbox";
 import trazaLogo from "../../assets/traza_logo_02.png";
+
+const TIPO_OPERACION_LABEL: Record<string, string> = {
+  ingreso: "Ingreso",
+  fermentacion: "Fermentación",
+  trasiego: "Trasiego",
+  descube: "Descube",
+  correccion: "Corrección",
+  corte_parcial: "Corte parcial",
+};
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -48,7 +65,7 @@ function estadoLabel(estado: string): string {
 type CuartelLabel = { nombre_finca: string; codigo_cuartel: string };
 
 type TimelineEvent =
-  | { kind: "corte"; date: Date; data: { objetivo: string | null } }
+  | { kind: "bodega"; date: Date; data: LoteHistorialEvento }
   | { kind: "tarea"; date: Date; origen: CuartelLabel; data: PublicProducto["cuarteles"][number]["tareas"][number] }
   | {
       kind: "remito";
@@ -64,29 +81,34 @@ type TimelineEvent =
     }
   | { kind: "ciu"; date: Date; origen: CuartelLabel; data: PublicProducto["cuarteles"][number]["cius"][number] };
 
-function buildTimeline(producto: PublicProducto): TimelineEvent[] {
+/** Los eventos de UNA finca/cuartel, en orden cronológico (más viejo primero — se lee como una historia). */
+function buildEventosDeCuartel(c: PublicProducto["cuarteles"][number]): TimelineEvent[] {
+  const origen: CuartelLabel = { nombre_finca: c.cuartel.finca.nombre_finca, codigo_cuartel: c.cuartel.codigo_cuartel };
   const events: TimelineEvent[] = [];
+  for (const t of c.tareas) {
+    events.push({ kind: "tarea", date: new Date(t.updated_at || t.created_at), origen, data: t });
+  }
+  for (const r of c.remitos_uva) {
+    events.push({ kind: "remito", date: new Date(r.salida_finca), origen, data: r });
+  }
+  for (const ciu of c.cius) {
+    events.push({ kind: "ciu", date: new Date(ciu.emitido_at), origen, data: ciu });
+  }
+  return events.sort((a, b) => a.date.getTime() - b.date.getTime());
+}
 
-  events.push({ kind: "corte", date: new Date(producto.corte.fecha), data: { objetivo: producto.corte.objetivo } });
-
+/** Los eventos de bodega del producto (recepción/ingreso, corte, movimientos de vasija, etc.), en orden cronológico. */
+function buildEventosDeBodega(producto: PublicProducto): TimelineEvent[] {
+  const events: TimelineEvent[] = producto.historial.map((evento): TimelineEvent => ({ kind: "bodega", date: new Date(evento.fecha), data: evento }));
   for (const c of producto.cuarteles) {
     const origen: CuartelLabel = { nombre_finca: c.cuartel.finca.nombre_finca, codigo_cuartel: c.cuartel.codigo_cuartel };
-
-    for (const t of c.tareas) {
-      events.push({ kind: "tarea", date: new Date(t.updated_at || t.created_at), origen, data: t });
-    }
     for (const r of c.remitos_uva) {
-      events.push({ kind: "remito", date: new Date(r.salida_finca), origen, data: r });
       for (const rb of r.recepciones) {
         events.push({ kind: "recepcion", date: new Date(rb.fecha_hora), origen, data: { ...rb, cuartel_kg: r.kg_declarados } });
       }
     }
-    for (const ciu of c.cius) {
-      events.push({ kind: "ciu", date: new Date(ciu.emitido_at), origen, data: ciu });
-    }
   }
-
-  return events.sort((a, b) => b.date.getTime() - a.date.getTime());
+  return events.sort((a, b) => a.date.getTime() - b.date.getTime());
 }
 
 // ── Sub-componentes ─────────────────────────────────────────────────────────
@@ -162,6 +184,91 @@ function Pill({ label, value }: { label: string; value: string }) {
     <div style={{ background: "#f0f4fa", borderRadius: 8, padding: "6px 12px", display: "flex", gap: 6, alignItems: "center" }}>
       <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#8ea4cf" }}>{label}</span>
       <span style={{ fontSize: 13, fontWeight: 600, color: "#050b2f" }}>{value}</span>
+    </div>
+  );
+}
+
+function Counter({ value, label }: { value: number; label: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+      <span style={{ fontSize: 22, fontWeight: 800, color: "#07135f" }}>{value}</span>
+      <span style={{ fontSize: 12, color: "#4a6080" }}>{label}</span>
+    </div>
+  );
+}
+
+/** Línea compacta con un resumen; clickeable para desplegar el detalle completo (campos con label). */
+function DetalleToggle({ resumen, campos }: { resumen: string; campos: Array<{ label: string; value: string }> }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#4a6080" }}
+      >
+        <span>{resumen}</span>
+        {campos.length > 0 && (
+          <span style={{ fontSize: 10, color: "#304bd1", fontWeight: 600 }}>{open ? "▲ ocultar" : "▼ ver detalle"}</span>
+        )}
+      </button>
+      {open && campos.length > 0 && (
+        <div style={{ marginTop: 6, background: "#f7f9fc", borderRadius: 8, border: "1px solid #e2e8f0", padding: "10px 12px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 8 }}>
+          {campos.map((c) => (
+            <div key={c.label}>
+              <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#8ea4cf" }}>{c.label}</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#050b2f" }}>{c.value}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Ficha del cuartel de origen (variedad, riego, manejo, mapa) — no solo sus eventos. */
+function CuartelInfoCard({ cuartel }: { cuartel: PublicProducto["cuarteles"][number] }) {
+  const c = cuartel.cuartel;
+  const mapUrl = c.poligono ? buildMapboxStaticUrl(c.poligono, { width: 800, height: 260 }) : null;
+  return (
+    <div style={{ background: "#ffffff", borderRadius: 16, border: "1px solid #d9e3ed", padding: "24px 28px", marginBottom: 16, boxShadow: "0 4px 16px rgba(7,19,95,0.07)" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: "#00a862", marginBottom: 8 }}>
+            🌱 Finca y cuartel de origen
+          </div>
+          <h2 style={{ fontSize: 22, fontWeight: 800, color: "#050b2f", margin: 0, lineHeight: 1.2 }}>{c.finca.nombre_finca}</h2>
+          <div style={{ fontSize: 14, color: "#4a6080", marginTop: 4 }}>
+            Cuartel {c.codigo_cuartel}
+            {c.finca.ubicacion_texto ? ` · ${c.finca.ubicacion_texto}` : ""}
+          </div>
+        </div>
+        {c.finca.renspa && (
+          <div style={{ background: "#f0f4fa", borderRadius: 10, padding: "8px 14px", fontSize: 12, color: "#4a6080" }}>
+            <span style={{ fontWeight: 700 }}>RENSPA</span> {c.finca.renspa}
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 16 }}>
+        {c.variedad && <Pill label="Variedad" value={getVariedadLabel(c.variedad) ?? c.variedad} />}
+        {c.superficie_ha && <Pill label="Superficie" value={`${c.superficie_ha} ha`} />}
+        {c.cultivo && <Pill label="Cultivo" value={c.cultivo} />}
+        {c.sistema_riego && <Pill label="Riego" value={getSistemaRiegoLabel(c.sistema_riego) ?? c.sistema_riego} />}
+        {c.sistema_productivo && <Pill label="Manejo" value={getManejoCultivoLabel(c.sistema_productivo) ?? c.sistema_productivo} />}
+        {c.sistema_conduccion && <Pill label="Conducción" value={getSistemaConduccionLabel(c.sistema_conduccion) ?? c.sistema_conduccion} />}
+      </div>
+
+      {mapUrl ? (
+        <div style={{ marginTop: 16, borderRadius: 12, overflow: "hidden", border: "1px solid #d9e3ed" }}>
+          <img src={mapUrl} alt={`Ubicación del cuartel ${c.codigo_cuartel}`} style={{ width: "100%", display: "block", objectFit: "cover", height: 200 }} loading="lazy" />
+        </div>
+      ) : null}
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 16, paddingTop: 16, borderTop: "1px solid #edf2f7" }}>
+        <Counter value={cuartel.tareas.length} label="tareas registradas" />
+        <Counter value={cuartel.remitos_uva.length} label="remitos de uva" />
+        <Counter value={cuartel.cius.length} label="CIUs emitidos" />
+      </div>
     </div>
   );
 }
@@ -282,6 +389,219 @@ function composicionPorCuartel(producto: PublicProducto): Array<{ label: string;
   return Array.from(porCuartel.values()).sort((a, b) => b.pct - a.pct);
 }
 
+/** Una tarjeta de evento, cualquiera sea su tipo — reutilizada tanto en las secciones por finca como en la de bodega. */
+function RenderEvento({ event, eventKey }: { event: TimelineEvent; eventKey: string }) {
+  if (event.kind === "bodega") {
+    const h = event.data;
+    if (h.kind === "origen_ingreso") {
+      return (
+        <EventCard key={eventKey} icon="🍇" label="Ingreso a bodega" accent="#00a862">
+          {h.recepciones.map((r, i) => (
+            <div key={i} style={{ fontSize: 13, color: "#4a6080", marginBottom: 4 }}>
+              CIU {r.codigo_ciu ?? "—"} · {fmt(r.fecha_hora)}
+              {r.kg_pesados ? ` · ${r.kg_pesados.toLocaleString("es-AR")} kg` : ""}
+            </div>
+          ))}
+        </EventCard>
+      );
+    }
+    if (h.kind === "origen_corte") {
+      return (
+        <EventCard key={eventKey} icon="🔀" label="Corte / blend" accent="#7a1f3d">
+          {h.objetivo && <div style={{ fontSize: 15, fontWeight: 700, color: "#050b2f", marginBottom: 8 }}>{h.objetivo}</div>}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {h.componentes.map((c) => (
+              <Badge key={c.lote_id} color="#7a1f3d">{c.lote_codigo} · {Math.round(c.porcentaje)}%</Badge>
+            ))}
+          </div>
+        </EventCard>
+      );
+    }
+    if (h.kind === "movimiento_vasija") {
+      return (
+        <EventCard key={eventKey} icon="🛢️" label={TIPO_OPERACION_LABEL[h.tipo_operacion ?? ""] ?? "Movimiento en vasija"} accent="#304bd1">
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", fontSize: 13, color: "#4a6080" }}>
+            <span>Vasija <strong style={{ color: "#050b2f" }}>{h.vasija_codigo}</strong></span>
+            <span>{h.volumen_l.toLocaleString("es-AR")} l</span>
+            {h.responsable && <span>{h.responsable}</span>}
+            <Badge color={h.cerrado ? "#8ea4cf" : "#00a862"}>{h.cerrado ? "Histórico" : "Activo"}</Badge>
+          </div>
+          {h.observaciones && <div style={{ fontSize: 13, color: "#4a6080", marginTop: 8 }}>{h.observaciones}</div>}
+          {(h.analisis.length > 0 || h.existencias.length > 0) && (
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #e8edf5", display: "flex", flexDirection: "column", gap: 6 }}>
+              {h.analisis.map((a, i) => (
+                <DetalleToggle
+                  key={`a-${i}`}
+                  resumen={`🧪 Análisis de fermentación · ${fmt(a.fecha_hora)}`}
+                  campos={[
+                    a.densidad !== null ? { label: "Densidad", value: String(a.densidad) } : null,
+                    a.temperatura !== null ? { label: "Temperatura", value: `${a.temperatura}°C` } : null,
+                    a.brix !== null ? { label: "Brix", value: String(a.brix) } : null,
+                    a.ph !== null ? { label: "pH", value: String(a.ph) } : null,
+                    a.acidez !== null ? { label: "Acidez", value: String(a.acidez) } : null,
+                    a.estado_fermentacion ? { label: "Estado", value: a.estado_fermentacion } : null,
+                    a.observaciones ? { label: "Observaciones", value: a.observaciones } : null,
+                  ].filter((c): c is { label: string; value: string } => c !== null)}
+                />
+              ))}
+              {h.existencias.map((e, i) => (
+                <DetalleToggle
+                  key={`e-${i}`}
+                  resumen={`🧪 Control de existencia · ${fmt(e.fecha_hora)}`}
+                  campos={[
+                    e.volumen_l !== null ? { label: "Volumen", value: `${e.volumen_l.toLocaleString("es-AR")} l` } : null,
+                    e.grado_alcohol !== null ? { label: "Grado alcohólico", value: `${e.grado_alcohol}%` } : null,
+                    e.azucar_residual_g_l !== null ? { label: "Azúcar residual", value: `${e.azucar_residual_g_l} g/l` } : null,
+                    e.observaciones ? { label: "Observaciones", value: e.observaciones } : null,
+                  ].filter((c): c is { label: string; value: string } => c !== null)}
+                />
+              ))}
+            </div>
+          )}
+        </EventCard>
+      );
+    }
+    return (
+      <EventCard key={eventKey} icon="🔗" label="Usado en otro corte" accent="#9a6a1f">
+        <div style={{ fontSize: 13, color: "#4a6080" }}>
+          Aportó <strong style={{ color: "#050b2f" }}>{Math.round(h.porcentaje)}%</strong> al lote {h.lote_resultado_codigo}
+        </div>
+      </EventCard>
+    );
+  }
+
+  if (event.kind === "tarea") {
+    const t = event.data;
+    const operariosUnicos = [...new Set(t.asignaciones.map((a) => a.operario).filter(Boolean) as string[])];
+    return (
+      <EventCard key={eventKey} icon="🌿" label={t.proceso?.tipo_evento ?? "Tarea de campo"} accent="#304bd1">
+        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "#050b2f" }}>{t.titulo}</div>
+          <span style={{ fontSize: 12, color: "#8ea4cf", whiteSpace: "nowrap" }}>{fmt(t.updated_at)}</span>
+        </div>
+        {t.descripcion && <div style={{ fontSize: 13, color: "#4a6080", marginBottom: 10, lineHeight: 1.6 }}>{t.descripcion}</div>}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+          <Badge color={estadoColor(t.estado)}>{estadoLabel(t.estado)}</Badge>
+          {t.proceso && <Badge color="#304bd1">{t.proceso.nombre}</Badge>}
+          {t.fecha_fin && <Badge color="#9a6a1f">Fecha límite: {fmt(t.fecha_fin)}</Badge>}
+        </div>
+        {operariosUnicos.length > 0 && (
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.16em", color: "#8ea4cf", marginBottom: 4 }}>
+              Operario{operariosUnicos.length !== 1 ? "s" : ""}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {operariosUnicos.map((nombre) => (
+                <span key={nombre} style={{ background: "#f0f4fa", borderRadius: 6, padding: "3px 10px", fontSize: 12, fontWeight: 600, color: "#07135f" }}>{nombre}</span>
+              ))}
+            </div>
+          </div>
+        )}
+        {t.entradas.length > 0 && (
+          <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #e8edf5" }}>
+            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.16em", color: "#8ea4cf", marginBottom: 8 }}>
+              Registros de trabajo ({t.entradas.length})
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {t.entradas.map((e) => (
+                <div key={e.entrada_id} style={{ background: "#f7f9fc", borderRadius: 8, border: "1px solid #e2e8f0", padding: "10px 12px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: e.descripcion ? 6 : 0 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#07135f" }}>{e.registrado_por ?? "Operario"}</span>
+                    <span style={{ fontSize: 11, color: "#8ea4cf", whiteSpace: "nowrap" }}>{fmt(e.fecha)}</span>
+                  </div>
+                  {e.descripcion && <div style={{ fontSize: 12, color: "#4a6080", lineHeight: 1.55 }}>{e.descripcion}</div>}
+                  {Array.isArray(e.adjuntos) && e.adjuntos.length > 0 && (
+                    <ImageGallery
+                      images={e.adjuntos.filter((a) => a.tipo.startsWith("image/")).map((a) => ({ url: a.url, nombre: a.nombre }))}
+                      files={e.adjuntos.filter((a) => !a.tipo.startsWith("image/"))}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </EventCard>
+    );
+  }
+
+  if (event.kind === "remito") {
+    const r = event.data;
+    return (
+      <EventCard key={eventKey} icon="🚛" label="Remito de uva" accent="#00a862">
+        <div style={{ fontSize: 14, fontWeight: 600, color: "#050b2f", marginBottom: 6 }}>
+          Salida de finca{r.transportista ? ` · ${r.transportista}` : ""}
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+          {r.kg_declarados && <Badge color="#00a862">{r.kg_declarados.toLocaleString("es-AR")} kg declarados</Badge>}
+          {r.llegada_bodega && <Badge color="#304bd1">Llegada {fmt(r.llegada_bodega)}</Badge>}
+          <span style={{ marginLeft: "auto", fontSize: 12, color: "#8ea4cf" }}>{fmt(r.salida_finca)}</span>
+        </div>
+        {r.adjuntos.length > 0 && (
+          <ImageGallery
+            images={r.adjuntos.filter((a) => a.tipo.startsWith("image/")).map((a) => ({ url: a.url, nombre: a.nombre }))}
+            files={r.adjuntos.filter((a) => !a.tipo.startsWith("image/"))}
+          />
+        )}
+      </EventCard>
+    );
+  }
+
+  if (event.kind === "recepcion") {
+    const rb = event.data;
+    return (
+      <EventCard key={eventKey} icon="🏭" label="Recepción en bodega" accent="#9a6a1f" origen={event.origen}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: "#050b2f", marginBottom: 6 }}>
+          Ingreso a bodega{rb.clasificacion ? ` · ${rb.clasificacion}` : ""}
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+          {rb.kg_pesados && <Badge color="#9a6a1f">{rb.kg_pesados.toLocaleString("es-AR")} kg pesados</Badge>}
+          <span style={{ marginLeft: "auto", fontSize: 12, color: "#8ea4cf" }}>{fmt(rb.fecha_hora)}</span>
+        </div>
+        {rb.analisis.length > 0 && (
+          <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #e8edf5", display: "flex", flexDirection: "column", gap: 6 }}>
+            {rb.analisis.map((a, i) => (
+              <DetalleToggle
+                key={i}
+                resumen={`🧪 ${a.fuente}`}
+                campos={[
+                  a.brix !== null ? { label: "Brix", value: String(a.brix) } : null,
+                  a.ph !== null ? { label: "pH", value: String(a.ph) } : null,
+                  a.acidez !== null ? { label: "Acidez", value: String(a.acidez) } : null,
+                  a.temperatura_uva !== null ? { label: "Temperatura", value: `${a.temperatura_uva}°C` } : null,
+                  "sanidad" in a && a.sanidad ? { label: "Sanidad", value: a.sanidad } : null,
+                  "estado_pcc" in a && a.estado_pcc ? { label: "Estado PCC", value: a.estado_pcc } : null,
+                  "aprobado" in a && a.aprobado !== null ? { label: "Aprobado", value: a.aprobado ? "Sí" : "No" } : null,
+                  a.observaciones ? { label: "Observaciones", value: a.observaciones } : null,
+                ].filter((c): c is { label: string; value: string } => c !== null)}
+              />
+            ))}
+          </div>
+        )}
+      </EventCard>
+    );
+  }
+
+  if (event.kind === "ciu") {
+    const c = event.data;
+    return (
+      <EventCard key={eventKey} icon="📋" label="CIU" accent="#304bd1">
+        <div style={{ fontSize: 14, fontWeight: 600, color: "#050b2f", marginBottom: 6 }}>CIU {c.codigo_ciu}</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+          <Badge color={c.estado === "emitido" ? "#00a862" : "#8ea4cf"}>{c.estado}</Badge>
+          {c.variedad_nombre && <Badge color="#304bd1">{c.variedad_nombre}</Badge>}
+          {c.tenor_azucarino_gl !== null && <Badge color="#9a6a1f">{c.tenor_azucarino_gl} g/l</Badge>}
+          {c.uva_organica && <Badge color="#00a862">Orgánica</Badge>}
+          <span style={{ marginLeft: "auto", fontSize: 12, color: "#8ea4cf" }}>{fmt(c.emitido_at)}</span>
+        </div>
+        {c.observaciones && <div style={{ fontSize: 13, color: "#4a6080", marginTop: 8 }}>{c.observaciones}</div>}
+      </EventCard>
+    );
+  }
+
+  return null;
+}
+
 // ── Main page ──────────────────────────────────────────────────────────────
 
 const ProductoPublico = () => {
@@ -313,7 +633,8 @@ const ProductoPublico = () => {
     };
   }, [codigoQr]);
 
-  const timeline = data ? buildTimeline(data) : [];
+  const eventosPorCuartel = data ? data.cuarteles.map((c) => ({ info: c, cuartel: c.cuartel, eventos: buildEventosDeCuartel(c) })) : [];
+  const eventosBodega = data ? buildEventosDeBodega(data) : [];
   const composicion = data ? composicionPorCuartel(data) : [];
 
   return (
@@ -374,130 +695,40 @@ const ProductoPublico = () => {
               ) : null}
             </div>
 
-            {/* Timeline */}
-            <div style={{ marginBottom: 12 }}>
-              <h2 style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: "#4a6080", margin: "0 0 20px" }}>
-                Línea de tiempo
-              </h2>
+            {/* Fincas y cuarteles de origen — una sección por cada uno, en orden cronológico */}
+            {eventosPorCuartel.map(({ info, cuartel, eventos }) => (
+              <div key={cuartel.cuartel_id} style={{ marginBottom: 28 }}>
+                <CuartelInfoCard cuartel={info} />
+                {eventosPorCuartel.length > 1 ? (
+                  <h3 style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "#00a862", margin: "0 0 12px" }}>
+                    🌱 En {cuartel.finca.nombre_finca} · Cuartel {cuartel.codigo_cuartel}
+                  </h3>
+                ) : eventos.length > 0 ? (
+                  <h3 style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "#00a862", margin: "0 0 12px" }}>
+                    🌱 En la finca
+                  </h3>
+                ) : null}
+                {eventos.length === 0 ? (
+                  <div style={{ background: "#ffffff", borderRadius: 12, padding: 20, textAlign: "center", color: "#8ea4cf", fontSize: 13 }}>
+                    Sin registros de campo todavía para este cuartel.
+                  </div>
+                ) : (
+                  eventos.map((event, i) => <RenderEvento key={`${cuartel.cuartel_id}-${i}`} event={event} eventKey={`${cuartel.cuartel_id}-${i}`} />)
+                )}
+              </div>
+            ))}
 
-              {timeline.length === 0 ? (
+            {/* En la bodega */}
+            <div style={{ marginBottom: 12 }}>
+              <h3 style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "#7a1f3d", margin: "0 0 12px" }}>
+                🏭 En la bodega
+              </h3>
+              {eventosBodega.length === 0 ? (
                 <div style={{ background: "#ffffff", borderRadius: 12, padding: 28, textAlign: "center", color: "#8ea4cf", fontSize: 14 }}>
-                  Todavía no hay registros de trazabilidad para este producto.
+                  Todavía no hay registros de bodega para este producto.
                 </div>
               ) : (
-                timeline.map((event, idx) => {
-                  if (event.kind === "corte") {
-                    return (
-                      <EventCard key={`corte-${idx}`} icon="🔀" label="Corte / blend" accent="#7a1f3d">
-                        <div style={{ fontSize: 15, fontWeight: 700, color: "#050b2f", marginBottom: 6 }}>
-                          {event.data.objetivo ?? "Elaboración del producto"}
-                        </div>
-                        <span style={{ fontSize: 12, color: "#8ea4cf" }}>{fmt(event.date.toISOString())}</span>
-                      </EventCard>
-                    );
-                  }
-
-                  if (event.kind === "tarea") {
-                    const t = event.data;
-                    const operariosUnicos = [...new Set(t.asignaciones.map((a) => a.operario).filter(Boolean) as string[])];
-                    return (
-                      <EventCard key={`tarea-${t.tarea_id}-${idx}`} icon="🌿" label={t.proceso?.tipo_evento ?? "Tarea de campo"} accent="#304bd1" origen={event.origen}>
-                        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
-                          <div style={{ fontSize: 15, fontWeight: 700, color: "#050b2f" }}>{t.titulo}</div>
-                          <span style={{ fontSize: 12, color: "#8ea4cf", whiteSpace: "nowrap" }}>{fmt(t.updated_at)}</span>
-                        </div>
-                        {t.descripcion && <div style={{ fontSize: 13, color: "#4a6080", marginBottom: 10, lineHeight: 1.6 }}>{t.descripcion}</div>}
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
-                          <Badge color={estadoColor(t.estado)}>{estadoLabel(t.estado)}</Badge>
-                          {t.proceso && <Badge color="#304bd1">{t.proceso.nombre}</Badge>}
-                          {t.fecha_fin && <Badge color="#9a6a1f">Fecha límite: {fmt(t.fecha_fin)}</Badge>}
-                        </div>
-                        {operariosUnicos.length > 0 && (
-                          <div style={{ marginBottom: 10 }}>
-                            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.16em", color: "#8ea4cf", marginBottom: 4 }}>
-                              Operario{operariosUnicos.length !== 1 ? "s" : ""}
-                            </div>
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                              {operariosUnicos.map((nombre) => (
-                                <span key={nombre} style={{ background: "#f0f4fa", borderRadius: 6, padding: "3px 10px", fontSize: 12, fontWeight: 600, color: "#07135f" }}>{nombre}</span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {t.entradas.length > 0 && (
-                          <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #e8edf5" }}>
-                            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.16em", color: "#8ea4cf", marginBottom: 8 }}>
-                              Registros de trabajo ({t.entradas.length})
-                            </div>
-                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                              {t.entradas.map((e) => (
-                                <div key={e.entrada_id} style={{ background: "#f7f9fc", borderRadius: 8, border: "1px solid #e2e8f0", padding: "10px 12px" }}>
-                                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: e.descripcion ? 6 : 0 }}>
-                                    <span style={{ fontSize: 12, fontWeight: 600, color: "#07135f" }}>{e.registrado_por ?? "Operario"}</span>
-                                    <span style={{ fontSize: 11, color: "#8ea4cf", whiteSpace: "nowrap" }}>{fmt(e.fecha)}</span>
-                                  </div>
-                                  {e.descripcion && <div style={{ fontSize: 12, color: "#4a6080", lineHeight: 1.55 }}>{e.descripcion}</div>}
-                                  {Array.isArray(e.adjuntos) && e.adjuntos.length > 0 && (
-                                    <ImageGallery
-                                      images={e.adjuntos.filter((a) => a.tipo.startsWith("image/")).map((a) => ({ url: a.url, nombre: a.nombre }))}
-                                      files={e.adjuntos.filter((a) => !a.tipo.startsWith("image/"))}
-                                    />
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </EventCard>
-                    );
-                  }
-
-                  if (event.kind === "remito") {
-                    const r = event.data;
-                    return (
-                      <EventCard key={`remito-${r.remito_uva_id}-${idx}`} icon="🚛" label="Remito de uva" accent="#00a862" origen={event.origen}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: "#050b2f", marginBottom: 6 }}>
-                          Salida de finca{r.transportista ? ` · ${r.transportista}` : ""}
-                        </div>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-                          {r.kg_declarados && <Badge color="#00a862">{r.kg_declarados.toLocaleString("es-AR")} kg declarados</Badge>}
-                          {r.llegada_bodega && <Badge color="#304bd1">Llegada {fmt(r.llegada_bodega)}</Badge>}
-                          <span style={{ marginLeft: "auto", fontSize: 12, color: "#8ea4cf" }}>{fmt(r.salida_finca)}</span>
-                        </div>
-                      </EventCard>
-                    );
-                  }
-
-                  if (event.kind === "recepcion") {
-                    const rb = event.data;
-                    return (
-                      <EventCard key={`recepcion-${rb.recepcion_bodega_id}-${idx}`} icon="🏭" label="Recepción en bodega" accent="#9a6a1f" origen={event.origen}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: "#050b2f", marginBottom: 6 }}>
-                          Ingreso a bodega{rb.clasificacion ? ` · ${rb.clasificacion}` : ""}
-                        </div>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-                          {rb.kg_pesados && <Badge color="#9a6a1f">{rb.kg_pesados.toLocaleString("es-AR")} kg pesados</Badge>}
-                          <span style={{ marginLeft: "auto", fontSize: 12, color: "#8ea4cf" }}>{fmt(rb.fecha_hora)}</span>
-                        </div>
-                      </EventCard>
-                    );
-                  }
-
-                  if (event.kind === "ciu") {
-                    const c = event.data;
-                    return (
-                      <EventCard key={`ciu-${c.ciu_id}-${idx}`} icon="📋" label="CIU" accent="#304bd1" origen={event.origen}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: "#050b2f", marginBottom: 6 }}>CIU {c.codigo_ciu}</div>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-                          <Badge color={c.estado === "emitido" ? "#00a862" : "#8ea4cf"}>{c.estado}</Badge>
-                          <span style={{ marginLeft: "auto", fontSize: 12, color: "#8ea4cf" }}>{fmt(c.emitido_at)}</span>
-                        </div>
-                      </EventCard>
-                    );
-                  }
-
-                  return null;
-                })
+                eventosBodega.map((event, i) => <RenderEvento key={`bodega-${i}`} event={event} eventKey={`bodega-${i}`} />)
               )}
             </div>
           </>

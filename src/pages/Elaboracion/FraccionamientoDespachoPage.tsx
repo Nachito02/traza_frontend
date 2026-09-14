@@ -64,6 +64,7 @@ export default function FraccionamientoDespachoPage({
   const [cortes, setCortes] = useState<ElaboracionEntity[]>([]);
   const [productos, setProductos] = useState<ElaboracionEntity[]>([]);
   const [lotes, setLotes] = useState<ElaboracionEntity[]>([]);
+  const [despachos, setDespachos] = useState<ElaboracionEntity[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loteFilterCodigos, setLoteFilterCodigos] = useState("");
@@ -125,19 +126,73 @@ export default function FraccionamientoDespachoPage({
     [lotes],
   );
 
+  // Fraccionamiento y despacho son eventos de la misma historia del producto — se
+  // mezclan en una sola línea de actividad reciente en vez de dos listas separadas.
+  type Reciente = { key: string; fecha: string; producto: string; icono: string; label: string; detalle: string };
+  const recientes = useMemo<Reciente[]>(() => {
+    const deLotes: Reciente[] = lotes
+      .map((item) => {
+        const producto = getNestedRecord(item, "producto");
+        const fecha = typeof item.fecha === "string" ? item.fecha : null;
+        if (!fecha) return null;
+        const detalle = [
+          item.botellas ? `${item.botellas} botellas` : null,
+          typeof item.formato === "string" && item.formato ? item.formato : null,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+        return {
+          key: `lote-${resolveLoteId(item)}`,
+          fecha,
+          producto: typeof producto?.nombre_comercial === "string" ? producto.nombre_comercial : "Producto sin nombre",
+          icono: "🍾",
+          label: "Fraccionado",
+          detalle: detalle || "—",
+        };
+      })
+      .filter((r): r is Reciente => r !== null);
+
+    const deDespachos: Reciente[] = despachos
+      .map((item) => {
+        const loteFrac = getNestedRecord(item, "lote_fraccionamiento");
+        const producto = loteFrac ? getNestedRecord(loteFrac, "producto") : null;
+        const fecha = typeof item.fecha === "string" ? item.fecha : null;
+        if (!fecha) return null;
+        const detalle = [
+          typeof item.destino === "string" && item.destino ? item.destino : null,
+          item.cantidad ? `${item.cantidad} u.` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+        return {
+          key: `despacho-${item.despacho_id ?? item.id_despacho ?? item.id}`,
+          fecha,
+          producto: typeof producto?.nombre_comercial === "string" ? producto.nombre_comercial : "Producto sin nombre",
+          icono: "🚚",
+          label: "Despachado",
+          detalle: detalle || "—",
+        };
+      })
+      .filter((r): r is Reciente => r !== null);
+
+    return [...deLotes, ...deDespachos].sort((a, b) => (a.fecha < b.fecha ? 1 : -1)).slice(0, 8);
+  }, [lotes, despachos]);
+
   const loadData = async () => {
     if (!activeBodegaId) return;
     setLoading(true);
     setLoadError(null);
     try {
-      const [cortesData, productosData, lotesData] = await Promise.all([
+      const [cortesData, productosData, lotesData, despachosData] = await Promise.all([
         listElaboracionResource("cortes", { bodegaId: String(activeBodegaId) }),
         listElaboracionResource("productos", { bodegaId: String(activeBodegaId) }),
         listElaboracionResource("lotes-fraccionamiento", { bodegaId: String(activeBodegaId) }),
+        listElaboracionResource("despachos", { bodegaId: String(activeBodegaId) }),
       ]);
       setCortes(cortesData);
       setProductos(productosData);
       setLotes(lotesData);
+      setDespachos(despachosData);
     } catch (requestError) {
       setLoadError(getApiErrorMessage(requestError));
     } finally {
@@ -211,6 +266,33 @@ export default function FraccionamientoDespachoPage({
               { key: "despachos", label: "Despachos" },
             ]}
           />
+        </AppCard>
+      ) : null}
+
+      {!hideSectionSelector && recientes.length > 0 ? (
+        <AppCard
+          as="section"
+          tone="default"
+          padding="md"
+          header={<h3 className="text-base font-semibold">Recientes</h3>}
+        >
+          <div className="space-y-1.5">
+            {recientes.map((r) => (
+              <div
+                key={r.key}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-3 py-2 text-sm"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span>{r.icono}</span>
+                  <span className="truncate font-medium text-[color:var(--text-ink)]">{r.producto}</span>
+                  <span className="shrink-0 text-xs text-[color:var(--text-ink-muted)]">
+                    {r.label} · {r.detalle}
+                  </span>
+                </div>
+                <span className="shrink-0 text-xs text-[color:var(--text-ink-muted)]">{r.fecha.slice(0, 10)}</span>
+              </div>
+            ))}
+          </div>
         </AppCard>
       ) : null}
 

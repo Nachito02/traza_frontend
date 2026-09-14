@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { Search } from "lucide-react";
 import { listElaboracionResource, type ElaboracionEntity } from "../../features/elaboracion/api";
 import {
   AppButton,
@@ -12,27 +13,44 @@ import {
 import { getApiErrorMessage } from "../../lib/api";
 import { useAuthStore } from "../../store/authStore";
 
-function getNestedRecord(item: ElaboracionEntity, key: string): Record<string, unknown> | null {
-  const value = item[key];
+function getNestedRecord(item: unknown, key: string): Record<string, unknown> | null {
+  if (!item || typeof item !== "object") return null;
+  const value = (item as Record<string, unknown>)[key];
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 }
 
-function resolveCodigoEnvaseId(item: ElaboracionEntity) {
-  const value = item.codigo_envase_id ?? item.id_codigo ?? item.id;
+function getArray(item: unknown, key: string): unknown[] {
+  if (!item || typeof item !== "object") return [];
+  const value = (item as Record<string, unknown>)[key];
+  return Array.isArray(value) ? value : [];
+}
+
+function resolveProductoId(item: ElaboracionEntity) {
+  const value = item.producto_id ?? item.id_producto ?? item.id;
   return typeof value === "string" || typeof value === "number" ? String(value) : "";
 }
 
-/** Texto plano por el que se puede buscar un código de envase: producto, varietal, códigos. */
+/** El primer código QR ya generado para este producto (si algún lote de fraccionamiento suyo tiene uno). */
+function resolveCodigoQr(item: ElaboracionEntity): string | null {
+  for (const lf of getArray(item, "lote_fraccionamiento")) {
+    for (const ce of getArray(lf, "codigo_envase")) {
+      const codigoQr = ce && typeof ce === "object" ? (ce as Record<string, unknown>).codigo_qr : undefined;
+      if (typeof codigoQr === "string" && codigoQr) return codigoQr;
+    }
+  }
+  return null;
+}
+
+function resolveLoteOrigenId(item: ElaboracionEntity): string | null {
+  const loteOrigen = getNestedRecord(item, "lote_origen");
+  const id = loteOrigen?.lote_id;
+  return typeof id === "string" ? id : null;
+}
+
+/** Texto plano por el que se puede buscar un producto: nombre, varietal, código de lote/QR. */
 function textoBusqueda(item: ElaboracionEntity): string {
-  const loteFrac = getNestedRecord(item, "lote_fraccionamiento");
-  const producto = loteFrac ? getNestedRecord(loteFrac, "producto") : null;
-  return [
-    producto?.nombre_comercial,
-    producto?.varietal,
-    item.codigo_qr,
-    item.codigo_lote_impreso,
-    loteFrac?.formato,
-  ]
+  const loteOrigen = getNestedRecord(item, "lote_origen");
+  return [item.nombre_comercial, item.varietal, item.tipo, loteOrigen?.codigo, resolveCodigoQr(item)]
     .filter((v): v is string => typeof v === "string")
     .join(" ")
     .toLowerCase();
@@ -40,7 +58,7 @@ function textoBusqueda(item: ElaboracionEntity): string {
 
 export default function QrInversaPage() {
   const activeBodegaId = useAuthStore((state) => state.activeBodegaId);
-  const [codigos, setCodigos] = useState<ElaboracionEntity[]>([]);
+  const [productos, setProductos] = useState<ElaboracionEntity[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState("");
@@ -51,9 +69,9 @@ export default function QrInversaPage() {
     let mounted = true;
     setLoading(true);
     setError(null);
-    listElaboracionResource("codigos-envase", { bodegaId: String(activeBodegaId) })
+    listElaboracionResource("productos", { bodegaId: String(activeBodegaId) })
       .then((data) => {
-        if (mounted) setCodigos(data);
+        if (mounted) setProductos(data);
       })
       .catch((requestError) => {
         if (mounted) setError(getApiErrorMessage(requestError));
@@ -68,9 +86,9 @@ export default function QrInversaPage() {
 
   const filtrados = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
-    if (!q) return codigos;
-    return codigos.filter((item) => textoBusqueda(item).includes(q));
-  }, [codigos, busqueda]);
+    if (!q) return productos;
+    return productos.filter((item) => textoBusqueda(item).includes(q));
+  }, [productos, busqueda]);
 
   return (
     <AppCard
@@ -109,6 +127,7 @@ export default function QrInversaPage() {
           value={busqueda}
           onChange={(event) => setBusqueda(event.target.value)}
           placeholder="Buscar por producto, varietal o código…"
+          leftSection={<Search className="h-4 w-4" />}
           uiSize="lg"
         />
       </div>
@@ -122,33 +141,25 @@ export default function QrInversaPage() {
           <NoticeBanner>Cargando…</NoticeBanner>
         ) : filtrados.length === 0 ? (
           <GuidedState
-            title={codigos.length === 0 ? "Todavía no hay códigos de envase" : "Sin resultados"}
+            title={productos.length === 0 ? "Todavía no hay productos" : "Sin resultados"}
             description={
-              codigos.length === 0
-                ? "Los códigos QR se generan desde Fraccionamiento y Despacho al crear un envase."
+              productos.length === 0
+                ? "Creá un producto desde Cortes y Producto para que aparezca acá."
                 : "Probá con otro término de búsqueda."
             }
           />
         ) : (
           filtrados.map((item, index) => {
-            const id = resolveCodigoEnvaseId(item) || `i-${index}`;
-            const loteFrac = getNestedRecord(item, "lote_fraccionamiento");
-            const producto = loteFrac ? getNestedRecord(loteFrac, "producto") : null;
-            const corte = loteFrac ? getNestedRecord(loteFrac, "corte") : null;
-            const codigoQr = typeof item.codigo_qr === "string" ? item.codigo_qr : "";
-            const nombreComercial = typeof producto?.nombre_comercial === "string" ? producto.nombre_comercial : "Producto sin nombre";
-            const varietal = typeof producto?.varietal === "string" ? producto.varietal : null;
-            const anio = producto?.anio !== undefined && producto?.anio !== null ? String(producto.anio) : null;
-            const fecha = typeof corte?.fecha === "string" ? corte.fecha.slice(0, 10) : null;
+            const id = resolveProductoId(item) || `i-${index}`;
+            const nombreComercial = typeof item.nombre_comercial === "string" ? item.nombre_comercial : "Producto sin nombre";
+            const varietal = typeof item.varietal === "string" ? item.varietal : null;
+            const anio = item.anio !== undefined && item.anio !== null ? String(item.anio) : null;
+            const codigoQr = resolveCodigoQr(item);
+            const loteOrigenId = resolveLoteOrigenId(item);
+            const destino = codigoQr ? `/producto/${encodeURIComponent(codigoQr)}` : loteOrigenId ? `/lote/${loteOrigenId}` : null;
 
-            return (
-              <Link
-                key={id}
-                to={codigoQr ? `/producto/${encodeURIComponent(codigoQr)}` : "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] px-4 py-3 transition-colors hover:border-[color:var(--accent-primary)]"
-              >
+            const contenido = (
+              <>
                 <div className="min-w-0">
                   <div className="text-sm font-semibold text-[color:var(--text-ink)]">
                     {nombreComercial}
@@ -156,11 +167,37 @@ export default function QrInversaPage() {
                     {anio ? <span className="font-normal text-[color:var(--text-ink-muted)]"> · {anio}</span> : null}
                   </div>
                   <div className="mt-1 text-xs text-[color:var(--text-ink-muted)]">
-                    {codigoQr ? `QR ${codigoQr}` : "Sin código"}
-                    {fecha ? ` · Fraccionado ${fecha}` : ""}
+                    {codigoQr ? (
+                      <span className="text-[color:var(--feedback-success-text)]">Fraccionado · QR {codigoQr}</span>
+                    ) : loteOrigenId ? (
+                      <span>Sin fraccionar todavía — trazabilidad desde su lote de origen</span>
+                    ) : (
+                      <span>Sin lote de origen — todavía no tiene trazabilidad</span>
+                    )}
                   </div>
                 </div>
-                <span className="shrink-0 text-xs font-semibold text-[color:var(--accent-primary)]">Ver trazabilidad →</span>
+                {destino ? (
+                  <span className="shrink-0 text-xs font-semibold text-[color:var(--accent-primary)]">Ver trazabilidad →</span>
+                ) : null}
+              </>
+            );
+
+            const className =
+              "flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-lg)] border px-4 py-3 transition-colors " +
+              (destino
+                ? "border-[color:var(--border-shell)] bg-[color:var(--surface-soft)] hover:border-[color:var(--accent-primary)]"
+                : "border-dashed border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] opacity-70");
+
+            if (!destino) {
+              return (
+                <div key={id} className={className}>
+                  {contenido}
+                </div>
+              );
+            }
+            return (
+              <Link key={id} to={destino} target="_blank" rel="noopener noreferrer" className={className}>
+                {contenido}
               </Link>
             );
           })

@@ -242,6 +242,42 @@ function Evento({ evento, cuartel }: { evento: LoteHistorialEvento; cuartel: His
           <span>{evento.cerrado ? "Ya salió de esta vasija" : "Activo en esta vasija"}</span>
           {evento.observaciones ? <span className="w-full">{evento.observaciones}</span> : null}
         </div>
+
+        {evento.analisis.length > 0 || evento.existencias.length > 0 ? (
+          <div className="mt-2 space-y-1 border-t border-[color:var(--border-shell)] pt-2">
+            {evento.analisis.map((a, i) => (
+              <div key={`analisis-${i}`} className="text-xs text-[color:var(--text-ink-muted)]">
+                🧪 {fmt(a.fecha_hora)}
+                {[
+                  a.densidad !== null ? `densidad ${a.densidad}` : null,
+                  a.temperatura !== null ? `${a.temperatura}°` : null,
+                  a.brix !== null ? `${a.brix} brix` : null,
+                  a.ph !== null ? `pH ${a.ph}` : null,
+                  a.acidez !== null ? `acidez ${a.acidez}` : null,
+                  a.estado_fermentacion,
+                ]
+                  .filter(Boolean)
+                  .map((v) => ` · ${v}`)
+                  .join("")}
+                {a.observaciones ? ` — ${a.observaciones}` : ""}
+              </div>
+            ))}
+            {evento.existencias.map((e, i) => (
+              <div key={`existencia-${i}`} className="text-xs text-[color:var(--text-ink-muted)]">
+                🧪 {fmt(e.fecha_hora)}
+                {[
+                  e.volumen_l !== null ? `${e.volumen_l.toLocaleString("es-AR")} l` : null,
+                  e.grado_alcohol !== null ? `${e.grado_alcohol}% alc.` : null,
+                  e.azucar_residual_g_l !== null ? `${e.azucar_residual_g_l} g/l azúcar residual` : null,
+                ]
+                  .filter(Boolean)
+                  .map((v) => ` · ${v}`)
+                  .join("")}
+                {e.observaciones ? ` — ${e.observaciones}` : ""}
+              </div>
+            ))}
+          </div>
+        ) : null}
       </EventCard>
     );
   }

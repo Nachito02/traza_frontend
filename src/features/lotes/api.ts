@@ -163,6 +163,23 @@ export type LoteHistorialEvento =
       tipo_operacion: string | null;
       observaciones: string | null;
       responsable: string | null;
+      analisis: Array<{
+        fecha_hora: string;
+        densidad: number | null;
+        temperatura: number | null;
+        brix: number | null;
+        ph: number | null;
+        acidez: number | null;
+        estado_fermentacion: string | null;
+        observaciones: string | null;
+      }>;
+      existencias: Array<{
+        fecha_hora: string;
+        volumen_l: number | null;
+        grado_alcohol: number | null;
+        azucar_residual_g_l: number | null;
+        observaciones: string | null;
+      }>;
     }
   | {
       kind: "usado_en_corte";

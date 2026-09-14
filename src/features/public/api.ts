@@ -2,7 +2,7 @@
  * Public API — no auth token required.
  * These calls use the raw fetch API (not the authenticated apiClient).
  */
-import type { CiuContribucion, LoteGenealogiaNode } from "../lotes/api";
+import type { CiuContribucion, LoteGenealogiaNode, LoteHistorialEvento } from "../lotes/api";
 
 const API_BASE = (import.meta.env.VITE_API_URL as string) ?? "";
 
@@ -41,17 +41,40 @@ export type PublicTarea = {
   entradas: PublicTareaEntrada[];
 };
 
+export type PublicAnalisisRecepcion =
+  | {
+      fuente: "Análisis de recepción";
+      brix: number | null;
+      ph: number | null;
+      acidez: number | null;
+      temperatura_uva: number | null;
+      sanidad: string | null;
+      observaciones: string | null;
+    }
+  | {
+      fuente: "Control de calidad";
+      brix: number | null;
+      ph: number | null;
+      acidez: number | null;
+      temperatura_uva: number | null;
+      estado_pcc: string | null;
+      aprobado: boolean | null;
+      observaciones: string | null;
+    };
+
 export type PublicRemitoUva = {
   remito_uva_id: string;
   salida_finca: string;
   llegada_bodega: string | null;
   kg_declarados: number | null;
   transportista: string | null;
+  adjuntos: PublicAdjunto[];
   recepciones: {
     recepcion_bodega_id: string;
     fecha_hora: string;
     kg_pesados: number | null;
     clasificacion: string | null;
+    analisis: PublicAnalisisRecepcion[];
   }[];
 };
 
@@ -60,6 +83,10 @@ export type PublicCiu = {
   codigo_ciu: string;
   estado: string;
   emitido_at: string;
+  observaciones: string | null;
+  variedad_nombre: string | null;
+  tenor_azucarino_gl: number | null;
+  uva_organica: boolean | null;
 };
 
 export type PublicGeoJSONPolygon = {
@@ -124,6 +151,8 @@ export type PublicProducto = {
   cius: CiuContribucion[];
   /** Línea de campo completa de cada cuartel de origen involucrado en el blend. */
   cuarteles: PublicTrazabilidadCuartel[];
+  /** Qué pasó en la bodega con el lote resultado: el corte, a qué vasija fue, etc. */
+  historial: LoteHistorialEvento[];
 };
 
 export async function fetchPublicProducto(codigoQr: string): Promise<PublicProducto> {
@@ -141,6 +170,15 @@ export type PublicLote = {
   genealogia: LoteGenealogiaNode;
   cius: CiuContribucion[];
   cuarteles: PublicTrazabilidadCuartel[];
+  historial: LoteHistorialEvento[];
+  /** Si ya hay un Producto creado con este lote como origen, aunque todavía no se haya fraccionado. */
+  producto: {
+    producto_id: string;
+    nombre_comercial: string;
+    varietal: string | null;
+    anio: number | null;
+    tipo: string | null;
+  } | null;
 };
 
 /** Vista pública de un lote puntual (todavía no fraccionado en producto, o un lote intermedio del blend). */
