@@ -4,6 +4,7 @@ import { SISTEMA_RIEGO_OPTIONS, OTRO_RIEGO_VALUE } from "../../domain/viticultur
 export type FieldType = "date" | "text" | "number" | "textarea" | "select" | "user_select";
 
 export type FieldDef = {
+  allowOther?: boolean;
   name: string;
   label: string;
   type: FieldType;
@@ -23,7 +24,7 @@ export type EventoConfig = {
   fields: FieldDef[];
 };
 
-export const EVENTO_CONFIG: Record<string, EventoConfig> = {
+const BASE_EVENTO_CONFIG: Record<string, EventoConfig> = {
   origen_unidad_productiva: {
     label: "Origen / unidad productiva",
     fields: [
@@ -541,3 +542,29 @@ export const EVENTO_CONFIG: Record<string, EventoConfig> = {
     ],
   },
 };
+
+const CUSTOM_FIELDS: Record<string, string[]> = {
+  origen_unidad_productiva: ["sistema_riego"],
+  riego: ["sistema_riego"],
+  fertilizacion: ["metodo"],
+  labor_suelo: ["tipo_labor"],
+  labores_culturales: ["tipo_labor"],
+  canopia: ["tipo_practica"],
+  monitoreo_enfermedad: ["enfermedad"],
+  monitoreo_plaga: ["plaga"],
+  enmienda: ["tipo"],
+  cobertura_erosion: ["tipo_cobertura"],
+  energia_riego: ["tipo_energia"],
+  energia_heladas: ["tipo_energia"],
+  sobrante_lavado: ["tipo_sobrante", "disposicion"],
+};
+
+export const EVENTO_CONFIG: Record<string, EventoConfig> = Object.fromEntries(
+  Object.entries(BASE_EVENTO_CONFIG).map(([key, config]) => [key, {
+    ...config,
+    fields: config.fields.map((field) => ({
+      ...field,
+      ...(CUSTOM_FIELDS[key]?.includes(field.name) ? { allowOther: true } : {}),
+    })),
+  }]),
+);

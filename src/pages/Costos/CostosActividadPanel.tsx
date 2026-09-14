@@ -49,6 +49,12 @@ type Props = {
   esLaborConMaquina?: boolean;
   /** Permite recargar la vista padre cuando cambian los costos. */
   onChanged?: () => void;
+  /**
+   * Montado dentro del wizard de carga de actividades, que ya resuelve superficie, personal
+   * e insumos en su primer paso. Oculta esos bloques para no duplicar los mismos campos
+   * (y para que este panel no pise con su propio estado lo que guardó el wizard).
+   */
+  embedded?: boolean;
 };
 
 const MODALIDADES: { value: ModalidadEjecucion; label: string }[] = [
@@ -72,7 +78,7 @@ function NoAplicaNota({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function CostosActividadPanel({ tareaId, bodegaId, actividadClave, esFertilizacion, esLaborConMaquina, onChanged }: Props) {
+export default function CostosActividadPanel({ tareaId, bodegaId, actividadClave, esFertilizacion, esLaborConMaquina, onChanged, embedded = false }: Props) {
   const { notifySuccess, notifyError } = useAppNotifications();
   const [data, setData] = useState<CostosTarea | null>(null);
   const [tarifasMaq, setTarifasMaq] = useState<TarifaMaquinaria[]>([]);
@@ -406,7 +412,11 @@ export default function CostosActividadPanel({ tareaId, bodegaId, actividadClave
         </div>
       </AppCard>
 
-      {/* Ejecución: superficie + mano de obra */}
+      {/* Ejecución: superficie + mano de obra.
+          En modo embedded lo resuelve el paso 1 del wizard. Se oculta la card COMPLETA,
+          botón incluido: si quedara el "Guardar ejecución" con el input oculto, guardaría
+          la superficie vacía de su propio estado y pisaría la que cargó el wizard. */}
+      {embedded ? null : (
       <AppCard tone="default" padding="md" header={<h4 className="text-sm font-semibold">Superficie y mano de obra</h4>}>
         {sugerencia && (sugerencia.productividad_label || sugerencia.equipos_sugeridos.length > 0 || sugerencia.insumos_sugeridos.length > 0) ? (
           <div className="mb-3 rounded-[var(--radius-md)] border border-[color:var(--border-subtle)] bg-[color:var(--surface-accent-soft)] px-3 py-2 text-xs text-[color:var(--text-ink-muted)]">
@@ -483,6 +493,7 @@ export default function CostosActividadPanel({ tareaId, bodegaId, actividadClave
           </AppButton>
         </div>
       </AppCard>
+      )}
 
       {/* Mano de obra contratada (detallada) */}
       <AppCard tone="default" padding="md" header={<h4 className="text-sm font-semibold">Mano de obra contratada</h4>}>
@@ -579,7 +590,9 @@ export default function CostosActividadPanel({ tareaId, bodegaId, actividadClave
         </div>
       </AppCard>
 
-      {/* Insumos */}
+      {/* Insumos. En modo embedded los maneja la sección del paso 0 del wizard, que es la
+          única fuente de verdad para no tener dos listas de insumos en la misma pantalla. */}
+      {embedded ? null : (
       <AppCard
         tone="default"
         padding="md"
@@ -619,6 +632,7 @@ export default function CostosActividadPanel({ tareaId, bodegaId, actividadClave
           onError={(message) => notifyError({ title: "No se pudo agregar", message })}
         />
       </AppCard>
+      )}
     </div>
   );
 }

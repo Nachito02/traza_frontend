@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import {
   Routes,
   Route,
+  Outlet,
   Navigate,
   useLocation,
   useNavigate,
@@ -49,6 +50,8 @@ import RecursosAdmin from "./pages/Admin/RecursosAdmin";
 import InventarioPage from "./pages/Inventario/InventarioPage";
 import PersonalPage from "./pages/Personal/PersonalPage";
 import TrazabilidadPublica from "./pages/Public/TrazabilidadPublica";
+import ProductoPublico from "./pages/Public/ProductoPublico";
+import LotePublico from "./pages/Public/LotePublico";
 import BodegaHome from "./pages/Bodega/BodegaHome";
 import BodegaConfigPage from "./pages/Bodega/BodegaConfigPage";
 import BodegaVasijasPage from "./pages/Bodega/BodegaVasijasPage";
@@ -171,6 +174,8 @@ export default function App() {
       <Route path="/" element={<Navigate to="/login" replace />} />
       {/* Public — no auth required */}
       <Route path="/trazabilidad/:cuartelId" element={<TrazabilidadPublica />} />
+      <Route path="/producto/:codigoQr" element={<ProductoPublico />} />
+      <Route path="/lote/:loteId" element={<LotePublico />} />
       <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} />
       <Route path="/registro" element={<Register />} />
       <Route path="/cambiar-password" element={<ChangePassword />} />
@@ -210,7 +215,6 @@ export default function App() {
         />
         <Route path="/operacion" element={canUseOperacionBodega ? <OperacionLayout /> : <Navigate to="/ordenes" replace />}>
           <Route path="tareas" element={<Navigate to="/ordenes" replace />} />
-          <Route path="registro" element={<RegistroActividadPage />} />
           <Route path="recepcion" element={<IngresoUvaFlowPage />} />
           <Route path="ciu-qc" element={<Navigate to="/operacion/recepcion?paso=ciu" replace />} />
           <Route path="vasijas" element={<VasijasProcesoPage />} />
@@ -222,6 +226,12 @@ export default function App() {
           <Route path="campo" element={<CampoPage />} />
           <Route path="trazabilidades" element={<Navigate to="/ordenes" replace />} />
           <Route path="trazabilidades/:id/plan" element={<Navigate to="/ordenes" replace />} />
+        </Route>
+        <Route
+          path="/operacion/registro"
+          element={access.canRegisterTask ? (access.canAccessOperacionBodega ? <OperacionLayout /> : <Outlet />) : <Navigate to="/ordenes" replace />}
+        >
+          <Route index element={<RegistroActividadPage />} />
         </Route>
         <Route
           path="/campo"

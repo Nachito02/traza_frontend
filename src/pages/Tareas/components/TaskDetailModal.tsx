@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { AppButton, AppModal } from "../../../components/ui";
+import { AppButton, AppModal, AppSelect } from "../../../components/ui";
+import { eligibleAssignments, taskIsActive, type TaskOrigin } from "../taskWorkflow";
 import { resolveModuleAccess } from "../../../lib/permissions";
 import { useAuthStore } from "../../../store/authStore";
 import {
@@ -291,12 +292,13 @@ function summarizeDraftFields(
 }
 
 type EntradaRowProps = {
+  origin: TaskOrigin;
   tareaId: string;
   entrada: TareaEntradaDetail;
   eventoConfig: EventoConfig | null;
 };
 
-function EntradaRow({ tareaId, entrada, eventoConfig }: EntradaRowProps) {
+function EntradaRow({ tareaId, entrada, eventoConfig, origin }: EntradaRowProps) {
   const [open, setOpen] = useState(false);
 
   const adj = entrada.adjuntos as AdjuntosPayload | null | undefined;
@@ -349,7 +351,7 @@ function EntradaRow({ tareaId, entrada, eventoConfig }: EntradaRowProps) {
         </button>
         <div className="flex shrink-0 items-center gap-2 pt-0.5">
           <Link
-            to={`/operacion/registro?mode=edit&tareaId=${encodeURIComponent(tareaId)}&entradaId=${encodeURIComponent(entrada.entradaId)}&from=ordenes`}
+            to={`/operacion/registro?mode=edit&tareaId=${encodeURIComponent(tareaId)}&entradaId=${encodeURIComponent(entrada.entradaId)}&from=${origin}`}
             className="inline-flex min-h-9 cursor-pointer items-center justify-center rounded-[var(--radius-md)] border border-[color:var(--border-shell)] bg-[color:var(--action-secondary-bg)] px-3 py-2 text-xs font-semibold text-[color:var(--accent-primary)] shadow-[var(--shadow-inset-soft)] transition-all duration-[var(--motion-fast)] ease-[var(--motion-standard)] hover:border-[color:var(--border-default)] hover:bg-[color:var(--action-secondary-hover)]"
           >
             Abrir editor
@@ -410,9 +412,11 @@ type TaskDetailModalProps = {
   isDeleting?: boolean;
   onDelete?: () => void;
   onCompleted?: () => void;
+  origin?: TaskOrigin;
 };
 
-export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, onDelete, onCompleted }: TaskDetailModalProps) {
+export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, onDelete, onCompleted, origin = "ordenes" }: TaskDetailModalProps) {
+  const [selection, setSelection] = useState<{ taskId: string; assignmentId: string } | null>(null);
   const [entradas, setEntradas] = useState<TareaEntradaDetail[] | null>(null);
   const [validando, setValidando] = useState(false);
   const [eliminando, setEliminando] = useState(false);
@@ -474,9 +478,11 @@ export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, 
 
   if (!task) return null;
 
-  const hasCompletedAssignment =
-    task.tarea_asignacion?.some((a) => normalizeTaskStatus(a.estado) === "completado") ?? false;
-  const effectiveEstado = hasCompletedAssignment ? "completado" : task.estado;
+  const effectiveEstado = task.estado;
+  const taskId = String(task.tarea_id ?? task.id ?? "");
+  const assignments = eligibleAssignments(task, String(user?.id ?? ""), access.canManageTasks);
+  const selectedId = assignments.length === 1 ? assignments[0].tarea_asignacion_id : selection?.taskId === taskId ? selection.assignmentId : "";
+  const selectedAssignment = assignments.find((assignment) => assignment.tarea_asignacion_id === selectedId);
   const fecha = fechaLabel(task);
   const isFincaTask = Boolean(task.finca_id ?? task.finca?.finca_id);
   const catalogTaskId = getMatchedCatalogTaskId(task.titulo, task.evento_tipo ?? null);
@@ -658,6 +664,7 @@ export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, 
               />
               {entradas.map((entrada) => (
                 <EntradaRow
+                  origin={origin}
                   key={entrada.entradaId}
                   tareaId={String(task.tarea_id ?? task.id ?? "")}
                   entrada={entrada}
@@ -684,6 +691,23 @@ export default function TaskDetailModal({ task, onClose, canDelete, isDeleting, 
         </p>
 
         {/* Acciones */}
+        {taskIsActive(task) && (
+          <div className="space-y-3 rounded-[var(--radius-lg)] border border-[color:var(--border-shell)] bg-[color:var(--surface-muted)] p-4">
+            {assignments.length > 1 && (
+              <AppSelect label="Asignación a completar" value={selectedId} onChange={(event) => setSelection({ taskId, assignmentId: event.target.value })}>
+                <option value="">Seleccioná un operario</option>
+                {assignments.map((assignment, index) => <option key={assignment.tarea_asignacion_id} value={assignment.tarea_asignacion_id}>{assignment.app_user?.nombre ?? `Operario ${index + 1}`} · {assignment.estado === "en_progreso" ? "En progreso" : "Pendiente"}</option>)}
+              </AppSelect>
+            )}
+            {selectedAssignment && taskId ? (
+              <Link to={`/operacion/registro?mode=task&tareaId=${encodeURIComponent(taskId)}&asignacionId=${encodeURIComponent(selectedAssignment.tarea_asignacion_id)}&from=${origin}`} onClick={onClose} className="inline-flex rounded-[var(--radius-md)] bg-[color:var(--action-primary-bg)] px-4 py-2 text-sm font-semibold text-[color:var(--action-primary-text)] hover:bg-[color:var(--action-primary-hover)]">Completar tarea</Link>
+            ) : assignments.length > 1 ? (
+              <AppButton disabled>Completar tarea</AppButton>
+            ) : (
+              <p className="text-sm text-[color:var(--text-ink-muted)]">{task.tarea_asignacion?.length ? "No tenés asignaciones activas disponibles para completar en esta orden." : "Asigná la tarea a un operario para poder completarla."}</p>
+            )}
+          </div>
+        )}
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--border-shell)]/50 pt-3">
           <Link
             to={operativoHref}

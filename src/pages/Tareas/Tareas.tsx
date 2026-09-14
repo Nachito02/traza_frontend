@@ -10,7 +10,7 @@ import {
   SectionIntro,
 } from "../../components/ui";
 import type { Tarea } from "../../features/encargos/api";
-import OrderRow from "./components/OrderRow";
+import OrderList from "./components/OrderList";
 import TaskDetailModal from "./components/TaskDetailModal";
 import CreateOrderForm from "./components/CreateOrderForm";
 import { useTareasData } from "./useTareasData";
@@ -202,20 +202,7 @@ const Tareas = ({ mode = "operator" }: TareasProps) => {
                 }
               />
             ) : (
-              <div className="relative mt-2 space-y-1 pl-6">
-                <div className="pointer-events-none absolute bottom-2 left-[7px] top-2 w-px bg-[color:var(--border-shell)]" aria-hidden />
-                {visibleTasks.map((task) => {
-                  const taskId = String(task.tarea_id ?? task.id ?? "");
-                  return (
-                    <OrderRow
-                      key={taskId}
-                      task={task}
-                      variant={isCompletedTask(task) ? "completed" : "pending"}
-                      onOpenDetail={() => setDetailTask(task)}
-                    />
-                  );
-                })}
-              </div>
+              <OrderList tasks={visibleTasks} onOpenDetail={setDetailTask} />
             )}
           </AppCard>
         ) : null}

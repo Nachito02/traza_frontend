@@ -1,6 +1,8 @@
 export { default as AppButton } from "./AppButton";
 export { default as AppCard } from "./AppCard";
 export { default as AppChip } from "./AppChip";
+export { default as AppDisclosure } from "./AppDisclosure";
+export type { AppDisclosureProps } from "./AppDisclosure";
 export { default as AppTabs } from "./AppTabs";
 export type { AppTabItem } from "./AppTabs";
 export { default as AppInput } from "./AppInput";

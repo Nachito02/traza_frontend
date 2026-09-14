@@ -1,4 +1,5 @@
 import type { Tarea } from "../../features/encargos/api";
+import { taskIsActive, taskIsComplete } from "./taskWorkflow";
 import {
   FINCA_PRODUCCION_EVENT_TYPES,
   OPERACION_TASK_TEMPLATES,
@@ -154,23 +155,14 @@ export function hasCompletedAssignment(task: Tarea) {
   );
 }
 
-/** Devuelve true si la tarea está completada (por estado o por asignación). */
+/** El estado agregado de la orden es la fuente de verdad. */
 export function isCompletedTask(task: Tarea) {
-  return normalizeTaskStatus(task.estado) === "completado" || hasCompletedAssignment(task);
+  return taskIsComplete(task);
 }
 
 /** Devuelve true si la tarea está activa (pendiente o en progreso). */
 export function isPendingTask(task: Tarea) {
-  const taskStatus = normalizeTaskStatus(task.estado || "pendiente");
-  const hasActiveAssignment =
-    task.tarea_asignacion?.some((a) =>
-      ["pendiente", "en_progreso"].includes(normalizeTaskStatus(a.estado)),
-    ) ?? false;
-
-  return (
-    !isCompletedTask(task) &&
-    (["pendiente", "en_progreso"].includes(taskStatus) || hasActiveAssignment)
-  );
+  return taskIsActive(task);
 }
 
 /**
