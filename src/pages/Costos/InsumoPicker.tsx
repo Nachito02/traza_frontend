@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
-import { AppButton, AppInput, AppSelect } from "../../components/ui";
+import { AppButton, AppInput, AppSearchSelect, AppSelect } from "../../components/ui";
+import type { AppSearchOption } from "../../components/ui";
+import { estadoStock, etiquetaInsumo, textoBuscableInsumo } from "../../features/actividades/buscarInsumos";
 import { getApiErrorMessage } from "../../lib/api";
 import type { InsumoCatalogo } from "../../features/costos/api";
 import type { Existencia } from "../../features/inventario/api";
@@ -43,6 +45,33 @@ export default function InsumoPicker({ insumos, existencias, superficieHa, reser
   const [adding, setAdding] = useState(false);
   /** `null` = la cantidad la manda el cálculo. Con valor = el usuario la pisó a mano. */
   const [cantidadManual, setCantidadManual] = useState<string | null>(null);
+
+  // Memoizado a propósito: este componente re-renderiza con cada tecla de "Dosis por ha",
+  // y sin esto se re-normalizarían los ~300 nombres del catálogo en cada pulsación.
+  const opcionesInsumo: AppSearchOption[] = useMemo(
+    () =>
+      insumos.map((i) => {
+        const stock = estadoStock(i.insumo_id, existencias);
+        return {
+          value: i.insumo_id,
+          label: etiquetaInsumo(i),
+          search: textoBuscableInsumo(i),
+          detail: i.principio_activo ?? "Sin principio activo",
+          badge: (
+            <span
+              className={
+                stock.clase === "agotado"
+                  ? "text-[color:var(--feedback-danger-text)]"
+                  : "text-[color:var(--text-ink-muted)]"
+              }
+            >
+              {stock.texto}
+            </span>
+          ),
+        };
+      }),
+    [insumos, existencias],
+  );
 
   const cantidadCalculada = useMemo(() => {
     const dosisN = Number(dosis);
@@ -93,17 +122,14 @@ export default function InsumoPicker({ insumos, existencias, superficieHa, reser
   return (
     <>
       <div className="grid gap-3 md:grid-cols-4">
-        <AppSelect label="Insumo" value={insId} onChange={(e) => setInsId(e.target.value)}>
-          <option value="">Seleccionar…</option>
-          {insumos.map((i) => {
-            const e = existencias[i.insumo_id];
-            return (
-              <option key={i.insumo_id} value={i.insumo_id}>
-                {i.nombre_comercial} ({i.tipo}){e ? ` · disp. ${e.stock} ${e.unidad_base}` : ""}
-              </option>
-            );
-          })}
-        </AppSelect>
+        <AppSearchSelect
+          label="Insumo"
+          value={insId}
+          onChange={setInsId}
+          options={opcionesInsumo}
+          placeholder="Buscar por nombre o principio activo…"
+          nothingFoundLabel="Ningún insumo coincide"
+        />
         <AppInput label="Dosis por ha" type="number" min="0" value={dosis} onChange={(e) => setDosis(e.target.value)} />
         <AppSelect label="Unidad dosis" value={unidad} onChange={(e) => setUnidad(e.target.value)}>
           {UNIDADES_DOSIS.map((option) => (

@@ -5,12 +5,15 @@ import {
   AppCard,
   AppInput,
   AppSelect,
+  AppSearchSelect,
   AppTextarea,
   NoticeBanner,
   SectionIntro,
   useAppNotifications,
 } from "../../components/ui";
+import type { AppSearchOption } from "../../components/ui";
 import { getApiErrorMessage } from "../../lib/api";
+import { normalizarTexto } from "../../lib/texto";
 import { nonNeg } from "../../lib/number";
 import { useAuthStore } from "../../store/authStore";
 import { useOperacionStore } from "../../store/operacionStore";
@@ -33,6 +36,7 @@ import { buildPersonalAsignado, payloadToTransitorio, type TransitorioDraft } fr
 import { type AddInsumoLine } from "../Costos/InsumoPicker";
 import InsumosSection from "../Costos/InsumosSection";
 import { resolveInsumosModo } from "../../features/actividades/insumosPolicy";
+import { camposObligatoriosFaltantes, resumirFaltantes } from "../../features/actividades/eventoValidation";
 import { fetchOperariosByBodega, type Operario } from "../../features/operarios/api";
 import { fetchPersonal, type Personal } from "../../features/personal/api";
 import { fetchExistencias, type Existencia } from "../../features/inventario/api";
@@ -147,14 +151,6 @@ const MODALIDADES: { value: ModalidadEjecucion; label: string }[] = [
   { value: "mixta", label: "Mixta" },
 ];
 
-const UNIDADES_EJECUCION = [
-  { value: "plantas", label: "Plantas" },
-  { value: "kg", label: "Kilos" },
-  { value: "l", label: "Litros" },
-  { value: "ton", label: "Tonelada" },
-  { value: "rollos", label: "Rollos" },
-];
-
 const CLASES_MAQUINARIA: { value: ClaseMaquinaria; label: string }[] = [
   { value: "motriz", label: "Motriz" },
   { value: "implemento", label: "Implemento" },
@@ -254,6 +250,7 @@ export default function RegistroActividadPage() {
   const [insumosAbiertoPorUsuario, setInsumosAbiertoPorUsuario] = useState(false);
   const [insumosBusy, setInsumosBusy] = useState(false);
   const [insumosInvalid, setInsumosInvalid] = useState(false);
+  const [mostrarErroresDetalle, setMostrarErroresDetalle] = useState(false);
 
   // Adjuntos (fotos y archivos) — se suben a IPFS tras registrar la actividad.
   const [pendingFiles, setPendingFiles] = useState<{ file: File; previewUrl: string | null }[]>([]);
@@ -397,10 +394,17 @@ export default function RegistroActividadPage() {
   const insumosOpen =
     insumosModo !== "opcional" || insumos.length > 0 || insumosAbiertoPorUsuario;
 
+  // Campos obligatorios del detalle del evento (los que define eventoConfig).
+  const camposFaltantes = useMemo(
+    () => camposObligatoriosFaltantes(eventoConfig, draft),
+    [eventoConfig, draft],
+  );
+
   // Validez por paso del wizard (habilita "Siguiente").
   // Insumos y superficie viven en el paso 0: solo bloquean cuando el proceso los exige.
   const step0Valid =
     Boolean(procesoId && fincaId && cuartelId) &&
+    camposFaltantes.length === 0 &&
     (!insumosRequeridos || (insumos.length > 0 && Number(superficie) > 0));
   const currentStepValid = step === 0 ? step0Valid : true;
   const STEPS = ["Qué, dónde e insumos", "Ejecución y personal", "Costos y adjuntos"];
@@ -483,6 +487,27 @@ export default function RegistroActividadPage() {
   const tarifasMaqFiltradas = useMemo(
     () => (maqClase ? tarifasMaq.filter((t) => t.clase === maqClase) : tarifasMaq),
     [maqClase, tarifasMaq],
+  );
+
+  // El catálogo de tarifas arranca chico pero crece igual que el de insumos: el maestro de
+  // recursos tiene ~205 copiables. El filtro por Clase se mantiene (son solo dos valores) y
+  // el buscador opera sobre la lista ya acotada.
+  const opcionesMaquinaria: AppSearchOption[] = useMemo(
+    () =>
+      tarifasMaqFiltradas.map((t) => ({
+        value: t.tarifa_maquinaria_id,
+        label: t.nombre,
+        search: normalizarTexto(`${t.nombre} ${t.clase}`),
+        detail: t.clase,
+        badge: (
+          <span className="text-[color:var(--text-ink-muted)]">
+            {Number(t.costo_hora) > 0
+              ? `${Number(t.costo_hora).toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 })}/h`
+              : "sin tarifa"}
+          </span>
+        ),
+      })),
+    [tarifasMaqFiltradas],
   );
 
   const addMaquina = () => {
@@ -589,6 +614,7 @@ export default function RegistroActividadPage() {
     setExpandMaq(false);
     setInsumosAbiertoPorUsuario(false);
     setInsumosInvalid(false);
+    setMostrarErroresDetalle(false);
     if (draftKey) { try { localStorage.removeItem(draftKey); } catch { /* ignore */ } }
   };
 
@@ -681,6 +707,16 @@ export default function RegistroActividadPage() {
     if (!bodegaId) return;
     if (!procesoId) { notifyError({ title: "Elegí una actividad" }); return; }
     if (!fincaId || !cuartelId) { notifyError({ title: "Faltan datos", message: "Seleccioná finca y cuartel." }); return; }
+    if (camposFaltantes.length > 0) {
+      // Los campos del detalle viven en el paso 0: sin volver, el error queda fuera de pantalla.
+      setStep(0);
+      setMostrarErroresDetalle(true);
+      notifyError({
+        title: "Faltan datos del detalle",
+        message: `Completá ${resumirFaltantes(camposFaltantes, 3)}.`,
+      });
+      return;
+    }
     const sup = numOrNull(superficie);
     if (!sup || sup <= 0) { notifyError({ title: "Falta superficie", message: "La superficie intervenida debe ser mayor a 0." }); return; }
     if (requiresContratista && contratistas.length === 0) {
@@ -900,7 +936,12 @@ export default function RegistroActividadPage() {
           {procesoId ? (
             <div className="mt-4">
               <p className="mb-2 text-sm font-medium text-[color:var(--text-ink-muted)]">Detalle{eventoConfig ? ` — ${eventoConfig.label}` : ""}</p>
-              <EventoFields eventoConfig={eventoConfig} draft={draft} onChange={setDraftField} />
+              <EventoFields
+                eventoConfig={eventoConfig}
+                draft={draft}
+                onChange={setDraftField}
+                camposConError={mostrarErroresDetalle ? camposFaltantes.map((c) => c.name) : []}
+              />
             </div>
           ) : null}
         </AppCard>
@@ -955,14 +996,10 @@ export default function RegistroActividadPage() {
             </AppSelect>
             <AppInput label="Fecha de inicio" type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} />
             <AppInput label="Fecha de fin" type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} />
-            <AppSelect label="Unidad" value={unidadEjec} onChange={(e) => setUnidadEjec(e.target.value)}>
-              <option value="">Seleccionar…</option>
-              {UNIDADES_EJECUCION.map((unidad) => (
-                <option key={unidad.value} value={unidad.value}>
-                  {unidad.label}
-                </option>
-              ))}
-            </AppSelect>
+            {/* La unidad de ejecución no se pide acá: sin un campo de "cantidad ejecutada" que
+                la acompañe no mide nada. El par completo vive en el panel de costos, que además
+                lo usa para calcular productividad (cantidad/ha). El estado se conserva igual para
+                no borrar lo ya guardado al editar una actividad existente. */}
             <AppSelect label="Responsable de ejecución" value={responsableId} onChange={(e) => setResponsableId(e.target.value)}>
               <option value="">Sin responsable</option>
               {operarios.map((o) => <option key={o.user_id} value={o.user_id}>{o.nombre}</option>)}
@@ -1047,13 +1084,32 @@ export default function RegistroActividadPage() {
                 </option>
               ))}
             </AppSelect>
-            <AppSelect label="Máquina / equipo" value={maqTarifaId} onChange={(e) => setMaqTarifaId(e.target.value)}>
-              <option value="">{maqClase ? "Seleccionar…" : "Elegí una clase primero o ver todas"}</option>
-              {tarifasMaqFiltradas.map((t) => <option key={t.tarifa_maquinaria_id} value={t.tarifa_maquinaria_id}>{t.nombre} ({t.clase})</option>)}
-            </AppSelect>
+            <AppSearchSelect
+              label="Máquina / equipo"
+              value={maqTarifaId}
+              onChange={setMaqTarifaId}
+              options={opcionesMaquinaria}
+              placeholder={maqClase ? "Buscar máquina…" : "Buscar en todas las clases…"}
+              nothingFoundLabel="Ninguna máquina coincide"
+            />
             <AppInput label="Cantidad" type="number" value={maqCantidad} onChange={(e) => setMaqCantidad(e.target.value)} placeholder="opcional" />
             <AppInput label="Horas de uso" type="number" value={maqHoras} onChange={(e) => setMaqHoras(e.target.value)} />
-            <div className="flex items-end"><AppButton variant="secondary" onClick={addMaquina}>Agregar</AppButton></div>
+          </div>
+          {/* Fuera de la grilla: como quinta celda de 4 columnas caía solo en otra fila,
+              apretado al ancho de una columna y sin peso visual. */}
+          <div className="mt-4 flex items-center gap-3">
+            <AppButton
+              variant="primary"
+              onClick={addMaquina}
+              leftSection={<span aria-hidden="true" className="text-base leading-none">+</span>}
+            >
+              Agregar máquina
+            </AppButton>
+            {!maqTarifaId || !(Number(maqHoras) > 0) ? (
+              <span className="text-xs text-[color:var(--text-ink-muted)]">
+                Elegí la máquina e indicá las horas de uso.
+              </span>
+            ) : null}
           </div>
           </>
           )}
@@ -1155,9 +1211,11 @@ export default function RegistroActividadPage() {
               <span className="hidden text-xs text-[color:var(--text-ink-muted)] sm:inline">
                 {!procesoId || !fincaId || !cuartelId
                   ? "Elegí actividad, finca y cuartel"
-                  : insumos.length === 0
-                    ? "Agregá el insumo aplicado"
-                    : "Ingresá la superficie"}
+                  : camposFaltantes.length > 0
+                    ? `Falta completar: ${resumirFaltantes(camposFaltantes)}`
+                    : insumos.length === 0
+                      ? "Agregá el insumo aplicado"
+                      : "Ingresá la superficie"}
               </span>
             ) : null}
             {step < 2 ? (

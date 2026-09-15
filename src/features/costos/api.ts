@@ -39,6 +39,9 @@ export type InsumoCatalogo = {
   insumo_id: string;
   bodega_id: string | null;
   tipo: string;
+  /** Sub-categoría dentro del tipo (ej. "Nitrogenado", "Neonicotinoide"). */
+  familia: string | null;
+  ambito: "finca" | "bodega";
   nombre_comercial: string;
   principio_activo: string | null;
   unidad_base: string;

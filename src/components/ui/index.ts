@@ -7,6 +7,8 @@ export { default as AppTabs } from "./AppTabs";
 export type { AppTabItem } from "./AppTabs";
 export { default as AppInput } from "./AppInput";
 export { default as AppModal } from "./AppModal";
+export { default as AppSearchSelect } from "./AppSearchSelect";
+export type { AppSearchOption, AppSearchSelectProps } from "./AppSearchSelect";
 export { default as AppSelect } from "./AppSelect";
 export { default as AppTextarea } from "./AppTextarea";
 export { AppNotificationsProvider } from "./AppNotifications";
