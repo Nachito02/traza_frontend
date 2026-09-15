@@ -11,6 +11,7 @@ export type FieldDef = {
   required?: boolean;
   step?: string;
   min?: string;
+  max?: string;
   placeholder?: string;
   defaultValue?: string;
   options?: { value: string; label: string }[];
@@ -126,7 +127,8 @@ const BASE_EVENTO_CONFIG: Record<string, EventoConfig> = {
     fields: [
       { name: "fecha", label: "Fecha", type: "date", required: true },
       { name: "estado_fenologico", label: "Estado fenológico", type: "text", required: true },
-      { name: "porcentaje_avance", label: "Porcentaje de avance", type: "number", step: "0.01" },
+      // Es un porcentaje: fuera de 0–100 no significa nada, y la columna es Decimal(5,2).
+      { name: "porcentaje_avance", label: "Porcentaje de avance", type: "number", step: "0.01", min: "0", max: "100" },
       { name: "brix", label: "Grados Brix", type: "number", step: "0.01" },
     ],
   },
@@ -245,13 +247,13 @@ const BASE_EVENTO_CONFIG: Record<string, EventoConfig> = {
   },
   aplicacion_fitosanitaria: {
     label: "Aplicación fitosanitaria",
+    // Dosis, unidad y principio activo salen del insumo aplicado (sección Insumos), no se
+    // vuelven a pedir acá. El lote del insumo pedía pegar un UUID a mano, que no era usable.
+    // Carencia se queda: no está en el catálogo de insumos, así que no hay de dónde derivarla,
+    // y es el dato con el que cumplimiento calcula hasta cuándo no se puede cosechar.
     fields: [
       { name: "fecha", label: "Fecha", type: "date", required: true },
-      { name: "dosis", label: "Dosis", type: "number", required: true },
-      { name: "unidad", label: "Unidad", type: "text", required: true },
       { name: "carencia_dias", label: "Carencia (días)", type: "number", required: true },
-      { name: "principio_activo", label: "Principio activo", type: "text" },
-      { name: "insumo_lote_id", label: "Insumo lote (ID)", type: "text" },
       { name: "motivo", label: "Motivo", type: "text" },
     ],
   },
@@ -289,19 +291,8 @@ const BASE_EVENTO_CONFIG: Record<string, EventoConfig> = {
           { value: "otro", label: "Otro (describir en observaciones)" },
         ],
       },
-      { name: "dosis", label: "Dosis", type: "number", required: true, step: "0.01" },
-      {
-        name: "unidad",
-        label: "Unidad",
-        type: "select",
-        required: true,
-        options: [
-          { value: "kg/ha", label: "kg/ha" },
-          { value: "ton/ha", label: "ton/ha" },
-          { value: "kg", label: "kg" },
-          { value: "litros", label: "litros" },
-        ],
-      },
+      // Dosis y unidad salen del insumo aplicado (sección Insumos), igual que en
+      // fertilización y aplicación fitosanitaria.
       { name: "observaciones", label: "Observaciones", type: "textarea" },
       { name: "responsable_user_id", label: "Responsable", type: "user_select", required: true },
     ],
