@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { test } from "vitest";
 import { eligibleAssignments, taskIsActive, taskIsComplete, taskReturnPath } from "../src/pages/Tareas/taskWorkflow.ts";
 import { resolveModuleAccess } from "../src/lib/permissions.ts";
 

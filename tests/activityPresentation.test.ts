@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { test } from "vitest";
 import { completedTasks, describeActivity } from "../src/pages/Public/activityPresentation.ts";
 
 test("el historial y el contador excluyen tareas abiertas y canceladas", () => {

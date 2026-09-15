@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { test } from "vitest";
 import { CUSTOM_OPTION, customValueError, resolveCustomDraftValue, serializeCustomFields } from "../src/lib/customOptions.ts";
 import { EVENTO_CONFIG } from "../src/pages/Trazabilidad/eventoConfig.ts";
 

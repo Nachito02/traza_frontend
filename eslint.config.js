@@ -6,7 +6,9 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // Los *-preview.tsx son páginas sueltas para mirar un componente aislado: renderizan
+  // directo sin exportar, que es justo lo que react-refresh marca como error.
+  globalIgnores(['dist', 'tests/**/*-preview.tsx']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
