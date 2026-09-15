@@ -221,7 +221,7 @@ const Dashboard = () => {
         title: "Vasijas de bodega",
         description: "Cargá al menos una vasija para registrar recepción, elaboración y movimientos.",
         actionLabel: "Crear vasija",
-        to: "/bodega/vasijas/nueva",
+        to: "/operacion/vasijas",
         done: vasijasCount > 0,
         disabled: !hasBodega,
       },

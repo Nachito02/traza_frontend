@@ -404,7 +404,7 @@ export default function BodegaVasijaDetailPage() {
                 <AppButton
                   variant="secondary"
                   size="sm"
-                  onClick={() => navigate(`/bodega/vasijas/${encodeURIComponent(id)}/editar`)}
+                  onClick={() => navigate("/operacion/vasijas")}
                 >
                   Editar
                 </AppButton>

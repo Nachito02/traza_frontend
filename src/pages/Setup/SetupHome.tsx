@@ -122,7 +122,7 @@ const SetupHome = () => {
         title: "Crear vasijas",
         description: "Prepará la estructura de bodega para recepción, existencias y elaboración.",
         actionLabel: "Crear vasija",
-        to: "/bodega/vasijas/nueva",
+        to: "/operacion/vasijas",
         done: hasVasijas,
         disabled: !hasBodega,
       },

@@ -54,8 +54,6 @@ import ProductoPublico from "./pages/Public/ProductoPublico";
 import LotePublico from "./pages/Public/LotePublico";
 import BodegaHome from "./pages/Bodega/BodegaHome";
 import BodegaConfigPage from "./pages/Bodega/BodegaConfigPage";
-import BodegaVasijasPage from "./pages/Bodega/BodegaVasijasPage";
-import BodegaVasijaFormPage from "./pages/Bodega/BodegaVasijaFormPage";
 import BodegaVasijaDetailPage from "./pages/Bodega/BodegaVasijaDetailPage";
 import OperacionLayout from "./pages/Operacion/OperacionLayout";
 import ProgresoPage from "./pages/Operacion/ProgresoPage";
@@ -195,9 +193,12 @@ export default function App() {
         <Route path="/personal" element={access.canAccessBodega ? <PersonalPage /> : <Navigate to="/dashboard" replace />} />
         <Route path="/bodega" element={access.canAccessBodega ? <BodegaHome /> : <Navigate to="/fincas" replace />} />
         <Route path="/bodega/configuracion" element={access.canAccessBodega ? <BodegaConfigPage /> : <Navigate to="/fincas" replace />} />
-        <Route path="/bodega/vasijas" element={access.canAccessBodega ? <BodegaVasijasPage /> : <Navigate to="/fincas" replace />} />
-        <Route path="/bodega/vasijas/nueva" element={access.canAccessBodega ? <BodegaVasijaFormPage mode="create" /> : <Navigate to="/fincas" replace />} />
-        <Route path="/bodega/vasijas/:id/editar" element={access.canAccessBodega ? <BodegaVasijaFormPage mode="edit" /> : <Navigate to="/fincas" replace />} />
+        {/* El listado y el alta/edición de vasijas viven en /operacion/vasijas, que es la vista
+            trabajada. Estas rutas quedan como redirect para no romper links ni favoritos.
+            El detalle sigue acá porque es el único con historial de movimientos. */}
+        <Route path="/bodega/vasijas" element={canUseOperacionBodega ? <Navigate to="/operacion/vasijas" replace /> : <Navigate to="/fincas" replace />} />
+        <Route path="/bodega/vasijas/nueva" element={canUseOperacionBodega ? <Navigate to="/operacion/vasijas" replace /> : <Navigate to="/fincas" replace />} />
+        <Route path="/bodega/vasijas/:id/editar" element={canUseOperacionBodega ? <Navigate to="/operacion/vasijas" replace /> : <Navigate to="/fincas" replace />} />
         <Route path="/bodega/vasijas/:id" element={access.canAccessBodega ? <BodegaVasijaDetailPage /> : <Navigate to="/fincas" replace />} />
         <Route path="/bodega/recepcion" element={canUseOperacionBodega ? <Navigate to="/operacion/recepcion" replace /> : <Navigate to="/fincas" replace />} />
         <Route path="/bodega/ciu-qc" element={canUseOperacionBodega ? <Navigate to="/operacion/recepcion?paso=ciu" replace /> : <Navigate to="/fincas" replace />} />

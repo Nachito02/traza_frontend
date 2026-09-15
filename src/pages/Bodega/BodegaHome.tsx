@@ -35,7 +35,7 @@ const RESOURCES = [
   {
     title: "Vasijas",
     description: "Alta, edición y baja de vasijas de la bodega activa.",
-    to: "/bodega/vasijas",
+    to: "/operacion/vasijas",
     action: "Administrar vasijas",
     enabled: true,
   },
