@@ -28,11 +28,17 @@ export default function PersonalTransitorios({ value, onChange }: Props) {
   const set = <K extends keyof TransitorioDraft>(k: K, v: TransitorioDraft[K]) =>
     setDraft((prev) => ({ ...prev, [k]: v }));
 
+  /** Qué falta para poder agregar. Misma fuente para el aviso previo y el error del click. */
+  const faltante = ((): string | null => {
+    if (!draft.nombre.trim()) return "Indicá el nombre del operario.";
+    if (draft.modalidad === "al_tanto" && !(Number(draft.monto) > 0)) return "Indicá el monto al tanto.";
+    if (draft.modalidad === "por_hora" && !(Number(draft.costo_hora) > 0)) return "Indicá el costo por hora.";
+    if (draft.modalidad === "mensual" && !(Number(draft.sueldo_mensual) > 0)) return "Indicá el sueldo mensual.";
+    return null;
+  })();
+
   const add = () => {
-    if (!draft.nombre.trim()) return setError("Indicá el nombre del operario.");
-    if (draft.modalidad === "al_tanto" && !(Number(draft.monto) > 0)) return setError("Indicá el monto al tanto.");
-    if (draft.modalidad === "por_hora" && !(Number(draft.costo_hora) > 0)) return setError("Indicá el costo por hora.");
-    if (draft.modalidad === "mensual" && !(Number(draft.sueldo_mensual) > 0)) return setError("Indicá el sueldo mensual.");
+    if (faltante) return setError(faltante);
     onChange([...value, draft]);
     setDraft(EMPTY);
     setError(null);
@@ -95,8 +101,17 @@ export default function PersonalTransitorios({ value, onChange }: Props) {
       </div>
 
       {error ? <p className="mt-2 text-xs text-[color:var(--field-error)]">{error}</p> : null}
-      <div className="mt-3">
-        <AppButton variant="secondary" size="sm" onClick={add}>Agregar transitorio</AppButton>
+      <div className="mt-4 flex items-center gap-3">
+        <AppButton
+          variant="primary"
+          onClick={add}
+          leftSection={<span aria-hidden="true" className="text-base leading-none">+</span>}
+        >
+          Agregar transitorio
+        </AppButton>
+        {faltante && !error ? (
+          <span className="text-xs text-[color:var(--text-ink-muted)]">{faltante}</span>
+        ) : null}
       </div>
     </div>
   );

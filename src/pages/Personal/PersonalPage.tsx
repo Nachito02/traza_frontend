@@ -19,24 +19,19 @@ import {
   type ModalidadPago,
   type Personal,
   type RolManoObra,
+  ROL_LABELS,
+  MODALIDAD_LABELS,
   type TipoPersonal,
 } from "../../features/personal/api";
 
-const ROLES: { value: RolManoObra; label: string }[] = [
-  { value: "operario", label: "Operario" },
-  { value: "tractorista", label: "Tractorista" },
-  { value: "aplicador", label: "Aplicador" },
-  { value: "tecnico", label: "Técnico" },
-  { value: "encargado", label: "Encargado" },
-  { value: "contratista", label: "Contratista" },
-];
+// Derivadas del mapa compartido para que no se desincronicen con la carga de actividades.
+const ROLES: { value: RolManoObra; label: string }[] = (
+  Object.entries(ROL_LABELS) as [RolManoObra, string][]
+).map(([value, label]) => ({ value, label }));
 
-const MODALIDADES: { value: ModalidadPago; label: string }[] = [
-  { value: "por_hora", label: "Por hora" },
-  { value: "mensual", label: "Mensualizado" },
-  { value: "al_tanto", label: "Al tanto" },
-  { value: "otro", label: "Otro" },
-];
+const MODALIDADES: { value: ModalidadPago; label: string }[] = (
+  Object.entries(MODALIDAD_LABELS) as [ModalidadPago, string][]
+).map(([value, label]) => ({ value, label }));
 
 // Al tanto / otro se pagan por unidad producida (planta, surco, tacho…): costo unitario.
 const esPorUnidad = (m: ModalidadPago) => m === "al_tanto" || m === "otro";

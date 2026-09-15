@@ -4,6 +4,23 @@ export type TipoPersonal = "interno" | "externo";
 export type ModalidadPago = "mensual" | "por_hora" | "al_tanto" | "otro";
 export type RolManoObra = "operario" | "tractorista" | "aplicador" | "tecnico" | "encargado" | "contratista";
 
+/** Etiquetas de rol y modalidad, compartidas por el ABM de personal y la carga de actividades. */
+export const ROL_LABELS: Record<RolManoObra, string> = {
+  operario: "Operario",
+  tractorista: "Tractorista",
+  aplicador: "Aplicador",
+  tecnico: "Técnico",
+  encargado: "Encargado",
+  contratista: "Contratista",
+};
+
+export const MODALIDAD_LABELS: Record<ModalidadPago, string> = {
+  por_hora: "Por hora",
+  mensual: "Mensualizado",
+  al_tanto: "Al tanto",
+  otro: "Otro",
+};
+
 export type Personal = {
   personal_bodega_id: string;
   bodega_id: string;
